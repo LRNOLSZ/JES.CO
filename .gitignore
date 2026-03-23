@@ -1,0 +1,51 @@
+env/
+venv/
+
+# Python bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Django stuff
+*.log
+db.sqlite3
+db.sqlite3-journal
+
+# IDE
+.vscode/
+.idea/
+
+# Environment variables
+.env
+.env.local
+
+# OS files
+.DS_Store
+.Thumbs.db
+
+# Media and static files    
+media/
+staticfiles/
+
+# Data files
+*.sql
+*.sqlite
+
+# Checklist / notes
+checklist.txt
+
+# Claude Code & project planning files
+CLAUDE.md
+build.md
+tasks/
+.claude/
+
+# Frontend build output & dependencies
+frontend/node_modules/
+frontend/dist/
+frontend/.env
+frontend/.env.local
+
+# Python cache
+*.pyo

@@ -1,0 +1,99 @@
+/* ============================================================
+   Jesres Glam Studio — Admin Theme Accents
+   Colors: Royal Purple #60269E | Gold #D4AF37 | White #FFFFFF
+   ============================================================ */
+
+:root {
+    --gold:       #D4AF37;
+    --gold-light: #e8cc6b;
+    --gold-dark:  #a88a1c;
+    --white:      #ffffff;
+}
+
+/* --- Sidebar top accent bar --- */
+aside,
+#nav-sidebar {
+    border-top: 4px solid var(--gold) !important;
+}
+
+/* --- Sidebar site title / branding area --- */
+aside a[href="/"],
+#nav-sidebar a[href="/"] {
+    color: var(--gold) !important;
+    letter-spacing: 0.05em;
+}
+
+/* --- Active nav item: gold left bar + gold text --- */
+nav a[aria-current="page"],
+nav li a.active,
+aside a[aria-current="page"] {
+    border-left: 3px solid var(--gold) !important;
+    color: var(--gold) !important;
+    background-color: rgba(212, 175, 55, 0.08) !important;
+}
+
+/* --- Nav link hover --- */
+nav a:hover,
+aside nav a:hover {
+    color: var(--gold-light) !important;
+    border-left: 3px solid var(--gold-light) !important;
+}
+
+/* --- Page/section headings in content area --- */
+h1.font-semibold,
+.content-title,
+#content h1 {
+    color: var(--gold) !important;
+}
+
+/* --- Table: column headers --- */
+thead th {
+    color: var(--gold) !important;
+    border-bottom: 2px solid rgba(212, 175, 55, 0.35) !important;
+}
+
+/* --- Table row hover: subtle gold tint --- */
+tbody tr:hover {
+    background-color: rgba(212, 175, 55, 0.05) !important;
+}
+
+/* --- Card / fieldset section headers --- */
+.card-header,
+fieldset > h2,
+.fieldset-title {
+    color: var(--gold) !important;
+    border-bottom: 1px solid rgba(212, 175, 55, 0.4);
+    padding-bottom: 0.25rem;
+}
+
+/* --- Primary action button: keep purple, add gold border on hover --- */
+button[type="submit"]:hover,
+.button-primary:hover,
+input[type="submit"]:hover {
+    border-color: var(--gold) !important;
+    box-shadow: 0 0 0 2px rgba(212, 175, 55, 0.25) !important;
+}
+
+/* --- Breadcrumb dividers --- */
+.breadcrumbs a {
+    color: var(--gold) !important;
+}
+
+/* --- Footer / meta text in white --- */
+#footer,
+.footer {
+    color: var(--white);
+}
+
+/* --- Selected checkbox / row highlight --- */
+tr.selected,
+.selected-row {
+    background-color: rgba(212, 175, 55, 0.1) !important;
+    border-left: 3px solid var(--gold) !important;
+}
+
+/* --- Focus ring: gold instead of default blue --- */
+*:focus-visible {
+    outline: 2px solid var(--gold) !important;
+    outline-offset: 2px;
+}

@@ -1,0 +1,102 @@
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=DM+Sans:wght@300;400;500;600&display=swap');
+
+@import "tailwindcss";
+
+/* ── Brand Tokens ── */
+:root {
+  --purple:        #60269E;
+  --purple-light:  #7B35C1;
+  --purple-muted:  rgba(96, 38, 158, 0.15);
+  --gold:          #D4AF37;
+  --gold-light:    #E8CC6A;
+  --gold-dark:     #A88A20;
+
+  /* Dark section palette */
+  --dark-base:     #0C0A14;
+  --dark-surface:  #120F1E;
+
+  /* Light section palette */
+  --light-base:    #F5F2EE;
+  --light-surface: #EDEAE4;
+
+  /* Text on dark */
+  --text-primary:   #F0ECFA;
+  --text-secondary: #C4B8DC;
+  --text-muted:     #7A6D96;
+
+  /* Text on light */
+  --text-dark-primary:   #1A1420;
+  --text-dark-secondary: #4A3D5C;
+  --text-dark-muted:     #8A7FA0;
+
+  /* Glass */
+  --glass-bg:     rgba(255,255,255,0.06);
+  --glass-border: rgba(255,255,255,0.10);
+
+  /* Legacy alias — keeps Navbar working */
+  --bg-base: #0C0A14;
+}
+
+/* ── Reset ── */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  width: 100%;
+  overflow-x: hidden;
+  scroll-behavior: smooth;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+html::-webkit-scrollbar { display: none; }
+
+body {
+  width: 100%;
+  overflow-x: hidden;
+  font-family: 'DM Sans', system-ui, sans-serif;
+  background-color: var(--dark-base);
+  color: var(--text-primary);
+  -webkit-font-smoothing: antialiased;
+}
+
+#root {
+  width: 100%;
+  min-height: 100vh;
+  overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+h1, h2, h3, h4 {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-weight: 500;
+  line-height: 1.1;
+}
+
+/* ── Utility classes (minimal, non-layout) ── */
+.gold-text {
+  background: linear-gradient(135deg, var(--gold-light), var(--gold), var(--gold-dark));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.glass {
+  background: var(--glass-bg);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--glass-border);
+}
+
+/* ── Keyframes ── */
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(24px); }
+  to   { opacity: 1; transform: translateY(0); }
+}

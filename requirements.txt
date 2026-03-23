@@ -1,0 +1,13 @@
+asgiref==3.11.0
+Django==6.0
+django-appconf==1.2.0
+django-cors-headers==4.9.0
+django-imagekit==6.1.0
+django-unfold==0.86.1
+djangorestframework==3.16.1
+pilkit==3.0
+pillow==12.1.1
+psycopg2-binary==2.9.11
+python-decouple==3.8
+sqlparse==0.5.4
+tzdata==2025.2
