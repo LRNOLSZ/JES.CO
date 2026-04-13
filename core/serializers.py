@@ -1,14 +1,15 @@
 from rest_framework import serializers
-from .models import SiteSettings, SocialLink, Testimonial
+from .models import SiteSettings, SocialLink, Testimonial, IntroVideo
 
 
 class SiteSettingsSerializer(serializers.ModelSerializer):
-    hero_bg_url   = serializers.SerializerMethodField()
-    studio_bg_url = serializers.SerializerMethodField()
+    hero_bg_url          = serializers.SerializerMethodField()
+    studio_bg_url        = serializers.SerializerMethodField()
+    testimonials_bg_url  = serializers.SerializerMethodField()
 
     class Meta:
         model  = SiteSettings
-        fields = ['tagline', 'email', 'phone', 'location', 'hero_bg_url', 'studio_bg_url']
+        fields = ['tagline', 'email', 'phone', 'location', 'hero_bg_url', 'studio_bg_url', 'testimonials_bg_url']
 
     def get_hero_bg_url(self, obj):
         if obj.hero_bg:
@@ -20,6 +21,12 @@ class SiteSettingsSerializer(serializers.ModelSerializer):
         if obj.studio_bg:
             request = self.context.get('request')
             return request.build_absolute_uri(obj.studio_bg.url) if request else obj.studio_bg.url
+        return None
+
+    def get_testimonials_bg_url(self, obj):
+        if obj.testimonials_bg:
+            request = self.context.get('request')
+            return request.build_absolute_uri(obj.testimonials_bg.url) if request else obj.testimonials_bg.url
         return None
 
 
@@ -40,4 +47,18 @@ class TestimonialSerializer(serializers.ModelSerializer):
         if obj.profile_picture:
             request = self.context.get('request')
             return request.build_absolute_uri(obj.profile_picture.url) if request else obj.profile_picture.url
+        return None
+
+
+class IntroVideoSerializer(serializers.ModelSerializer):
+    video_url = serializers.SerializerMethodField()
+
+    class Meta:
+        model  = IntroVideo
+        fields = ['id', 'page', 'title', 'video_url', 'is_active']
+
+    def get_video_url(self, obj):
+        if obj.video_file:
+            request = self.context.get('request')
+            return request.build_absolute_uri(obj.video_file.url) if request else obj.video_file.url
         return None

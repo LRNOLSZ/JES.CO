@@ -1,6 +1,7 @@
 from pathlib import Path
 from decouple import config, Csv
 from django.templatetags.static import static
+from django.urls import reverse_lazy
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -32,6 +33,8 @@ INSTALLED_APPS = [
     'accounts',
     'gallery',
     'core',
+    'products',
+    'courses',
     'imagekit',
 ]
 
@@ -128,9 +131,9 @@ IMAGEKIT_DEFAULT_CACHEFILE_STRATEGY = 'imagekit.cachefiles.strategies.Optimistic
 
 # --- Django Unfold Admin Theme (Royal Purple #60269E) ---
 UNFOLD = {
-    "SITE_TITLE": "Jesres Glam Studio",
-    "SITE_HEADER": "Jesres Glam Studio Admin",
-    "SITE_SUBHEADER": "Studio Management Portal",
+    "SITE_TITLE": "JES.CO",
+    "SITE_HEADER": "JES.CO Admin",
+    "SITE_SUBHEADER": "Brand Management Portal",
     "SITE_URL": "/",
     "SHOW_HISTORY": True,
     "SHOW_VIEW_ON_SITE": True,
@@ -152,4 +155,93 @@ UNFOLD = {
             "950":  "30   8  52",
         },
     },
+    "NAVIGATION": [
+        {
+            "title": "General Settings",
+            "separator": True,
+            "collapsible": False,
+            "items": [
+                {
+                    "title": "Site Settings",
+                    "icon": "settings",
+                    "link": reverse_lazy("admin:core_sitesettings_changelist"),
+                },
+                {
+                    "title": "Social Links",
+                    "icon": "share",
+                    "link": reverse_lazy("admin:core_sociallink_changelist"),
+                },
+                {
+                    "title": "Intro Videos",
+                    "icon": "videocam",
+                    "link": reverse_lazy("admin:core_introvideo_changelist"),
+                },
+            ],
+        },
+        {
+            "title": "Jesres Glam Studio",
+            "separator": True,
+            "collapsible": False,
+            "items": [
+                {
+                    "title": "Gallery",
+                    "icon": "photo_library",
+                    "link": reverse_lazy("admin:gallery_galleryitem_changelist"),
+                },
+                {
+                    "title": "Testimonials",
+                    "icon": "star",
+                    "link": reverse_lazy("admin:core_testimonial_changelist"),
+                },
+            ],
+        },
+        {
+            "title": "Makeup Sets",
+            "separator": True,
+            "collapsible": False,
+            "items": [
+                {
+                    "title": "All Makeup Items",
+                    "icon": "brush",
+                    "link": "/admin/products/productitem/?category=makeup",
+                },
+            ],
+        },
+        {
+            "title": "Skincare Sets",
+            "separator": True,
+            "collapsible": False,
+            "items": [
+                {
+                    "title": "All Skincare Items",
+                    "icon": "spa",
+                    "link": "/admin/products/productitem/?category=skincare",
+                },
+            ],
+        },
+        {
+            "title": "Curated Collections",
+            "separator": True,
+            "collapsible": False,
+            "items": [
+                {
+                    "title": "All Collection Items",
+                    "icon": "collections_bookmark",
+                    "link": "/admin/products/productitem/?category=collections",
+                },
+            ],
+        },
+        {
+            "title": "Users",
+            "separator": True,
+            "collapsible": False,
+            "items": [
+                {
+                    "title": "All Users",
+                    "icon": "group",
+                    "link": reverse_lazy("admin:accounts_user_changelist"),
+                },
+            ],
+        },
+    ],
 }

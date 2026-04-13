@@ -1,8 +1,9 @@
 from django.urls import path
-from .views import SiteSettingsView, SocialLinkListView, TestimonialListView
+from .views import SiteSettingsView, SocialLinkListView, TestimonialListView, IntroVideoView
 
 urlpatterns = [
     path('settings/',     SiteSettingsView.as_view(),     name='site-settings'),
     path('socials/',      SocialLinkListView.as_view(),    name='social-links'),
     path('testimonials/', TestimonialListView.as_view(),   name='testimonials'),
+    path('videos/',       IntroVideoView.as_view(),        name='intro-video'),
 ]

@@ -101,7 +101,7 @@ export default function GallerySection() {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ duration: 0.6, delay: i * 0.1 }}
-                style={{ width: 'min(300px, 85%)' }}
+                style={{ width: 'min(330px, 93%)' }}
               >
                 <BeforeAfterSlider
                   beforeImage={item.before_image}
@@ -124,7 +124,7 @@ export default function GallerySection() {
             style={{ display: 'flex', justifyContent: 'center', marginTop: '3.5rem' }}
           >
             <Link
-              to="/gallery"
+              to="/studio/gallery"
               style={{
                 padding:       '0.85rem 2.25rem',
                 borderRadius:  '9999px',

@@ -6,8 +6,10 @@ from django.conf.urls.static import static
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/accounts/', include('accounts.urls')),
-    path('api/gallery/', include('gallery.urls')),
-    path('api/', include('core.urls')),
+    path('api/gallery/',  include('gallery.urls')),
+    path('api/products/', include('products.urls')),
+    path('api/',          include('courses.urls')),
+    path('api/',          include('core.urls')),
 ]
 
 # Serve media files in development

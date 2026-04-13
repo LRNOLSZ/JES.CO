@@ -3,10 +3,9 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { Link } from 'react-router-dom'
 
 const navLinks = [
-  { label: 'Home',       href: '/studio',         type: 'route'  },
-  { label: 'Gallery',    href: '/studio/gallery', type: 'route'  },
-  { label: 'Courses',    href: '/studio/courses', type: 'route'  },
-  { label: '← JES.CO',  href: '/',               type: 'route'  },
+  { label: 'Products',      href: '#products', type: 'anchor' },
+  { label: 'Glam Studio',   href: '/studio',   type: 'route'  },
+  { label: 'About',         href: '#about',    type: 'anchor' },
 ]
 
 const linkBase = {
@@ -23,7 +22,7 @@ const linkBase = {
 const hoverGold   = e => { e.currentTarget.style.color = 'var(--gold)' }
 const unhoverLink = e => { e.currentTarget.style.color = 'var(--text-secondary)' }
 
-export default function Navbar() {
+export default function JescoNavbar() {
   const [menuOpen, setMenuOpen] = useState(false)
 
   return (
@@ -43,7 +42,6 @@ export default function Navbar() {
         boxShadow:           '0 1px 0 rgba(212,175,55,0.08), 0 8px 40px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.06)',
       }}
     >
-      {/* Inner bar — flex, logo left, CTA right, links absolutely centred */}
       <div style={{
         position:       'relative',
         maxWidth:       '1200px',
@@ -54,40 +52,34 @@ export default function Navbar() {
         justifyContent: 'space-between',
       }}>
 
-        {/* ── Logo (left) ── */}
-        <Link to="/studio" style={{ textDecoration: 'none', flexShrink: 0 }}>
+        {/* Logo */}
+        <Link to="/" style={{ textDecoration: 'none', flexShrink: 0 }}>
           <div style={{
             fontFamily:    "'Playfair Display', serif",
-            fontSize:      '1.15rem',
-            fontWeight:    600,
-            letterSpacing: '0.18em',
+            fontSize:      '1.25rem',
+            fontWeight:    700,
+            letterSpacing: '0.22em',
             textTransform: 'uppercase',
             background:    'linear-gradient(135deg, var(--gold-light), var(--gold), var(--gold-dark))',
             WebkitBackgroundClip:'text',
             WebkitTextFillColor: 'transparent',
             backgroundClip:'text',
           }}>
-            Jesres
+            JES.CO
           </div>
           <div style={{
             fontFamily:    "'DM Sans', sans-serif",
-            fontSize:      '0.55rem',
-            letterSpacing: '0.38em',
+            fontSize:      '0.5rem',
+            letterSpacing: '0.45em',
             textTransform: 'uppercase',
             color:         'var(--text-muted)',
             marginTop:     '2px',
           }}>
-            Glam Studio
+            Beauty Collective
           </div>
         </Link>
 
-        {/* ── Desktop nav links — absolutely centred, hidden on mobile via Tailwind ── */}
-        {/*
-          Key: NO display property in the inline style.
-          Tailwind's `hidden` sets display:none on mobile.
-          Tailwind's `md:flex` sets display:flex on desktop.
-          Inline styles can't conflict because we don't set display here.
-        */}
+        {/* Desktop nav links */}
         <ul
           className="hidden md:flex"
           style={{
@@ -111,12 +103,11 @@ export default function Navbar() {
           ))}
         </ul>
 
-        {/* ── Right side: CTA (desktop only) + hamburger (mobile only) ── */}
+        {/* Right side: CTA + hamburger */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexShrink: 0 }}>
 
-          {/* Book Now — shown on desktop, hidden on mobile via Tailwind */}
-          <a
-            href="#booking"
+          <Link
+            to="/studio"
             className="hidden md:inline-flex"
             style={{
               alignItems:    'center',
@@ -134,11 +125,9 @@ export default function Navbar() {
             onMouseEnter={e => { e.currentTarget.style.background = 'var(--gold)'; e.currentTarget.style.color = '#000' }}
             onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--gold)' }}
           >
-            Book Now
-          </a>
+            Enter Glam Studio
+          </Link>
 
-          {/* Hamburger — shown on mobile, hidden on desktop via Tailwind */}
-          {/* NO display in inline style — Tailwind md:hidden controls it */}
           <button
             onClick={() => setMenuOpen(!menuOpen)}
             aria-label="Toggle menu"
@@ -171,7 +160,7 @@ export default function Navbar() {
         </div>
       </div>
 
-      {/* ── Mobile dropdown ── */}
+      {/* Mobile dropdown */}
       <AnimatePresence>
         {menuOpen && (
           <motion.div
@@ -205,8 +194,8 @@ export default function Navbar() {
                 </li>
               ))}
               <li>
-                <a
-                  href="#booking"
+                <Link
+                  to="/studio"
                   onClick={() => setMenuOpen(false)}
                   style={{
                     display:       'inline-block',
@@ -222,8 +211,8 @@ export default function Navbar() {
                     marginTop:     '0.5rem',
                   }}
                 >
-                  Book Now
-                </a>
+                  Enter Glam Studio
+                </Link>
               </li>
             </ul>
           </motion.div>

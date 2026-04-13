@@ -12,10 +12,12 @@ class SiteSettings(models.Model):
     location = models.CharField(max_length=100, default='Accra, Ghana')
 
     # Background images — uploaded from admin, served to frontend
-    hero_bg   = models.ImageField(upload_to='site/', blank=True, null=True,
-                    help_text='Full-screen hero section background image')
-    studio_bg = models.ImageField(upload_to='site/', blank=True, null=True,
-                    help_text='The Studio section background image (will be blurred)')
+    hero_bg          = models.ImageField(upload_to='site/', blank=True, null=True,
+                           help_text='Full-screen hero section background image')
+    studio_bg        = models.ImageField(upload_to='site/', blank=True, null=True,
+                           help_text='The Studio section background image')
+    testimonials_bg  = models.ImageField(upload_to='site/', blank=True, null=True,
+                           help_text='Testimonials section background image')
 
     class Meta:
         verbose_name = 'Site Settings'
@@ -84,3 +86,31 @@ class SocialLink(models.Model):
 
     def __str__(self):
         return f'{self.platform} — {self.handle}'
+
+
+class IntroVideo(models.Model):
+    """
+    One intro video per page — one for JES.CO homepage, one for Jesres Glam Studio.
+    Upload the video file from the admin dashboard.
+    """
+    PAGE_CHOICES = [
+        ('jesoco', 'JES.CO Homepage'),
+        ('studio', 'Jesres Glam Studio'),
+    ]
+
+    page       = models.CharField(max_length=20, choices=PAGE_CHOICES, unique=True,
+                    help_text='Which page this video appears on')
+    video_file = models.FileField(upload_to='videos/',
+                    help_text='Upload MP4 video file')
+    title      = models.CharField(max_length=200, blank=True,
+                    help_text='Optional caption shown below the video')
+    is_active  = models.BooleanField(default=True,
+                    help_text='Uncheck to hide the video without deleting it')
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name        = 'Intro Video'
+        verbose_name_plural = 'Intro Videos'
+
+    def __str__(self):
+        return f'Intro Video — {self.get_page_display()}'

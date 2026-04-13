@@ -53,15 +53,19 @@ function QuoteIcon() {
 }
 
 export default function TestimonialsSection() {
-  const [items, setItems]     = useState([])
-  const [loading, setLoading] = useState(true)
-  const [current, setCurrent] = useState(0)
+  const [items, setItems]           = useState([])
+  const [loading, setLoading]       = useState(true)
+  const [current, setCurrent]       = useState(0)
+  const [testimonialsBg, setTestimonialsBg] = useState(null)
   const dragStart = useRef(null)
 
   useEffect(() => {
     axios.get('/api/testimonials/')
       .then(r => setItems(r.data))
       .finally(() => setLoading(false))
+    axios.get('/api/settings/').then(r => {
+      if (r.data.testimonials_bg_url) setTestimonialsBg(r.data.testimonials_bg_url)
+    }).catch(() => {})
   }, [])
 
   const total = items.length
@@ -100,12 +104,31 @@ export default function TestimonialsSection() {
     <section style={{
       width:      '100%',
       minHeight:  '100vh',
-      background: 'var(--dark-surface)',
+      background: testimonialsBg ? 'transparent' : 'var(--dark-surface)',
       display:    'flex',
       alignItems: 'center',
       overflow:   'hidden',
       position:   'relative',
     }}>
+
+      {/* Background image (when uploaded from admin) */}
+      {testimonialsBg && (
+        <>
+          <div style={{
+            position:             'absolute', inset: 0,
+            backgroundImage:      `url(${testimonialsBg})`,
+            backgroundSize:       'cover',
+            backgroundPosition:   'center 20%',
+            backgroundAttachment: 'fixed',
+            zIndex:               0,
+          }} />
+          <div style={{
+            position:   'absolute', inset: 0,
+            background: 'rgba(12, 10, 20, 0.5)',
+            zIndex:     1,
+          }} />
+        </>
+      )}
 
       {/* Subtle gold glow top-centre */}
       <div style={{

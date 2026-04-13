@@ -19,7 +19,7 @@ export default function StudioSection() {
       display:    'flex',
       alignItems: 'center',
       overflow:   'hidden',
-      background: studioBg ? 'transparent' : 'var(--light-base)',
+      background: studioBg ? 'transparent' : 'var(--dark-base)',
     }}>
 
       {/* Fixed blurred background image (when uploaded) */}
@@ -29,16 +29,14 @@ export default function StudioSection() {
             position:             'absolute', inset: 0,
             backgroundImage:      `url(${studioBg})`,
             backgroundSize:       'cover',
-            backgroundPosition:   'center',
+            backgroundPosition:   'center 20%',
             backgroundAttachment: 'fixed',
-            filter:               'blur(6px) brightness(0.92)',
-            transform:            'scale(1.05)', // prevents blur edge bleed
             zIndex:               0,
           }} />
-          {/* Light overlay so text stays readable */}
+          {/* Dark overlay — just enough to keep text readable */}
           <div style={{
             position:   'absolute', inset: 0,
-            background: 'rgba(245, 242, 238, 0.78)',
+            background: 'rgba(12, 10, 20, 0.45)',
             zIndex:     1,
           }} />
         </>
@@ -70,7 +68,7 @@ export default function StudioSection() {
             fontSize:      '0.65rem',
             letterSpacing: '0.45em',
             textTransform: 'uppercase',
-            color:         'var(--purple)',
+            color:         'var(--gold)',
           }}
         >
           The Studio
@@ -85,7 +83,7 @@ export default function StudioSection() {
             fontFamily: "'Playfair Display', serif",
             fontSize:   'clamp(2rem, 6vw, 3.5rem)',
             lineHeight: 1.1,
-            color:      'var(--text-dark-primary)',
+            color:      'var(--text-primary)',
             maxWidth:   '600px',
           }}
         >
@@ -117,7 +115,7 @@ export default function StudioSection() {
             fontSize:   '1rem',
             fontWeight: 300,
             lineHeight: 1.8,
-            color:      'var(--text-dark-secondary)',
+            color:      'var(--text-secondary)',
             maxWidth:   '520px',
           }}
         >

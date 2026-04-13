@@ -35,9 +35,9 @@ export default function Hero() {
           position: 'absolute', inset: 0,
           backgroundImage:    `url(${heroBg})`,
           backgroundSize:     'cover',
-          backgroundPosition: 'center',
+          backgroundPosition: 'center 20%',
           backgroundAttachment: 'fixed',
-          opacity: 0.35,
+          opacity: 0.65,
           zIndex:  0,
         }} />
       )}
@@ -45,7 +45,7 @@ export default function Hero() {
       {/* Gradient overlay — always present */}
       <div style={{
         position: 'absolute', inset: 0,
-        background: 'linear-gradient(to bottom, rgba(12,10,20,0.55) 0%, rgba(12,10,20,0.2) 50%, rgba(12,10,20,0.75) 100%)',
+        background: 'linear-gradient(to bottom, rgba(12,10,20,0.2) 0%, rgba(12,10,20,0.05) 50%, rgba(12,10,20,0.45) 100%)',
         zIndex: 1,
         pointerEvents: 'none',
       }} />

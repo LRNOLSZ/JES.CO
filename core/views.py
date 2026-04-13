@@ -2,8 +2,8 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.permissions import AllowAny
 
-from .models import SiteSettings, SocialLink, Testimonial
-from .serializers import SiteSettingsSerializer, SocialLinkSerializer, TestimonialSerializer
+from .models import SiteSettings, SocialLink, Testimonial, IntroVideo
+from .serializers import SiteSettingsSerializer, SocialLinkSerializer, TestimonialSerializer, IntroVideoSerializer
 
 
 class SiteSettingsView(APIView):
@@ -31,3 +31,16 @@ class TestimonialListView(APIView):
     def get(self, request):
         items = Testimonial.objects.filter(is_active=True)
         return Response(TestimonialSerializer(items, many=True, context={'request': request}).data)
+
+
+class IntroVideoView(APIView):
+    """GET /api/videos/?page=jesoco|studio — returns the active intro video for a page."""
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        page = request.query_params.get('page')
+        try:
+            video = IntroVideo.objects.get(page=page, is_active=True)
+            return Response(IntroVideoSerializer(video, context={'request': request}).data)
+        except IntroVideo.DoesNotExist:
+            return Response(None)
