@@ -35,7 +35,11 @@ INSTALLED_APPS = [
     'core',
     'products',
     'courses',
+    'bookings',
     'imagekit',
+
+    # Import/Export
+    'import_export',
 ]
 
 MIDDLEWARE = [
@@ -45,7 +49,6 @@ MIDDLEWARE = [
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
-    'accounts.middleware.MediaAccessMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
@@ -123,6 +126,25 @@ REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.IsAuthenticated',
     ],
+}
+
+# --- Email (console for dev — swap to SMTP for production) ---
+EMAIL_BACKEND    = 'django.core.mail.backends.console.EmailBackend'
+DEFAULT_FROM_EMAIL = 'JES.CO <noreply@jes.co>'
+
+# --- Notifications ---
+MAAME_AMA_EMAIL = config('MAAME_AMA_EMAIL', default='')
+WHATSAPP_NUMBER = config('WHATSAPP_NUMBER', default='')  # international format, no +
+
+# --- Magic Link ---
+MAGIC_LINK_EXPIRY_MINUTES = 15
+FRONTEND_URL = config('FRONTEND_URL', default='http://localhost:5173')
+
+# --- Cache (rate limiting) ---
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+    }
 }
 
 # --- Django Imagekit ---

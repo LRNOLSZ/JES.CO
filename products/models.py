@@ -43,3 +43,46 @@ class ProductItem(models.Model):
 
     def __str__(self):
         return f'{self.get_category_display()} — {self.name}'
+
+
+class Order(models.Model):
+
+    STATUS_CHOICES = [
+        ('pending',   'Pending'),
+        ('confirmed', 'Confirmed'),
+        ('shipped',   'Shipped'),
+        ('delivered', 'Delivered'),
+        ('cancelled', 'Cancelled'),
+    ]
+
+    full_name  = models.CharField(max_length=200)
+    email      = models.EmailField()
+    phone      = models.CharField(max_length=30)
+    address    = models.TextField(blank=True)
+    notes      = models.TextField(blank=True)
+    status     = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    total      = models.CharField(max_length=50, help_text='Display total e.g. GHS 350')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering            = ['-created_at']
+        verbose_name        = 'Order'
+        verbose_name_plural = 'Orders'
+
+    def __str__(self):
+        return f'Order #{self.pk} — {self.full_name} ({self.status})'
+
+
+class OrderItem(models.Model):
+    order      = models.ForeignKey(Order, related_name='items', on_delete=models.CASCADE)
+    product_id = models.IntegerField()
+    name       = models.CharField(max_length=200)
+    price      = models.CharField(max_length=50)
+    quantity   = models.PositiveIntegerField(default=1)
+
+    class Meta:
+        verbose_name        = 'Order Item'
+        verbose_name_plural = 'Order Items'
+
+    def __str__(self):
+        return f'{self.name} x{self.quantity}'

@@ -5,6 +5,144 @@ import axios from 'axios'
 import Navbar from '../components/Navbar'
 import Footer from '../components/Footer'
 import CourseCard from '../components/CourseCard'
+import { requestMagicLink } from '../api/auth'
+
+function AlreadyAStudentSection() {
+  const [email,   setEmail]   = useState('')
+  const [status,  setStatus]  = useState('idle') // idle | loading | sent | error
+  const [message, setMessage] = useState('')
+
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    if (!email.trim()) return
+    setStatus('loading')
+    try {
+      await requestMagicLink(email.trim())
+      setStatus('sent')
+      setMessage('Check your email — your magic link is on its way.')
+    } catch (err) {
+      if (err.response?.status === 429) {
+        setMessage('Too many requests. Please wait 10 minutes and try again.')
+      } else {
+        setMessage('Something went wrong. Please try again.')
+      }
+      setStatus('error')
+    }
+  }
+
+  return (
+    <section style={{
+      padding:    'clamp(4rem, 10vw, 7rem) 1.5rem',
+      background: 'linear-gradient(160deg, #1a0d3d 0%, #0C0A14 60%)',
+      position:   'relative',
+      overflow:   'hidden',
+    }}>
+      {/* Ambient glow */}
+      <div style={{
+        position: 'absolute', top: '50%', left: '50%',
+        transform: 'translate(-50%,-50%)',
+        width: '500px', height: '500px', borderRadius: '50%',
+        background: 'radial-gradient(circle, rgba(96,38,158,0.18) 0%, transparent 65%)',
+        pointerEvents: 'none',
+      }} />
+
+      <motion.div
+        initial={{ opacity: 0, y: 28 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true }}
+        transition={{ duration: 0.7 }}
+        style={{ maxWidth: '480px', margin: '0 auto', textAlign: 'center', position: 'relative' }}
+      >
+        <p style={{
+          fontFamily: "'DM Sans', sans-serif",
+          fontSize: '0.6rem', letterSpacing: '0.55em',
+          textTransform: 'uppercase', color: '#D4AF37', marginBottom: '1rem',
+        }}>
+          Already a Student?
+        </p>
+
+        <h2 style={{
+          fontFamily: "'Playfair Display', serif",
+          fontSize: 'clamp(1.6rem, 4vw, 2.2rem)',
+          color: '#fff', lineHeight: 1.2, marginBottom: '0.75rem',
+        }}>
+          Access Your Courses
+        </h2>
+
+        <p style={{
+          fontFamily: "'DM Sans', sans-serif",
+          fontSize: '0.88rem', fontWeight: 300,
+          color: 'rgba(255,255,255,0.55)', lineHeight: 1.75, marginBottom: '2rem',
+        }}>
+          Enter your email and we'll send you a magic link — no password needed.
+        </p>
+
+        {status === 'sent' ? (
+          <div style={{
+            padding: '1.25rem 1.5rem', borderRadius: '12px',
+            border: '1px solid rgba(212,175,55,0.35)',
+            background: 'rgba(212,175,55,0.06)',
+          }}>
+            <p style={{
+              fontFamily: "'DM Sans', sans-serif",
+              fontSize: '0.88rem', color: '#D4AF37', lineHeight: 1.6,
+            }}>
+              ✦ {message}
+            </p>
+          </div>
+        ) : (
+          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+            <input
+              type="email"
+              placeholder="your@email.com"
+              value={email}
+              onChange={e => setEmail(e.target.value)}
+              required
+              style={{
+                width: '100%', padding: '0.85rem 1.1rem',
+                borderRadius: '8px',
+                border: '1px solid rgba(212,175,55,0.25)',
+                background: 'rgba(255,255,255,0.05)',
+                color: '#fff',
+                fontFamily: "'DM Sans', sans-serif", fontSize: '0.9rem',
+                outline: 'none', boxSizing: 'border-box',
+              }}
+              onFocus={e => { e.target.style.borderColor = '#D4AF37'; e.target.style.boxShadow = '0 0 0 3px rgba(212,175,55,0.15)' }}
+              onBlur={e =>  { e.target.style.borderColor = 'rgba(212,175,55,0.25)'; e.target.style.boxShadow = 'none' }}
+            />
+
+            {status === 'error' && (
+              <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: '0.8rem', color: 'rgba(255,120,120,0.85)', margin: 0 }}>
+                {message}
+              </p>
+            )}
+
+            <button
+              type="submit"
+              disabled={status === 'loading'}
+              style={{
+                padding: '0.85rem',
+                borderRadius: '9999px',
+                background: 'linear-gradient(135deg, #e8cc6b, #D4AF37)',
+                color: '#0C0A14',
+                fontFamily: "'DM Sans', sans-serif",
+                fontSize: '0.68rem', letterSpacing: '0.2em',
+                textTransform: 'uppercase', fontWeight: 700,
+                border: 'none', cursor: status === 'loading' ? 'not-allowed' : 'pointer',
+                opacity: status === 'loading' ? 0.7 : 1,
+                transition: 'opacity 0.25s, transform 0.25s',
+              }}
+              onMouseEnter={e => { if (status !== 'loading') e.currentTarget.style.transform = 'translateY(-1px)' }}
+              onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)' }}
+            >
+              {status === 'loading' ? 'Sending…' : 'Send Magic Link →'}
+            </button>
+          </form>
+        )}
+      </motion.div>
+    </section>
+  )
+}
 
 const CATEGORIES = [
   { key: 'all',          label: 'All' },
@@ -282,6 +420,9 @@ export default function CoursesPage() {
           )}
         </div>
       </section>
+
+      {/* ── Already a student? ── */}
+      <AlreadyAStudentSection />
 
       <Footer />
 

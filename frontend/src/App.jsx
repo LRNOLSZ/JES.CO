@@ -14,6 +14,9 @@ import JescoHomePage        from './pages/JescoHomePage'
 import ProductLinePage      from './pages/ProductLinePage'
 import CoursesPage          from './pages/CoursesPage'
 import CourseDetailPage     from './pages/CourseDetailPage'
+import AuthVerifyPage       from './pages/AuthVerifyPage'
+import DashboardPage        from './pages/DashboardPage'
+import CartPage             from './pages/CartPage'
 
 function StudioHomePage() {
   return (
@@ -42,6 +45,9 @@ export default function App() {
       <Route path="/studio/courses"       element={<CoursesPage />} />
       <Route path="/studio/courses/:slug" element={<CourseDetailPage />} />
       <Route path="/products/:category"   element={<ProductLinePage />} />
+      <Route path="/auth/verify"           element={<AuthVerifyPage />} />
+      <Route path="/dashboard"             element={<DashboardPage />} />
+      <Route path="/cart"                  element={<CartPage />} />
     </Routes>
   )
 }

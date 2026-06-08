@@ -1,8 +1,31 @@
 from django.contrib import admin
 from django.utils.html import format_html
+from import_export.admin import ImportExportModelAdmin
 from unfold.admin import ModelAdmin
+from unfold.contrib.import_export.forms import ExportForm, ImportForm
 
-from .models import ProductItem
+from .models import Order, OrderItem, ProductItem
+
+
+class OrderItemInline(admin.TabularInline):
+    model  = OrderItem
+    extra  = 0
+    fields = ('name', 'price', 'quantity')
+    readonly_fields = ('name', 'price', 'quantity')
+
+
+@admin.register(Order)
+class OrderAdmin(ImportExportModelAdmin, ModelAdmin):
+    import_form_class = ImportForm
+    export_form_class = ExportForm
+
+    list_display  = ('id', 'full_name', 'email', 'phone', 'total', 'status', 'created_at')
+    list_filter   = ('status',)
+    search_fields = ('full_name', 'email', 'phone')
+    list_editable = ('status',)
+    ordering      = ('-created_at',)
+    readonly_fields = ('created_at',)
+    inlines       = [OrderItemInline]
 
 
 @admin.register(ProductItem)

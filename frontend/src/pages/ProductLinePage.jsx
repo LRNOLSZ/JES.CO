@@ -4,6 +4,7 @@ import { motion } from 'framer-motion'
 import axios from 'axios'
 import JescoNavbar from '../components/JescoNavbar'
 import JescoFooter from '../components/JescoFooter'
+import { useCart } from '../context/CartContext'
 
 const META = {
   makeup:      { label: 'Makeup Sets',         sub: 'Pigment-rich. Studio-grade.',          accent: 'var(--purple)' },
@@ -21,6 +22,15 @@ export default function ProductLinePage() {
   const { category }          = useParams()
   const [items, setItems]     = useState([])
   const [loading, setLoading] = useState(true)
+
+  const { addToCart } = useCart()
+  const [added, setAdded] = useState({})
+
+  const handleAddToCart = (item) => {
+    addToCart(item)
+    setAdded(prev => ({ ...prev, [item.id]: true }))
+    setTimeout(() => setAdded(prev => ({ ...prev, [item.id]: false })), 1500)
+  }
 
   const meta = META[category] || { label: 'Products', sub: '', accent: 'var(--purple)' }
 
@@ -236,14 +246,43 @@ export default function ProductLinePage() {
                         </div>
                       )}
                       <p style={{
-                        fontFamily: "'DM Sans', sans-serif",
-                        fontSize:   '0.82rem',
-                        fontWeight: 300,
-                        color:      'var(--text-muted)',
-                        lineHeight: 1.7,
+                        fontFamily:   "'DM Sans', sans-serif",
+                        fontSize:     '0.82rem',
+                        fontWeight:   300,
+                        color:        'var(--text-muted)',
+                        lineHeight:   1.7,
+                        marginBottom: '1.25rem',
                       }}>
                         {item.description}
                       </p>
+
+                      <button
+                        onClick={() => item.stock_status === 'in_stock' && handleAddToCart(item)}
+                        disabled={item.stock_status !== 'in_stock'}
+                        style={{
+                          width:         '100%',
+                          padding:       '0.7rem',
+                          borderRadius:  '9999px',
+                          border:        'none',
+                          background:    item.stock_status !== 'in_stock'
+                            ? 'rgba(255,255,255,0.06)'
+                            : added[item.id]
+                              ? 'linear-gradient(135deg, #16a34a, #15803d)'
+                              : 'linear-gradient(135deg, var(--gold-light), var(--gold))',
+                          color:         item.stock_status !== 'in_stock' ? 'rgba(255,255,255,0.3)' : '#0C0A14',
+                          fontFamily:    "'DM Sans', sans-serif",
+                          fontSize:      '0.65rem',
+                          letterSpacing: '0.18em',
+                          textTransform: 'uppercase',
+                          fontWeight:    700,
+                          cursor:        item.stock_status !== 'in_stock' ? 'not-allowed' : 'pointer',
+                          transition:    'all 0.3s',
+                        }}
+                      >
+                        {item.stock_status !== 'in_stock'
+                          ? item.stock_status === 'coming_soon' ? 'Coming Soon' : 'Out of Stock'
+                          : added[item.id] ? '✓ Added' : 'Add to Cart'}
+                      </button>
                     </div>
                   </motion.div>
                 )

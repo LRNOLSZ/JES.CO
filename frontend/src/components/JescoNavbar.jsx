@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Link } from 'react-router-dom'
+import { useCart } from '../context/CartContext'
 
 const navLinks = [
   { label: 'Products',      href: '#products', type: 'anchor' },
@@ -24,6 +25,7 @@ const unhoverLink = e => { e.currentTarget.style.color = 'var(--text-secondary)'
 
 export default function JescoNavbar() {
   const [menuOpen, setMenuOpen] = useState(false)
+  const { cartCount } = useCart()
 
   return (
     <motion.nav
@@ -105,6 +107,51 @@ export default function JescoNavbar() {
 
         {/* Right side: CTA + hamburger */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexShrink: 0 }}>
+
+          {/* Cart icon */}
+          <Link
+            to="/cart"
+            style={{
+              position:      'relative',
+              display:       'inline-flex',
+              alignItems:    'center',
+              justifyContent:'center',
+              width:         '36px',
+              height:        '36px',
+              borderRadius:  '50%',
+              border:        '1px solid rgba(212,175,55,0.3)',
+              color:         'var(--gold)',
+              textDecoration:'none',
+              transition:    'all 0.3s',
+            }}
+            onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--gold)'; e.currentTarget.style.background = 'rgba(212,175,55,0.08)' }}
+            onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(212,175,55,0.3)'; e.currentTarget.style.background = 'transparent' }}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/>
+              <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>
+            </svg>
+            {cartCount > 0 && (
+              <span style={{
+                position:      'absolute',
+                top:           '-6px',
+                right:         '-6px',
+                background:    'var(--gold)',
+                color:         '#0C0A14',
+                borderRadius:  '50%',
+                width:         '16px',
+                height:        '16px',
+                fontSize:      '0.55rem',
+                fontWeight:    700,
+                display:       'flex',
+                alignItems:    'center',
+                justifyContent:'center',
+                fontFamily:    "'DM Sans', sans-serif",
+              }}>
+                {cartCount > 9 ? '9+' : cartCount}
+              </span>
+            )}
+          </Link>
 
           <Link
             to="/studio"
