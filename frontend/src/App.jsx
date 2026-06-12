@@ -1,14 +1,16 @@
 import { Routes, Route } from 'react-router-dom'
 
 import Navbar               from './components/Navbar'
-import Hero                 from './components/Hero'
-import GallerySection       from './components/GallerySection'
+import Footer               from './components/Footer'
+import JescoNavbar          from './components/JescoNavbar'
+import JescoFooter          from './components/JescoFooter'
+import StudioHero           from './components/Hero'
 import StudioSection        from './components/StudioSection'
+import WorkSection          from './components/BeforeAfterSlider'
+import ServicesSection      from './components/ServicesSection'
 import CoursesSection       from './components/CoursesSection'
 import TestimonialsSection  from './components/TestimonialsSection'
-import StudioVideoSection   from './components/StudioVideoSection'
 import BookingSection       from './components/BookingSection'
-import Footer               from './components/Footer'
 import GalleryPage          from './pages/GalleryPage'
 import JescoHomePage        from './pages/JescoHomePage'
 import ProductLinePage      from './pages/ProductLinePage'
@@ -18,20 +20,39 @@ import AuthVerifyPage       from './pages/AuthVerifyPage'
 import DashboardPage        from './pages/DashboardPage'
 import CartPage             from './pages/CartPage'
 
+const STUDIO_WORDS = ['Bridal Glam', 'Editorial', 'Corrective Skin', 'Transformation', 'Training', 'Photoshoot']
+
+function StudioMarquee() {
+  const items = [...STUDIO_WORDS, ...STUDIO_WORDS]
+  return (
+    <div style={{ overflow: 'hidden', borderTop: '1px solid var(--hair)', borderBottom: '1px solid var(--hair)', background: 'var(--ink-2)', padding: '0.85rem 0' }}>
+      <div style={{ display: 'flex', gap: '3.5rem', width: 'max-content', animation: 'marquee 22s linear infinite' }}>
+        {items.map((w, i) => (
+          <span key={i} style={{ display: 'flex', alignItems: 'center', gap: '3.5rem', whiteSpace: 'nowrap', fontFamily: 'var(--sans)', fontSize: '0.62rem', letterSpacing: '0.32em', textTransform: 'uppercase', color: 'var(--taupe)' }}>
+            {w}
+            <span style={{ display: 'inline-block', width: '4px', height: '4px', borderRadius: '50%', background: 'var(--champ)', flexShrink: 0 }} />
+          </span>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 function StudioHomePage() {
   return (
     <>
-      <Navbar />
+      <JescoNavbar />
       <main style={{ width: '100%' }}>
-        <Hero />
-        <StudioVideoSection />
-        <GallerySection />
+        <StudioHero />
+        <StudioMarquee />
         <StudioSection />
+        <WorkSection />
+        <ServicesSection />
         <CoursesSection />
         <TestimonialsSection />
         <BookingSection />
       </main>
-      <Footer />
+      <JescoFooter />
     </>
   )
 }

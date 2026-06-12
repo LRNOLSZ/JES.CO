@@ -35,6 +35,9 @@ staticfiles/
 # Checklist / notes
 checklist.txt
 
+# Handoff / client delivery docs
+handoff/
+
 # Claude Code & project planning files
 CLAUDE.md
 build.md

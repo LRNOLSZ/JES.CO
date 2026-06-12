@@ -9,10 +9,10 @@ export default function AuthVerifyPage() {
   const { login }      = useAuth()
   const [message, setMessage] = useState('Verifying your link…')
   const [error,   setError]   = useState(false)
-  const hasVerified = useRef(false)  // survives StrictMode double-mount
+  const hasVerified = useRef(false)
 
   useEffect(() => {
-    if (hasVerified.current) return  // block the StrictMode second run
+    if (hasVerified.current) return
     hasVerified.current = true
 
     const token = searchParams.get('token')
@@ -28,79 +28,44 @@ export default function AuthVerifyPage() {
         navigate('/dashboard', { replace: true })
       })
       .catch(err => {
-        const detail = err.response?.data?.detail || 'This link is invalid or has expired.'
-        setMessage(detail)
+        setMessage(err.response?.data?.detail || 'This link is invalid or has expired.')
         setError(true)
       })
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
-    <div style={{
-      minHeight:      '100vh',
-      display:        'flex',
-      alignItems:     'center',
-      justifyContent: 'center',
-      background:     'linear-gradient(135deg, #1a0d3d 0%, #0C0A14 60%)',
-      padding:        '2rem',
-    }}>
+    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--ink)', padding: '2rem' }}>
       <div style={{
-        background:   'rgba(255,255,255,0.04)',
-        border:       `1px solid ${error ? 'rgba(220,50,50,0.4)' : 'rgba(212,175,55,0.3)'}`,
-        borderRadius: '16px',
-        padding:      '3rem 2.5rem',
-        textAlign:    'center',
-        maxWidth:     '420px',
-        width:        '100%',
-        backdropFilter: 'blur(12px)',
+        background:     'color-mix(in srgb, var(--bone) 4%, transparent)',
+        border:         `1px solid ${error ? 'rgba(220,80,80,0.35)' : 'color-mix(in srgb, var(--champ) 30%, transparent)'}`,
+        borderRadius:   '16px',
+        padding:        '3rem 2.5rem',
+        textAlign:      'center',
+        maxWidth:       '420px',
+        width:          '100%',
+        position:       'relative',
       }}>
+        {/* Top accent */}
+        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '1px', background: error ? 'rgba(220,80,80,0.5)' : 'var(--metal)', borderRadius: '16px 16px 0 0' }} />
+
         {!error && (
-          <div style={{
-            width: '40px', height: '40px',
-            border: '2px solid rgba(212,175,55,0.3)',
-            borderTop: '2px solid #D4AF37',
-            borderRadius: '50%',
-            margin: '0 auto 1.5rem',
-            animation: 'spin 0.8s linear infinite',
-          }} />
+          <div style={{ width: '40px', height: '40px', border: '2px solid var(--hair)', borderTop: '2px solid var(--champ)', borderRadius: '50%', margin: '0 auto 1.5rem', animation: 'spin 0.8s linear infinite' }} />
         )}
 
         {error && (
-          <div style={{ fontSize: '2rem', marginBottom: '1rem' }}>✦</div>
+          <div className="serif ital metal-text" style={{ fontSize: '2rem', marginBottom: '1rem', opacity: 0.6 }}>✦</div>
         )}
 
-        <p style={{
-          fontFamily: "'DM Sans', sans-serif",
-          fontSize:   '1rem',
-          color:      error ? 'rgba(255,120,120,0.9)' : 'rgba(255,255,255,0.85)',
-          lineHeight: 1.6,
-          marginBottom: error ? '1.5rem' : 0,
-        }}>
+        <p style={{ fontFamily: 'var(--sans)', fontSize: '1rem', color: error ? 'rgba(220,80,80,0.9)' : 'var(--taupe)', lineHeight: 1.6, marginBottom: error ? '1.5rem' : 0 }}>
           {message}
         </p>
 
         {error && (
-          <a
-            href="/studio/courses"
-            style={{
-              display:       'inline-block',
-              padding:       '0.7rem 1.75rem',
-              borderRadius:  '9999px',
-              background:    'linear-gradient(135deg, #e8cc6b, #D4AF37)',
-              color:         '#0C0A14',
-              fontFamily:    "'DM Sans', sans-serif",
-              fontSize:      '0.72rem',
-              letterSpacing: '0.18em',
-              textTransform: 'uppercase',
-              fontWeight:    700,
-              textDecoration:'none',
-            }}
-          >
+          <a href="/studio/courses" className="btn btn-gold" style={{ display: 'inline-block', textDecoration: 'none' }}>
             Back to Courses
           </a>
         )}
       </div>
-
-      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </div>
   )
 }

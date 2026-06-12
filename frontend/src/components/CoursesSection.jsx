@@ -1,238 +1,173 @@
 import { useEffect, useState } from 'react'
-import { motion } from 'framer-motion'
 import { Link } from 'react-router-dom'
 import axios from 'axios'
-import CourseCard from './CourseCard'
+import { Reveal, SectionHead, ArrowIcon } from './Reveal'
 
-// Trailer modal (inline, lightweight)
+function LockIcon() {
+  return (
+    <svg viewBox="0 0 20 20" width="13" height="13" fill="none">
+      <rect x="4" y="9" width="12" height="9" rx="2" stroke="currentColor" strokeWidth="1.5" />
+      <path d="M7 9V6a3 3 0 016 0v3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+    </svg>
+  )
+}
+function ClockIcon() {
+  return (
+    <svg viewBox="0 0 20 20" width="12" height="12" fill="none">
+      <circle cx="10" cy="10" r="7.5" stroke="currentColor" strokeWidth="1.4" />
+      <path d="M10 6v4l2.5 2.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+    </svg>
+  )
+}
+
 function TrailerModal({ course, onClose }) {
   if (!course) return null
   return (
     <div
       onClick={onClose}
-      style={{
-        position:   'fixed', inset: 0,
-        background: 'rgba(12,10,20,0.92)',
-        zIndex:     1000,
-        display:    'flex', alignItems: 'center', justifyContent: 'center',
-        padding:    '1.5rem',
-      }}
+      style={{ position: 'fixed', inset: 0, background: 'rgba(28,21,15,0.92)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1.5rem' }}
     >
       <div onClick={e => e.stopPropagation()} style={{ width: '100%', maxWidth: '720px' }}>
-        <div style={{
-          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-          marginBottom: '1rem',
-        }}>
-          <p style={{
-            fontFamily: "'Playfair Display', serif",
-            fontSize:   '1.1rem', color: 'var(--text-primary)',
-          }}>
-            {course.title} — <span style={{ fontStyle: 'italic', color: 'var(--gold)' }}>Free Preview</span>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+          <p className="serif" style={{ fontSize: '1.1rem', color: 'var(--lite-ink)' }}>
+            {course.title} — <span className="ital" style={{ color: 'var(--champ)' }}>Free Preview</span>
           </p>
-          <button
-            onClick={onClose}
-            style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '1.4rem' }}
-          >
-            ✕
-          </button>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--taupe-mut)', cursor: 'pointer', fontSize: '1.4rem' }}>✕</button>
         </div>
-        <video
-          src={course.trailer_url}
-          controls
-          autoPlay
-          style={{ width: '100%', borderRadius: '0.75rem', background: '#000' }}
-        />
+        <video src={course.trailer_url} controls autoPlay style={{ width: '100%', borderRadius: '0.75rem', background: '#000' }} />
       </div>
     </div>
   )
 }
 
+function CourseCard({ course, onTrailerClick, index }) {
+  const [hovered, setHovered] = useState(false)
+  return (
+    <Reveal delay={index * 0.1}>
+      <div
+        onMouseEnter={() => setHovered(true)}
+        onMouseLeave={() => setHovered(false)}
+        style={{
+          background:   'color-mix(in srgb, var(--bone) 4%, transparent)',
+          border:       `1px solid ${hovered ? 'color-mix(in srgb, var(--champ) 45%, transparent)' : 'var(--hair)'}`,
+          borderRadius: '16px',
+          overflow:     'hidden',
+          display:      'flex',
+          flexDirection:'column',
+          cursor:       'pointer',
+          transform:    hovered ? 'translateY(-6px)' : 'none',
+          transition:   'transform 0.4s var(--ease), border-color 0.4s',
+        }}
+      >
+        {/* Thumbnail */}
+        <div style={{ position: 'relative', aspectRatio: '16 / 10', borderBottom: '1px solid var(--hair)', overflow: 'hidden', background: 'var(--ink-2)' }}>
+          {course.thumbnail_url
+            ? <img src={course.thumbnail_url} alt={course.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            : <div className="ph" style={{ position: 'absolute', inset: 0, borderRadius: 0, border: 'none' }}><span className="ph-tag">Course Preview</span></div>
+          }
+
+          {/* Tier badge */}
+          <div style={{
+            position: 'absolute', top: '0.8rem', right: '0.8rem',
+            padding: '0.22rem 0.7rem', borderRadius: '9999px',
+            background: 'color-mix(in srgb, var(--champ) 16%, transparent)',
+            border: '1px solid color-mix(in srgb, var(--champ) 55%, transparent)',
+            color: 'var(--champ)', fontFamily: 'var(--sans)', fontSize: '0.56rem',
+            letterSpacing: '0.18em', textTransform: 'uppercase', fontWeight: 600,
+          }}>
+            {course.tier || 'Signature'}
+          </div>
+
+          {/* Lock badge */}
+          <div style={{ position: 'absolute', bottom: '0.8rem', left: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.35rem', color: 'var(--taupe)', fontFamily: 'var(--sans)', fontSize: '0.62rem' }}>
+            <LockIcon /> <span>Full course locked</span>
+          </div>
+
+          {/* Play on hover */}
+          <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: hovered ? 1 : 0, transition: 'opacity 0.4s' }}
+            onClick={() => course.trailer_url && onTrailerClick(course)}>
+            <span style={{
+              width: '54px', height: '54px', borderRadius: '50%',
+              border: '1px solid var(--champ)',
+              background: 'color-mix(in srgb, var(--ink) 60%, transparent)',
+              backdropFilter: 'blur(6px)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--champ)',
+            }}>▶</span>
+          </div>
+        </div>
+
+        {/* Body */}
+        <div style={{ padding: '1.3rem', display: 'flex', flexDirection: 'column', gap: '0.6rem', flex: 1 }}>
+          <p style={{ fontFamily: 'var(--sans)', fontSize: '0.56rem', letterSpacing: '0.28em', textTransform: 'uppercase', color: 'var(--champ)' }}>{course.category || 'Foundations'}</p>
+          <h3 className="serif" style={{ fontSize: '1.25rem', color: 'var(--bone)', lineHeight: 1.25 }}>{course.title}</h3>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 'auto', paddingTop: '0.9rem', borderTop: '1px solid var(--hair)' }}>
+            <span style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontFamily: 'var(--sans)', fontSize: '0.74rem', color: 'var(--taupe)' }}>
+              <ClockIcon /> {course.duration || '—'}
+            </span>
+            <span style={{ fontFamily: 'var(--sans)', fontSize: '0.85rem', fontWeight: 600, color: 'var(--champ)' }}>
+              {course.price ? `GHS ${course.price}` : '—'}
+            </span>
+          </div>
+        </div>
+      </div>
+    </Reveal>
+  )
+}
+
 export default function CoursesSection() {
-  const [courses,      setCourses]      = useState([])
-  const [loading,      setLoading]      = useState(true)
+  const [courses,       setCourses]       = useState([])
+  const [loading,       setLoading]       = useState(true)
   const [trailerCourse, setTrailerCourse] = useState(null)
 
   useEffect(() => {
-    axios.get('/api/courses/')
-      .then(r => setCourses(r.data.slice(0, 3)))
-      .finally(() => setLoading(false))
+    axios.get('/api/courses/').then(r => setCourses(r.data.slice(0, 3))).finally(() => setLoading(false))
   }, [])
 
-  const showFallback = !loading && courses.length === 0
-
   return (
-    <section id="courses" style={{
-      position:   'relative',
-      width:      '100%',
-      minHeight:  '100vh',
-      display:    'flex',
-      alignItems: 'center',
-      overflow:   'hidden',
-      background: 'var(--dark-surface)',
-    }}>
+    <section id="courses" style={{ padding: 'clamp(5rem,11vw,9rem) 0', background: 'var(--ink-3)', overflow: 'hidden', position: 'relative' }}>
+      {/* Plum glow */}
+      <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', background: 'radial-gradient(ellipse 70% 55% at 50% 30%, var(--plum), transparent 70%)', opacity: 'var(--glow-plum)' }} />
 
-      {/* Purple gradient wash */}
-      <div style={{
-        position:      'absolute', inset: 0,
-        background:    'radial-gradient(ellipse 80% 60% at 50% 40%, rgba(96,38,158,0.18) 0%, transparent 70%)',
-        pointerEvents: 'none',
-        zIndex:        0,
-      }} />
+      <div className="wrap" style={{ position: 'relative', zIndex: 2 }}>
+        <div style={{ marginBottom: '3.5rem' }}>
+          <SectionHead
+            index="03"
+            eyebrow="Learn From the Best"
+            title={<span>Master your <span className="ital metal-text">craft</span></span>}
+            sub="Professional makeup courses — step-by-step video lessons taught by Maame Ama, at your own pace."
+            align="center"
+          />
+        </div>
 
-      {/* Top border accent */}
-      <div style={{
-        position:      'absolute', top: 0, left: '50%',
-        transform:     'translateX(-50%)',
-        width:         '40%', height: '1px',
-        background:    'linear-gradient(to right, transparent, var(--purple-light), transparent)',
-        pointerEvents: 'none',
-        zIndex:        1,
-      }} />
-
-      <div style={{
-        position:  'relative', zIndex: 2,
-        width:     '100%', maxWidth: '72rem',
-        marginLeft: 'auto', marginRight: 'auto',
-        padding:   '6rem 1.5rem',
-      }}>
-
-        {/* Header */}
-        <motion.div
-          initial={{ opacity: 0, y: 24 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.7 }}
-          style={{ textAlign: 'center', marginBottom: showFallback ? 0 : '3.5rem' }}
-        >
-          <p style={{
-            fontFamily:    "'DM Sans', sans-serif",
-            fontSize:      '0.65rem',
-            letterSpacing: '0.45em',
-            textTransform: 'uppercase',
-            color:         'var(--gold)',
-            marginBottom:  '1.25rem',
-          }}>
-            Learn From The Best
-          </p>
-          <h2 style={{
-            fontFamily:   "'Playfair Display', serif",
-            fontSize:     'clamp(2rem, 6vw, 3.5rem)',
-            color:        'var(--text-primary)',
-            marginBottom: '1.25rem',
-          }}>
-            Master Your Craft
-          </h2>
-          <p style={{
-            fontFamily:  "'DM Sans', sans-serif",
-            fontSize:    '1rem',
-            fontWeight:  300,
-            lineHeight:  1.8,
-            color:       'var(--text-secondary)',
-            maxWidth:    '480px',
-            margin:      '0 auto',
-          }}>
-            Professional makeup courses — step-by-step video lessons taught by Maame Ama, available at your own pace.
-          </p>
-        </motion.div>
-
-        {/* Loading */}
         {loading && (
           <div style={{ display: 'flex', justifyContent: 'center', padding: '4rem 0' }}>
-            <div style={{
-              width: '2rem', height: '2rem', borderRadius: '50%',
-              border: '2px solid var(--glass-border)',
-              borderTopColor: 'var(--gold)',
-              animation: 'spin 0.8s linear infinite',
-            }} />
+            <div style={{ width: '2rem', height: '2rem', borderRadius: '50%', border: '2px solid var(--hair)', borderTopColor: 'var(--champ)', animation: 'spin 0.8s linear infinite' }} />
           </div>
         )}
 
-        {/* Fallback — no courses yet */}
-        {showFallback && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.92 }}
-            whileInView={{ opacity: 1, scale: 1 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.6, delay: 0.3 }}
-            style={{ textAlign: 'center', marginTop: '3rem' }}
-          >
-            <div style={{
-              display:       'inline-block',
-              padding:       '0.6rem 1.75rem',
-              borderRadius:  '9999px',
-              border:        '1px solid rgba(96,38,158,0.5)',
-              background:    'rgba(96,38,158,0.12)',
-              color:         'var(--purple-light)',
-              fontFamily:    "'DM Sans', sans-serif",
-              fontSize:      '0.7rem',
-              letterSpacing: '0.25em',
-              textTransform: 'uppercase',
-            }}>
+        {!loading && courses.length === 0 && (
+          <div style={{ textAlign: 'center', marginTop: '2rem' }}>
+            <span style={{ display: 'inline-block', padding: '0.6rem 1.75rem', borderRadius: '9999px', border: '1px solid color-mix(in srgb, var(--champ) 40%, transparent)', color: 'var(--champ)', fontFamily: 'var(--sans)', fontSize: '0.7rem', letterSpacing: '0.25em', textTransform: 'uppercase' }}>
               Coming Soon
-            </div>
-          </motion.div>
+            </span>
+          </div>
         )}
 
-        {/* Course cards */}
         {!loading && courses.length > 0 && (
           <>
-            <div style={{
-              display:             'grid',
-              gridTemplateColumns: 'repeat(auto-fill, minmax(min(280px, 100%), 1fr))',
-              gap:                 '1.5rem',
-            }}>
-              {courses.map((course, i) => (
-                <motion.div
-                  key={course.id}
-                  initial={{ opacity: 0, y: 24 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true }}
-                  transition={{ duration: 0.6, delay: i * 0.1 }}
-                >
-                  <CourseCard
-                    course={course}
-                    onTrailerClick={setTrailerCourse}
-                  />
-                </motion.div>
+            <div className="courses-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '1.6rem' }}>
+              {courses.map((c, i) => (
+                <CourseCard key={c.id} course={c} index={i} onTrailerClick={setTrailerCourse} />
               ))}
             </div>
-
-            {/* View all */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.6, delay: 0.3 }}
-              style={{ display: 'flex', justifyContent: 'center', marginTop: '3rem' }}
-            >
-              <Link
-                to="/studio/courses"
-                style={{
-                  padding:       '0.85rem 2.25rem',
-                  borderRadius:  '9999px',
-                  border:        '1px solid var(--gold)',
-                  color:         'var(--gold)',
-                  fontFamily:    "'DM Sans', sans-serif",
-                  fontSize:      '0.72rem',
-                  letterSpacing: '0.18em',
-                  textTransform: 'uppercase',
-                  textDecoration:'none',
-                  transition:    'all 0.3s',
-                  display:       'inline-block',
-                }}
-                onMouseEnter={e => { e.currentTarget.style.background = 'var(--gold)'; e.currentTarget.style.color = '#000' }}
-                onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--gold)' }}
-              >
-                View All Courses
-              </Link>
-            </motion.div>
+            <Reveal delay={0.2} style={{ display: 'flex', justifyContent: 'center', marginTop: '3rem' }}>
+              <Link to="/studio/courses" className="btn btn-ghost">View All Courses <ArrowIcon /></Link>
+            </Reveal>
           </>
         )}
       </div>
 
-      {trailerCourse && (
-        <TrailerModal course={trailerCourse} onClose={() => setTrailerCourse(null)} />
-      )}
+      {trailerCourse && <TrailerModal course={trailerCourse} onClose={() => setTrailerCourse(null)} />}
     </section>
   )
 }

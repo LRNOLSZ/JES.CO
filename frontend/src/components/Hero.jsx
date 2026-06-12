@@ -1,221 +1,139 @@
-import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
-import axios from 'axios'
+import { Reveal, ArrowIcon } from './Reveal'
+import { usePageImages } from '../hooks/usePageImages'
 
-const fade = (delay = 0) => ({
-  initial:    { opacity: 0, y: 28 },
-  animate:    { opacity: 1, y: 0  },
-  transition: { duration: 0.9, ease: 'easeOut', delay },
-})
-
-export default function Hero() {
-  const [heroBg, setHeroBg] = useState(null)
-
-  useEffect(() => {
-    axios.get('/api/settings/').then(r => {
-      if (r.data.hero_bg_url) setHeroBg(r.data.hero_bg_url)
-    }).catch(() => {})
-  }, [])
-
+export default function StudioHero() {
+  const images = usePageImages()
+  const portraitUrl = images.studio_portrait_url
   return (
     <section style={{
-      position:   'relative',
-      width:      '100%',
-      minHeight:  '100vh',
-      display:    'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      overflow:   'hidden',
-      background: 'var(--dark-base)',
+      minHeight:     '100vh',
+      display:       'flex',
+      alignItems:    'center',
+      overflow:      'hidden',
+      paddingTop:    '94px',
+      paddingBottom: 'clamp(3rem,7vh,6rem)',
+      position:      'relative',
     }}>
 
-      {/* Background image (when uploaded from admin) */}
-      {heroBg && (
-        <div style={{
-          position: 'absolute', inset: 0,
-          backgroundImage:    `url(${heroBg})`,
-          backgroundSize:     'cover',
-          backgroundPosition: 'center 20%',
-          backgroundAttachment: 'fixed',
-          opacity: 0.65,
-          zIndex:  0,
-        }} />
-      )}
+      {/* Ambient glows */}
+      <div style={{ position: 'absolute', top: '8%', left: '-6%', width: '620px', height: '620px', borderRadius: '50%', pointerEvents: 'none',
+        background: 'radial-gradient(circle, var(--plum), transparent 68%)', opacity: 'var(--glow-plum)', filter: 'blur(40px)' }} />
+      <div style={{ position: 'absolute', bottom: '-10%', right: '-4%', width: '520px', height: '520px', borderRadius: '50%', pointerEvents: 'none',
+        background: 'radial-gradient(circle, var(--champ), transparent 70%)', opacity: 'var(--glow-champ)', filter: 'blur(30px)' }} />
 
-      {/* Gradient overlay — always present */}
-      <div style={{
-        position: 'absolute', inset: 0,
-        background: 'linear-gradient(to bottom, rgba(12,10,20,0.2) 0%, rgba(12,10,20,0.05) 50%, rgba(12,10,20,0.45) 100%)',
-        zIndex: 1,
-        pointerEvents: 'none',
-      }} />
+      {/* Left vertical EST marker */}
+      <div className="hero-vmark" style={{ position: 'absolute', left: '1.6rem', top: '50%', transform: 'translateY(-50%)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1.2rem' }}>
+        <span className="v-label">EST. 2023</span>
+        <span style={{ width: '1px', height: '70px', background: 'linear-gradient(var(--champ), transparent)' }} />
+      </div>
 
-      {/* Soft purple glow — top centre */}
-      <div style={{
-        position:     'absolute',
-        top:          '20%', left: '50%',
-        transform:    'translateX(-50%)',
-        width:        '480px', height: '480px',
-        borderRadius: '50%',
-        background:   'radial-gradient(circle, #60269E, transparent 70%)',
-        opacity:      0.09,
-        filter:       'blur(90px)',
-        pointerEvents:'none',
-        zIndex:       1,
-      }} />
-
-      {/* Soft gold glow — bottom right */}
-      <div style={{
-        position:     'absolute',
-        bottom:       '15%', right: '15%',
-        width:        '300px', height: '300px',
-        borderRadius: '50%',
-        background:   'radial-gradient(circle, #D4AF37, transparent 70%)',
-        opacity:      0.06,
-        filter:       'blur(80px)',
-        pointerEvents:'none',
-        zIndex:       1,
-      }} />
-
-      {/* Content */}
-      <div style={{
-        position:      'relative',
-        zIndex:        2,
-        textAlign:     'center',
-        width:         '100%',
-        maxWidth:      '820px',
-        padding:       '0 1.5rem',
-        marginLeft:    'auto',
-        marginRight:   'auto',
+      <div className="wrap hero-grid" style={{
+        display:             'grid',
+        gridTemplateColumns: '1.08fr 0.92fr',
+        gap:                 'clamp(2rem,5vw,4.5rem)',
+        alignItems:          'center',
+        position:            'relative',
+        zIndex:              2,
       }}>
 
-        {/* Eyebrow */}
-        <motion.p {...fade(0.1)} style={{
-          fontFamily:    "'DM Sans', sans-serif",
-          fontSize:      '0.65rem',
-          letterSpacing: '0.45em',
-          textTransform: 'uppercase',
-          color:         'var(--gold)',
-          marginBottom:  '1.5rem',
-        }}>
-          Premium Skin &amp; Makeup Artistry
-        </motion.p>
+        {/* Text — slides in from right */}
+        <div className="hero-text-anim">
+          <motion.p
+            className="eyebrow"
+            initial={{ opacity: 0, x: 30 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.8, delay: 0.05, ease: [0.22,1,0.36,1] }}
+            style={{ marginBottom: '1.6rem' }}
+          >
+            Premium Skin &amp; Makeup Artistry
+          </motion.p>
 
-        {/* Headline */}
-        <motion.h1 {...fade(0.25)} style={{
-          fontFamily:   "'Playfair Display', serif",
-          fontSize:     'clamp(2.8rem, 9vw, 5.5rem)',
-          lineHeight:   1.05,
-          marginBottom: '1.5rem',
-          color:        'var(--text-primary)',
-        }}>
-          Where Beauty
-          <br />
-          <span style={{
-            fontStyle:  'italic',
-            background: 'linear-gradient(135deg, var(--gold-light), var(--gold), var(--gold-dark))',
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor:  'transparent',
-            backgroundClip: 'text',
+          <motion.h1
+            initial={{ opacity: 0, x: 40 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.85, delay: 0.15, ease: [0.22,1,0.36,1] }}
+            style={{ fontSize: 'clamp(3.1rem,8.4vw,6.6rem)', fontWeight: 600, letterSpacing: '-0.01em', lineHeight: 0.98 }}
+          >
+            Where Beauty<br />
+            <span className="ital metal-text" style={{ fontWeight: 500 }}>Becomes&nbsp;Art</span>
+          </motion.h1>
+
+          <motion.div
+            initial={{ opacity: 0, x: 30 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.8, delay: 0.28, ease: [0.22,1,0.36,1] }}
+            style={{ display: 'flex', alignItems: 'center', gap: '1rem', margin: '1.8rem 0 1.6rem' }}
+          >
+            <span style={{ width: '54px', height: '1px', background: 'var(--metal)' }} />
+            <span style={{ fontFamily: 'var(--sans)', fontSize: '0.66rem', letterSpacing: '0.28em', textTransform: 'uppercase', color: 'var(--taupe-mut)' }}>
+              by Maame Ama
+            </span>
+          </motion.div>
+
+          <motion.p
+            initial={{ opacity: 0, x: 30 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.8, delay: 0.38, ease: [0.22,1,0.36,1] }}
+            style={{ fontFamily: 'var(--sans)', fontSize: 'clamp(0.95rem,1.4vw,1.08rem)', fontWeight: 300, lineHeight: 1.85, color: 'var(--taupe)', maxWidth: '30rem', marginBottom: '2.4rem' }}
+          >
+            Transformative skin and makeup, crafted for those who demand the finest. Bridal, editorial, corrective &amp; training — all under one roof.
+          </motion.p>
+
+          <motion.div
+            initial={{ opacity: 0, x: 30 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.8, delay: 0.48, ease: [0.22,1,0.36,1] }}
+            style={{ display: 'flex', gap: '0.9rem', flexWrap: 'wrap' }}
+          >
+            <a href="#work" className="btn btn-gold">View the Work</a>
+            <a href="#booking" className="btn btn-ghost">Book a Session <ArrowIcon /></a>
+          </motion.div>
+        </div>
+
+        {/* Portrait — slides in from left */}
+        <div className="hero-portrait hero-img-anim" style={{ position: 'relative' }}>
+          {/* Arch border frame */}
+          <div style={{ position: 'absolute', inset: '-10px', border: '1px solid var(--hair)', borderRadius: '220px 220px 18px 18px', pointerEvents: 'none' }} />
+
+          {/* Artist portrait — from admin, falls back to placeholder */}
+          {portraitUrl
+            ? <img src={portraitUrl} alt="Maame Ama" style={{ width: '100%', aspectRatio: '3 / 4.2', borderRadius: '200px 200px 18px 18px', objectFit: 'cover', objectPosition: 'center top', display: 'block' }} />
+            : <div className="ph" style={{ width: '100%', aspectRatio: '3 / 4.2', borderRadius: '200px 200px 18px 18px', display: 'block' }}><span className="ph-tag">Portrait — Maame Ama</span></div>
+          }
+
+          {/* Caption badge */}
+          <div style={{
+            position:       'absolute',
+            bottom:         '1.1rem',
+            left:           '50%',
+            transform:      'translateX(-50%)',
+            display:        'flex',
+            alignItems:     'center',
+            gap:            '0.6rem',
+            background:     'color-mix(in srgb, var(--ink) 70%, transparent)',
+            backdropFilter: 'blur(10px)',
+            border:         '1px solid var(--hair)',
+            borderRadius:   '9999px',
+            padding:        '0.5rem 1.1rem',
+            whiteSpace:     'nowrap',
           }}>
-            Becomes Art
-          </span>
-        </motion.h1>
-
-        {/* Subheading */}
-        <motion.p {...fade(0.4)} style={{
-          fontFamily:   "'DM Sans', sans-serif",
-          fontSize:     '1rem',
-          fontWeight:   300,
-          lineHeight:   1.75,
-          color:        'var(--text-secondary)',
-          maxWidth:     '460px',
-          margin:       '0 auto 2.5rem',
-        }}>
-          Transformative skin and makeup by Maame Ama — crafted for those who demand the finest.
-        </motion.p>
-
-        {/* CTAs */}
-        <motion.div {...fade(0.55)} style={{
-          display:        'flex',
-          flexWrap:       'wrap',
-          alignItems:     'center',
-          justifyContent: 'center',
-          gap:            '1rem',
-        }}>
-          <a
-            href="#gallery"
-            style={{
-              padding:       '0.9rem 2.25rem',
-              borderRadius:  '9999px',
-              background:    'linear-gradient(135deg, var(--gold-light), var(--gold))',
-              color:         '#000',
-              fontFamily:    "'DM Sans', sans-serif",
-              fontSize:      '0.72rem',
-              letterSpacing: '0.18em',
-              textTransform: 'uppercase',
-              fontWeight:    600,
-              textDecoration:'none',
-              transition:    'opacity 0.3s, transform 0.3s',
-            }}
-            onMouseEnter={e => { e.currentTarget.style.opacity = '0.88'; e.currentTarget.style.transform = 'scale(1.03)' }}
-            onMouseLeave={e => { e.currentTarget.style.opacity = '1';    e.currentTarget.style.transform = 'scale(1)' }}
-          >
-            View Gallery
-          </a>
-          <a
-            href="#booking"
-            style={{
-              padding:       '0.9rem 2.25rem',
-              borderRadius:  '9999px',
-              border:        '1px solid var(--glass-border)',
-              color:         'var(--text-primary)',
-              background:    'var(--glass-bg)',
-              fontFamily:    "'DM Sans', sans-serif",
-              fontSize:      '0.72rem',
-              letterSpacing: '0.18em',
-              textTransform: 'uppercase',
-              textDecoration:'none',
-              transition:    'border-color 0.3s, transform 0.3s',
-            }}
-            onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--gold)'; e.currentTarget.style.transform = 'scale(1.03)' }}
-            onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--glass-border)'; e.currentTarget.style.transform = 'scale(1)' }}
-          >
-            Book a Session
-          </a>
-        </motion.div>
+            <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: 'var(--champ)' }} />
+            <span className="serif ital" style={{ fontSize: '0.92rem', color: 'var(--bone)' }}>Maame Ama</span>
+            <span style={{ fontFamily: 'var(--sans)', fontSize: '0.55rem', letterSpacing: '0.24em', textTransform: 'uppercase', color: 'var(--taupe-mut)' }}>Founder</span>
+          </div>
+        </div>
       </div>
 
       {/* Scroll hint */}
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 1.4, duration: 0.8 }}
-        style={{
-          position:  'absolute',
-          bottom:    '2.5rem', left: '50%',
-          transform: 'translateX(-50%)',
-          display:   'flex', flexDirection: 'column',
-          alignItems:'center', gap: '0.5rem',
-          zIndex:    2,
-        }}
-      >
-        <span style={{
-          fontSize: '0.55rem', letterSpacing: '0.35em',
-          textTransform: 'uppercase', color: 'var(--text-muted)',
-        }}>
-          Scroll
-        </span>
-        <motion.div
-          animate={{ y: [0, 8, 0] }}
-          transition={{ repeat: Infinity, duration: 1.6, ease: 'easeInOut' }}
-          style={{
-            width:      '1px',
-            height:     '2.5rem',
-            background: 'linear-gradient(to bottom, var(--gold), transparent)',
-          }}
+      <div className="hero-scroll" style={{ position: 'absolute', bottom: '2rem', left: '50%', transform: 'translateX(-50%)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5rem' }}>
+        <span style={{ fontFamily: 'var(--sans)', fontSize: '0.5rem', letterSpacing: '0.4em', textTransform: 'uppercase', color: 'var(--taupe-mut)' }}>Scroll</span>
+        <motion.span
+          animate={{ scaleY: [1, 0.6, 1] }}
+          transition={{ repeat: Infinity, duration: 2, ease: 'easeInOut' }}
+          style={{ display: 'block', width: '1px', height: '40px', background: 'linear-gradient(var(--champ), transparent)', transformOrigin: 'top' }}
         />
-      </motion.div>
+      </div>
     </section>
   )
 }

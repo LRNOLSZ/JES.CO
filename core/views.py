@@ -2,12 +2,36 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.permissions import AllowAny
 
-from .models import SiteSettings, SocialLink, Testimonial, IntroVideo
-from .serializers import SiteSettingsSerializer, SocialLinkSerializer, TestimonialSerializer, IntroVideoSerializer
+from .models import PageImages, SiteSettings, SocialLink, Testimonial, IntroVideo
+from .serializers import (
+    PageImagesSerializer, SiteSettingsSerializer,
+    SocialLinkSerializer, TestimonialSerializer, IntroVideoSerializer,
+)
+
+
+_EMPTY_PAGE_IMAGES = {
+    'home_hero_url': None,
+    'home_studio_feature_url': None,
+    'studio_portrait_url': None,
+    'studio_about_url': None,
+    'studio_booking_url': None,
+    'studio_testimonials_bg_url': None,
+}
+
+class PageImagesView(APIView):
+    """GET /api/page-images/ — all site-level image URLs, organised by page."""
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        try:
+            images = PageImages.objects.get(pk=1)
+            return Response(PageImagesSerializer(images, context={'request': request}).data)
+        except PageImages.DoesNotExist:
+            return Response(_EMPTY_PAGE_IMAGES)
 
 
 class SiteSettingsView(APIView):
-    """GET /api/settings/ — returns contact details for the footer."""
+    """GET /api/settings/ — footer contact details and brand tagline."""
     permission_classes = [AllowAny]
 
     def get(self, request):
@@ -16,7 +40,7 @@ class SiteSettingsView(APIView):
 
 
 class SocialLinkListView(APIView):
-    """GET /api/socials/ — returns all active social links ordered by position."""
+    """GET /api/socials/ — active social links ordered by position."""
     permission_classes = [AllowAny]
 
     def get(self, request):
@@ -25,7 +49,7 @@ class SocialLinkListView(APIView):
 
 
 class TestimonialListView(APIView):
-    """GET /api/testimonials/ — returns all active testimonials."""
+    """GET /api/testimonials/ — active testimonials."""
     permission_classes = [AllowAny]
 
     def get(self, request):
@@ -34,7 +58,7 @@ class TestimonialListView(APIView):
 
 
 class IntroVideoView(APIView):
-    """GET /api/videos/?page=jesoco|studio — returns the active intro video for a page."""
+    """GET /api/videos/?page=jesoco|studio — active intro video for a page."""
     permission_classes = [AllowAny]
 
     def get(self, request):

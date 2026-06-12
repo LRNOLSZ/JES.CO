@@ -1,15 +1,27 @@
 import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import axios from 'axios'
 
-const platformIcon = (platform) => {
-  const p = platform.toLowerCase()
-  const s = { width: 16, height: 16 }
+const EXPLORE = [
+  { label: 'Home',    to: '/' },
+  { label: 'Shop',    to: '/products/makeup' },
+  { label: 'Studio',  to: '/studio' },
+  { label: 'Courses', to: '/studio/courses' },
+]
 
-  if (p === 'instagram') return (
+function SocialIcon({ platform }) {
+  const p = (platform || '').toLowerCase()
+  const s = { width: 16, height: 16 }
+  if (p === 'instagram' || p === 'ig') return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={s}>
       <rect x="2" y="2" width="20" height="20" rx="5" />
       <circle cx="12" cy="12" r="4" />
-      <circle cx="17.5" cy="6.5" r="0.5" fill="currentColor" stroke="none" />
+      <circle cx="17.5" cy="6.5" r="0.6" fill="currentColor" stroke="none" />
+    </svg>
+  )
+  if (p === 'tiktok' || p === 'tt') return (
+    <svg viewBox="0 0 24 24" fill="currentColor" style={s}>
+      <path d="M19.59 6.69a4.83 4.83 0 01-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 01-2.88 2.5 2.89 2.89 0 01-2.89-2.89 2.89 2.89 0 012.89-2.89c.28 0 .54.04.79.1V9.01a6.33 6.33 0 00-.79-.05 6.34 6.34 0 00-6.34 6.34 6.34 6.34 0 006.34 6.34 6.34 6.34 0 006.33-6.34V8.69a8.17 8.17 0 004.77 1.52V6.76a4.85 4.85 0 01-1-.07z" />
     </svg>
   )
   if (p === 'facebook') return (
@@ -17,20 +29,9 @@ const platformIcon = (platform) => {
       <path d="M18 2h-3a5 5 0 00-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 011-1h3z" />
     </svg>
   )
-  if (p === 'tiktok') return (
-    <svg viewBox="0 0 24 24" fill="currentColor" style={s}>
-      <path d="M19.59 6.69a4.83 4.83 0 01-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 01-2.88 2.5 2.89 2.89 0 01-2.89-2.89 2.89 2.89 0 012.89-2.89c.28 0 .54.04.79.1V9.01a6.33 6.33 0 00-.79-.05 6.34 6.34 0 00-6.34 6.34 6.34 6.34 0 006.34 6.34 6.34 6.34 0 006.33-6.34V8.69a8.17 8.17 0 004.77 1.52V6.76a4.85 4.85 0 01-1-.07z" />
-    </svg>
-  )
   if (p === 'twitter' || p === 'x' || p === 'twitter/x') return (
     <svg viewBox="0 0 24 24" fill="currentColor" style={s}>
       <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
-    </svg>
-  )
-  if (p === 'youtube') return (
-    <svg viewBox="0 0 24 24" fill="currentColor" style={s}>
-      <path d="M22.54 6.42a2.78 2.78 0 00-1.95-1.96C18.88 4 12 4 12 4s-6.88 0-8.59.46A2.78 2.78 0 001.46 6.42 29 29 0 001 12a29 29 0 00.46 5.58 2.78 2.78 0 001.95 1.95C5.12 20 12 20 12 20s6.88 0 8.59-.47a2.78 2.78 0 001.95-1.95A29 29 0 0023 12a29 29 0 00-.46-5.58z" />
-      <polygon points="9.75 15.02 15.5 12 9.75 8.98 9.75 15.02" fill="white" />
     </svg>
   )
   return (
@@ -41,24 +42,6 @@ const platformIcon = (platform) => {
   )
 }
 
-const EmailIcon = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ width: 15, height: 15 }}>
-    <rect x="2" y="4" width="20" height="16" rx="2" />
-    <path d="m22 7-8.97 5.7a1.94 1.94 0 01-2.06 0L2 7" />
-  </svg>
-)
-const PhoneIcon = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ width: 15, height: 15 }}>
-    <path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.8 19.79 19.79 0 01.01 1.18 2 2 0 012 0h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L6.09 7.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z" />
-  </svg>
-)
-const LocationIcon = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ width: 15, height: 15 }}>
-    <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z" />
-    <circle cx="12" cy="10" r="3" />
-  </svg>
-)
-
 export default function JescoFooter() {
   const [settings, setSettings] = useState({ tagline: '', email: '', phone: '', location: '' })
   const [socials,  setSocials]  = useState([])
@@ -68,148 +51,182 @@ export default function JescoFooter() {
     axios.get('/api/socials/').then(r => setSocials(r.data)).catch(() => {})
   }, [])
 
-  const rowStyle = {
-    display: 'flex', alignItems: 'center', justifyContent: 'center',
-    gap: '0.5rem', textDecoration: 'none',
-    fontFamily: "'DM Sans', sans-serif",
-    fontSize: '0.85rem', color: 'var(--text-secondary)',
-    transition: 'color 0.3s',
-  }
+  const contactItems = [
+    settings.email    && { label: settings.email,    href: `mailto:${settings.email}` },
+    settings.phone    && { label: settings.phone,    href: `tel:${settings.phone}` },
+    settings.location && { label: settings.location, href: '#' },
+  ].filter(Boolean)
 
   return (
     <footer style={{
-      width:           '100%',
-      background:      'var(--dark-base)',
-      borderTop:       '1px solid var(--glass-border)',
-      display:         'flex',
-      flexDirection:   'column',
-      alignItems:      'center',
+      background:  'var(--ink)',
+      borderTop:   '1px solid var(--hair)',
+      paddingTop:  'clamp(4rem,8vw,6rem)',
     }}>
 
-      {/* Top border accent */}
-      <div style={{
-        width:      '40%', height: '1px',
-        background: 'linear-gradient(to right, transparent, var(--gold), transparent)',
-        marginBottom: '-1px',
-      }} />
-
-      {/* Main content */}
-      <div style={{
-        width:         '100%',
-        maxWidth:      '44rem',
-        padding:       '4rem 1.5rem',
-        display:       'flex',
-        flexDirection: 'column',
-        alignItems:    'center',
-        textAlign:     'center',
-        gap:           '2.5rem',
+      {/* Top grid */}
+      <div className="wrap footer-top" style={{
+        display:             'grid',
+        gridTemplateColumns: '1.4fr 1fr 1fr',
+        gap:                 '3rem',
+        paddingBottom:       '4rem',
       }}>
 
-        {/* Brand */}
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.75rem' }}>
+        {/* Column 1 — brand */}
+        <div>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.7rem', marginBottom: '1.1rem' }}>
+            <span style={{
+              fontFamily:    'var(--serif)',
+              fontSize:      '1.6rem',
+              fontWeight:    800,
+              letterSpacing: '0.1em',
+              background:    'var(--metal)',
+              WebkitBackgroundClip: 'text',
+              backgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              color: 'transparent',
+            }}>JES.CO</span>
+            <span style={{
+              fontFamily:    'var(--sans)',
+              fontSize:      '0.52rem',
+              letterSpacing: '0.4em',
+              textTransform: 'uppercase',
+              color:         'var(--taupe-mut)',
+            }}>The Beauty Collective</span>
+          </div>
           <p style={{
-            fontFamily: "'Playfair Display', serif",
-            fontSize:   '1.5rem',
-            background: 'linear-gradient(135deg, var(--gold-light), var(--gold), var(--gold-dark))',
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent',
-            backgroundClip: 'text',
+            fontFamily:  'var(--sans)',
+            fontSize:    '0.92rem',
+            fontWeight:  300,
+            lineHeight:  1.8,
+            color:       'var(--taupe)',
+            maxWidth:    '22rem',
           }}>
-            JES.CO
+            {settings.tagline || 'Where beauty meets craft. Luxury makeup, skincare, and studio artistry — curated for the woman who commands every room.'}
           </p>
-          {settings.tagline && (
-            <p style={{
-              fontFamily: "'DM Sans', sans-serif",
-              fontSize:   '0.85rem', fontWeight: 300,
-              color:      'var(--text-muted)', lineHeight: 1.7,
-              maxWidth:   '22rem',
-            }}>
-              {settings.tagline}
-            </p>
+
+          {/* Social icons */}
+          {socials.length > 0 && (
+            <div style={{ display: 'flex', gap: '0.7rem', marginTop: '1.8rem' }}>
+              {socials.map(item => (
+                <a
+                  key={item.id}
+                  href={item.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label={item.platform}
+                  style={{
+                    width:          '38px',
+                    height:         '38px',
+                    borderRadius:   '50%',
+                    border:         '1px solid var(--hair)',
+                    display:        'flex',
+                    alignItems:     'center',
+                    justifyContent: 'center',
+                    color:          'var(--taupe)',
+                    transition:     'all 0.3s',
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--champ)'; e.currentTarget.style.color = 'var(--champ)' }}
+                  onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--hair)';  e.currentTarget.style.color = 'var(--taupe)' }}
+                >
+                  <SocialIcon platform={item.platform} />
+                </a>
+              ))}
+            </div>
           )}
         </div>
 
-        <div style={{ width: '3rem', height: '1px', background: 'var(--glass-border)' }} />
-
-        {/* Contact */}
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem' }}>
+        {/* Column 2 — explore */}
+        <div>
           <p style={{
-            fontFamily: "'DM Sans', sans-serif",
-            fontSize: '0.62rem', letterSpacing: '0.3em',
-            textTransform: 'uppercase', color: 'var(--gold)',
+            fontFamily:    'var(--sans)',
+            fontSize:      '0.6rem',
+            letterSpacing: '0.3em',
+            textTransform: 'uppercase',
+            color:         'var(--champ)',
+            marginBottom:  '1.3rem',
+          }}>
+            Explore
+          </p>
+          <ul style={{ listStyle: 'none', display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+            {EXPLORE.map(l => (
+              <li key={l.label}>
+                <Link
+                  to={l.to}
+                  style={{
+                    fontFamily:    'var(--sans)',
+                    fontSize:      '0.88rem',
+                    color:         'var(--taupe)',
+                    textDecoration:'none',
+                    transition:    'color 0.3s',
+                  }}
+                  onMouseEnter={e => (e.currentTarget.style.color = 'var(--bone)')}
+                  onMouseLeave={e => (e.currentTarget.style.color = 'var(--taupe)')}
+                >
+                  {l.label}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        {/* Column 3 — contact */}
+        <div>
+          <p style={{
+            fontFamily:    'var(--sans)',
+            fontSize:      '0.6rem',
+            letterSpacing: '0.3em',
+            textTransform: 'uppercase',
+            color:         'var(--champ)',
+            marginBottom:  '1.3rem',
           }}>
             Contact
           </p>
-          {[
-            { key: 'email',    value: settings.email,    href: `mailto:${settings.email}`,  Icon: EmailIcon },
-            { key: 'phone',    value: settings.phone,    href: `tel:${settings.phone}`,      Icon: PhoneIcon },
-            { key: 'location', value: settings.location, href: '#',                          Icon: LocationIcon },
-          ].map(item => item.value && (
-            <a key={item.key} href={item.href} style={rowStyle}
-              onMouseEnter={e => { e.currentTarget.style.color = 'var(--text-primary)' }}
-              onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-secondary)' }}
-            >
-              <span style={{ color: 'var(--text-muted)', flexShrink: 0 }}><item.Icon /></span>
-              <span>{item.value}</span>
-            </a>
-          ))}
-        </div>
-
-        <div style={{ width: '3rem', height: '1px', background: 'var(--glass-border)' }} />
-
-        {/* Socials */}
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem' }}>
-          <p style={{
-            fontFamily: "'DM Sans', sans-serif",
-            fontSize: '0.62rem', letterSpacing: '0.3em',
-            textTransform: 'uppercase', color: 'var(--gold)',
-          }}>
-            Follow Us
-          </p>
-          {socials.length === 0 ? (
-            <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-              Coming soon
-            </p>
-          ) : socials.map(item => (
-            <a key={item.id} href={item.url} target="_blank" rel="noopener noreferrer"
-              style={rowStyle}
-              onMouseEnter={e => { e.currentTarget.style.color = 'var(--text-primary)' }}
-              onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-secondary)' }}
-            >
-              <span style={{ color: 'var(--text-muted)' }}>{platformIcon(item.platform)}</span>
-              <span>{item.handle}</span>
-            </a>
-          ))}
+          <ul style={{ listStyle: 'none', display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+            {contactItems.length > 0
+              ? contactItems.map(c => (
+                <li key={c.label}>
+                  <a
+                    href={c.href}
+                    style={{
+                      fontFamily:    'var(--sans)',
+                      fontSize:      '0.88rem',
+                      color:         'var(--taupe)',
+                      textDecoration:'none',
+                      transition:    'color 0.3s',
+                    }}
+                    onMouseEnter={e => (e.currentTarget.style.color = 'var(--bone)')}
+                    onMouseLeave={e => (e.currentTarget.style.color = 'var(--taupe)')}
+                  >
+                    {c.label}
+                  </a>
+                </li>
+              ))
+              : ['hello@jes.co', 'Accra, Ghana'].map(c => (
+                <li key={c} style={{ fontFamily: 'var(--sans)', fontSize: '0.88rem', color: 'var(--taupe)' }}>{c}</li>
+              ))
+            }
+          </ul>
         </div>
       </div>
 
       {/* Bottom bar */}
-      <div style={{
-        borderTop:     '1px solid var(--glass-border)',
-        width:         '100%',
-        padding:       '1.5rem 1.5rem 2.5rem',
-        display:       'flex',
-        flexDirection: 'column',
-        alignItems:    'center',
-        gap:           '0.5rem',
-        textAlign:     'center',
-      }}>
-        <p style={{
-          fontFamily: "'DM Sans', sans-serif",
-          fontSize:   '0.68rem', color: 'var(--text-muted)',
+      <div style={{ borderTop: '1px solid var(--hair)' }}>
+        <div className="wrap" style={{
+          display:        'flex',
+          alignItems:     'center',
+          justifyContent: 'space-between',
+          flexWrap:       'wrap',
+          gap:            '0.6rem',
+          padding:        '1.5rem 1.6rem 2.4rem',
         }}>
-          &copy; {new Date().getFullYear()} JES.CO · All Rights Reserved
-        </p>
-        <a href="#" style={{
-          fontFamily: "'DM Sans', sans-serif",
-          fontSize: '0.68rem', color: 'var(--text-muted)',
-          textDecoration: 'none', transition: 'color 0.3s',
-        }}
-          onMouseEnter={e => { e.currentTarget.style.color = 'var(--text-secondary)' }}
-          onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-muted)' }}
-        >
-          Built by <span style={{ color: 'var(--gold)' }}>Lemuel</span>
-        </a>
+          <span style={{ fontFamily: 'var(--sans)', fontSize: '0.7rem', color: 'var(--taupe-mut)' }}>
+            © {new Date().getFullYear()} JES.CO · All Rights Reserved
+          </span>
+          <span style={{ fontFamily: 'var(--sans)', fontSize: '0.7rem', color: 'var(--taupe-mut)' }}>
+            Built by <span style={{ color: 'var(--champ)' }}>Lemuel</span>
+          </span>
+        </div>
       </div>
     </footer>
   )
