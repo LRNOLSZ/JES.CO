@@ -5,7 +5,6 @@ import axios from 'axios'
 import JescoNavbar from '../components/JescoNavbar'
 import JescoFooter from '../components/JescoFooter'
 import { Reveal, SectionHead, ArrowIcon } from '../components/Reveal'
-import { requestMagicLink } from '../api/auth'
 
 const CATEGORIES = [
   { key: 'all',          label: 'All' },
@@ -78,7 +77,7 @@ function CourseCard({ course, onTrailerClick }) {
       {/* Thumbnail */}
       <div style={{ position: 'relative', aspectRatio: '16 / 10', overflow: 'hidden', background: 'var(--ink-2)' }}>
         {course.thumbnail_url && !imgError
-          ? <img src={course.thumbnail_url} alt={course.title} onError={() => setImgError(true)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+          ? <img src={course.thumbnail_url} alt={course.title} onError={() => setImgError(true)} style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: '50% 10%' }} />
           : <div className="ph" style={{ position: 'absolute', inset: 0, borderRadius: 0, border: 'none' }}><span className="ph-tag">Preview</span></div>
         }
         <div style={{ position: 'absolute', top: '0.75rem', right: '0.75rem', padding: '0.22rem 0.7rem', borderRadius: '9999px', background: 'color-mix(in srgb, var(--champ) 16%, transparent)', border: '1px solid color-mix(in srgb, var(--champ) 55%, transparent)', color: 'var(--champ)', fontFamily: 'var(--sans)', fontSize: '0.56rem', letterSpacing: '0.18em', textTransform: 'uppercase', fontWeight: 600 }}>
@@ -127,65 +126,94 @@ function CourseCard({ course, onTrailerClick }) {
 }
 
 function AlreadyAStudentSection() {
-  const [email,   setEmail]   = useState('')
-  const [status,  setStatus]  = useState('idle')
-  const [message, setMessage] = useState('')
+  const [email,      setEmail]      = useState('')
+  const [status,     setStatus]     = useState('idle')
+  const [message,    setMessage]    = useState('')
+  const hasSession = !!localStorage.getItem('jes_course_session')
 
   const handleSubmit = async (e) => {
     e.preventDefault()
     if (!email.trim()) return
     setStatus('loading')
     try {
-      await requestMagicLink(email.trim())
+      await axios.post('/api/courses/access/request/', { email: email.trim().toLowerCase() })
       setStatus('sent')
-      setMessage('Check your email — your magic link is on its way.')
+      setMessage('Check your email — your access link is on its way.')
     } catch (err) {
-      setMessage(err.response?.status === 429 ? 'Too many requests. Please wait 10 minutes.' : 'Something went wrong. Please try again.')
+      const detail = err.response?.data?.detail || ''
+      if (err.response?.status === 404) {
+        setMessage('No courses found for this email. Check your spelling or browse courses below.')
+      } else {
+        setMessage(detail || 'Something went wrong. Please try again.')
+      }
       setStatus('error')
     }
   }
 
   return (
-    <section style={{ padding: 'clamp(5rem,10vw,8rem) 0', background: 'var(--lite)', position: 'relative', overflow: 'hidden' }}>
+    <section id="my-courses" style={{ padding: 'clamp(5rem,10vw,8rem) 0', background: 'var(--lite)', position: 'relative', overflow: 'hidden' }}>
       <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', width: '500px', height: '500px', borderRadius: '50%', background: 'radial-gradient(circle, var(--champ), transparent 65%)', opacity: 0.04, pointerEvents: 'none' }} />
 
       <div className="wrap" style={{ maxWidth: '480px', textAlign: 'center', position: 'relative' }}>
         <p style={{ fontFamily: 'var(--sans)', fontSize: '0.6rem', letterSpacing: '0.5em', textTransform: 'uppercase', color: 'var(--champ)', marginBottom: '0.8rem' }}>Already a Student?</p>
-        <h2 className="serif" style={{ fontSize: 'clamp(1.6rem,4vw,2.2rem)', color: 'var(--lite-ink)', lineHeight: 1.2, marginBottom: '0.75rem' }}>
+        <h2 className="serif" style={{ fontSize: 'clamp(1.8rem,4vw,2.6rem)', color: 'var(--lite-ink)', lineHeight: 1.2, marginBottom: '0.75rem' }}>
           Access Your Courses
         </h2>
-        <p style={{ fontFamily: 'var(--sans)', fontSize: '0.9rem', fontWeight: 300, color: 'var(--lite-2nd)', lineHeight: 1.75, marginBottom: '2rem' }}>
-          Enter your email and we'll send you a magic link — no password needed.
-        </p>
 
-        {status === 'sent' ? (
-          <div style={{ padding: '1.25rem 1.5rem', borderRadius: '12px', border: '1px solid color-mix(in srgb, var(--champ) 35%, transparent)', background: 'color-mix(in srgb, var(--champ) 6%, transparent)' }}>
-            <p style={{ fontFamily: 'var(--sans)', fontSize: '0.88rem', color: 'var(--champ)', lineHeight: 1.6 }}>✦ {message}</p>
-          </div>
+        {hasSession ? (
+          /* Active session — go straight to dashboard */
+          <>
+            <p style={{ fontFamily: 'var(--sans)', fontSize: '0.9rem', fontWeight: 300, color: 'var(--lite-2nd)', lineHeight: 1.75, marginBottom: '2rem' }}>
+              Welcome back — your courses are ready.
+            </p>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.85rem' }}>
+              <Link to="/studio/courses/dashboard" className="btn btn-gold" style={{ width: '100%', justifyContent: 'center' }}>
+                My Courses →
+              </Link>
+              <button
+                onClick={() => { setStatus('idle'); localStorage.removeItem('jes_course_session') ; window.location.reload() }}
+                style={{ background: 'none', border: 'none', fontFamily: 'var(--sans)', fontSize: '0.72rem', color: 'var(--lite-2nd)', cursor: 'pointer', letterSpacing: '0.05em', textDecoration: 'underline' }}
+              >
+                Sign in with a different email
+              </button>
+            </div>
+          </>
         ) : (
-          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
-            <input
-              type="email"
-              placeholder="your@email.com"
-              value={email}
-              onChange={e => setEmail(e.target.value)}
-              required
-              style={{ width: '100%', padding: '0.85rem 1.1rem', borderRadius: '8px', border: '1px solid color-mix(in srgb, var(--champ) 25%, transparent)', background: 'color-mix(in srgb, var(--lite-ink) 6%, transparent)', color: 'var(--lite-ink)', fontFamily: 'var(--sans)', fontSize: '0.9rem', outline: 'none', boxSizing: 'border-box' }}
-              onFocus={e => { e.target.style.borderColor = 'var(--champ)'; e.target.style.boxShadow = '0 0 0 3px color-mix(in srgb, var(--champ) 15%, transparent)' }}
-              onBlur={e  => { e.target.style.borderColor = 'color-mix(in srgb, var(--champ) 25%, transparent)'; e.target.style.boxShadow = 'none' }}
-            />
-            {status === 'error' && (
-              <p style={{ fontFamily: 'var(--sans)', fontSize: '0.8rem', color: 'rgba(255,120,120,0.85)', margin: 0 }}>{message}</p>
+          /* No session — show magic link request form */
+          <>
+            <p style={{ fontFamily: 'var(--sans)', fontSize: '0.9rem', fontWeight: 300, color: 'var(--lite-2nd)', lineHeight: 1.75, marginBottom: '2rem' }}>
+              Enter your email and we'll send you an access link — no password needed.
+            </p>
+            {status === 'sent' ? (
+              <div style={{ padding: '1.25rem 1.5rem', borderRadius: '12px', border: '1px solid color-mix(in srgb, var(--champ) 35%, transparent)', background: 'color-mix(in srgb, var(--champ) 6%, transparent)' }}>
+                <p style={{ fontFamily: 'var(--sans)', fontSize: '0.88rem', color: 'var(--champ)', lineHeight: 1.6 }}>✦ {message}</p>
+              </div>
+            ) : (
+              <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+                <input
+                  type="email"
+                  placeholder="your@email.com"
+                  value={email}
+                  onChange={e => setEmail(e.target.value)}
+                  required
+                  style={{ width: '100%', padding: '0.85rem 1.1rem', borderRadius: '8px', border: '1px solid color-mix(in srgb, var(--champ) 25%, transparent)', background: 'color-mix(in srgb, var(--lite-ink) 6%, transparent)', color: 'var(--lite-ink)', fontFamily: 'var(--sans)', fontSize: '0.9rem', outline: 'none', boxSizing: 'border-box' }}
+                  onFocus={e => { e.target.style.borderColor = 'var(--champ)'; e.target.style.boxShadow = '0 0 0 3px color-mix(in srgb, var(--champ) 15%, transparent)' }}
+                  onBlur={e  => { e.target.style.borderColor = 'color-mix(in srgb, var(--champ) 25%, transparent)'; e.target.style.boxShadow = 'none' }}
+                />
+                {status === 'error' && (
+                  <p style={{ fontFamily: 'var(--sans)', fontSize: '0.8rem', color: 'rgba(255,120,120,0.85)', margin: 0 }}>{message}</p>
+                )}
+                <button
+                  type="submit"
+                  disabled={status === 'loading'}
+                  className="btn btn-gold"
+                  style={{ opacity: status === 'loading' ? 0.7 : 1, cursor: status === 'loading' ? 'not-allowed' : 'pointer' }}
+                >
+                  {status === 'loading' ? 'Sending…' : 'Send Access Link →'}
+                </button>
+              </form>
             )}
-            <button
-              type="submit"
-              disabled={status === 'loading'}
-              className="btn btn-gold"
-              style={{ opacity: status === 'loading' ? 0.7 : 1, cursor: status === 'loading' ? 'not-allowed' : 'pointer' }}
-            >
-              {status === 'loading' ? 'Sending…' : 'Send Magic Link →'}
-            </button>
-          </form>
+          </>
         )}
       </div>
     </section>
@@ -221,7 +249,7 @@ export default function CoursesPage() {
       <section style={{ position: 'relative', minHeight: '44vh', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', background: 'var(--ink)' }}>
         {heroBg && (
           <>
-            <img src={heroBg} alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center 20%', opacity: 0.22 }} />
+            <img src={heroBg} alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center 20%', opacity: 0.42 }} />
             <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to bottom, color-mix(in srgb, var(--ink) 40%, transparent), var(--ink))' }} />
           </>
         )}

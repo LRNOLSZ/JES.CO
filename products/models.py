@@ -45,24 +45,47 @@ class ProductItem(models.Model):
         return f'{self.get_category_display()} — {self.name}'
 
 
+class DeliveryZone(models.Model):
+    COUNTRY_CHOICES = [('ghana', 'Ghana'), ('usa', 'USA')]
+
+    country       = models.CharField(max_length=10, choices=COUNTRY_CHOICES)
+    location_name = models.CharField(max_length=200, help_text='e.g. Accra, Kumasi, New York')
+    price         = models.DecimalField(max_digits=8, decimal_places=2,
+                      help_text='Delivery fee in GHS (Ghana) or USD (USA)')
+    is_active     = models.BooleanField(default=True)
+    order         = models.PositiveIntegerField(default=0, help_text='Lower number appears first')
+
+    class Meta:
+        ordering            = ['country', 'order', 'location_name']
+        verbose_name        = 'Delivery Zone'
+        verbose_name_plural = 'Delivery Zones'
+
+    def __str__(self):
+        return f'{self.get_country_display()} — {self.location_name} ({"GHS" if self.country == "ghana" else "USD"} {self.price})'
+
+
 class Order(models.Model):
 
     STATUS_CHOICES = [
-        ('pending',   'Pending'),
-        ('confirmed', 'Confirmed'),
-        ('shipped',   'Shipped'),
-        ('delivered', 'Delivered'),
-        ('cancelled', 'Cancelled'),
+        ('pending',    'Pending'),
+        ('confirmed',  'Confirmed'),
+        ('processing', 'Processing'),
+        ('shipped',    'Shipped'),
+        ('delivered',  'Delivered'),
+        ('cancelled',  'Cancelled'),
     ]
 
-    full_name  = models.CharField(max_length=200)
-    email      = models.EmailField()
-    phone      = models.CharField(max_length=30)
-    address    = models.TextField(blank=True)
-    notes      = models.TextField(blank=True)
-    status     = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
-    total      = models.CharField(max_length=50, help_text='Display total e.g. GHS 350')
-    created_at = models.DateTimeField(auto_now_add=True)
+    full_name           = models.CharField(max_length=200)
+    email               = models.EmailField()
+    phone               = models.CharField(max_length=30)
+    address             = models.TextField(blank=True)
+    notes               = models.TextField(blank=True)
+    status              = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    total               = models.CharField(max_length=50, help_text='Display total e.g. GHS 350')
+    delivery_zone       = models.ForeignKey(DeliveryZone, on_delete=models.SET_NULL, null=True, blank=True, related_name='orders')
+    delivery_fee        = models.DecimalField(max_digits=8, decimal_places=2, default=0)
+    paystack_reference  = models.CharField(max_length=100, blank=True)
+    created_at          = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         ordering            = ['-created_at']

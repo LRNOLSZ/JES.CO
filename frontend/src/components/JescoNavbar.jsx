@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react'
-import { Link, useLocation } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useCart } from '../context/CartContext'
 
 const LINKS = [
   { key: 'home',    label: 'Home',    to: '/' },
-  { key: 'shop',    label: 'Shop',    to: '/products/makeup' },
+  { key: 'shop',    label: 'Shop',    to: null, scrollTo: 'lines' },
   { key: 'studio',  label: 'Studio',  to: '/studio' },
   { key: 'courses', label: 'Courses', to: '/studio/courses' },
 ]
@@ -14,6 +14,7 @@ export default function JescoNavbar({ overDark = false }) {
   const [solid, setSolid] = useState(false)
   const { cartCount } = useCart()
   const location = useLocation()
+  const navigate = useNavigate()
 
   useEffect(() => {
     const onScroll = () => setSolid(window.scrollY > 40)
@@ -32,8 +33,20 @@ export default function JescoNavbar({ overDark = false }) {
   const activeKey = location.pathname === '/' ? 'home'
     : location.pathname.startsWith('/studio/courses') ? 'courses'
     : location.pathname.startsWith('/studio') ? 'studio'
-    : location.pathname.startsWith('/products') ? 'shop'
     : ''
+
+  function handleShopClick(e) {
+    e.preventDefault()
+    setOpen(false)
+    if (location.pathname === '/') {
+      document.getElementById('lines')?.scrollIntoView({ behavior: 'smooth' })
+    } else {
+      navigate('/')
+      setTimeout(() => {
+        document.getElementById('lines')?.scrollIntoView({ behavior: 'smooth' })
+      }, 120)
+    }
+  }
 
   return (
     <nav style={{
@@ -93,29 +106,49 @@ export default function JescoNavbar({ overDark = false }) {
           left:      '50%',
           transform: 'translateX(-50%)',
         }}>
-          {LINKS.map(l => (
-            <li key={l.key}>
-              <Link
-                to={l.to}
-                style={{
-                  fontFamily:    'var(--sans)',
-                  fontSize:      '0.68rem',
-                  fontWeight:    500,
-                  letterSpacing: '0.2em',
-                  textTransform: 'uppercase',
-                  color:         l.key === activeKey ? 'var(--champ)' : linkColor,
-                  textDecoration:'none',
-                  transition:    'color 0.3s',
-                  paddingBottom: '4px',
-                  borderBottom:  l.key === activeKey ? '1px solid var(--champ)' : '1px solid transparent',
-                }}
-                onMouseEnter={e => (e.currentTarget.style.color = 'var(--champ)')}
-                onMouseLeave={e => (e.currentTarget.style.color = l.key === activeKey ? 'var(--champ)' : linkColor)}
-              >
-                {l.label}
-              </Link>
-            </li>
-          ))}
+          {LINKS.map(l => {
+            const isActive = l.key === activeKey
+            const sharedStyle = {
+              fontFamily:    'var(--sans)',
+              fontSize:      '0.68rem',
+              fontWeight:    500,
+              letterSpacing: '0.2em',
+              textTransform: 'uppercase',
+              color:         isActive ? 'var(--champ)' : linkColor,
+              textDecoration:'none',
+              transition:    'color 0.3s',
+              paddingBottom: '4px',
+              borderBottom:  isActive ? '1px solid var(--champ)' : '1px solid transparent',
+              cursor:        'pointer',
+              background:    'none',
+              border:        'none',
+              padding:       '0 0 4px 0',
+              font:          'inherit',
+            }
+            return (
+              <li key={l.key}>
+                {l.scrollTo ? (
+                  <button
+                    onClick={handleShopClick}
+                    style={sharedStyle}
+                    onMouseEnter={e => (e.currentTarget.style.color = 'var(--champ)')}
+                    onMouseLeave={e => (e.currentTarget.style.color = isActive ? 'var(--champ)' : linkColor)}
+                  >
+                    {l.label}
+                  </button>
+                ) : (
+                  <Link
+                    to={l.to}
+                    style={sharedStyle}
+                    onMouseEnter={e => (e.currentTarget.style.color = 'var(--champ)')}
+                    onMouseLeave={e => (e.currentTarget.style.color = isActive ? 'var(--champ)' : linkColor)}
+                  >
+                    {l.label}
+                  </Link>
+                )}
+              </li>
+            )
+          })}
         </ul>
 
         {/* Right: cart + CTA + hamburger */}
@@ -242,23 +275,35 @@ export default function JescoNavbar({ overDark = false }) {
           gap:           '1.3rem',
           padding:       '1.8rem',
         }}>
-          {LINKS.map(l => (
-            <li key={l.key}>
-              <Link
-                to={l.to}
-                style={{
-                  fontFamily:    'var(--sans)',
-                  fontSize:      '0.8rem',
-                  letterSpacing: '0.2em',
-                  textTransform: 'uppercase',
-                  color:         l.key === activeKey ? 'var(--champ)' : 'var(--taupe)',
-                  textDecoration:'none',
-                }}
-              >
-                {l.label}
-              </Link>
-            </li>
-          ))}
+          {LINKS.map(l => {
+            const isActive = l.key === activeKey
+            const mobileStyle = {
+              fontFamily:    'var(--sans)',
+              fontSize:      '0.8rem',
+              letterSpacing: '0.2em',
+              textTransform: 'uppercase',
+              color:         isActive ? 'var(--champ)' : 'var(--taupe)',
+              textDecoration:'none',
+              background:    'none',
+              border:        'none',
+              cursor:        'pointer',
+              font:          'inherit',
+              padding:       0,
+            }
+            return (
+              <li key={l.key}>
+                {l.scrollTo ? (
+                  <button onClick={handleShopClick} style={mobileStyle}>
+                    {l.label}
+                  </button>
+                ) : (
+                  <Link to={l.to} style={mobileStyle}>
+                    {l.label}
+                  </Link>
+                )}
+              </li>
+            )
+          })}
           <li>
             <Link
               to="/studio#booking"

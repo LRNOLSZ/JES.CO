@@ -18,7 +18,7 @@ export default function StudioVideoSection() {
   return (
     <section style={{
       padding:    'clamp(5rem, 10vw, 8rem) 1.5rem',
-      background: 'linear-gradient(180deg, var(--dark-base) 0%, #120F1E 100%)',
+      background: 'var(--ink-3)',
       position:   'relative',
       overflow:   'hidden',
     }}>
@@ -47,7 +47,7 @@ export default function StudioVideoSection() {
             fontSize:      '0.65rem',
             letterSpacing: '0.5em',
             textTransform: 'uppercase',
-            color:         'var(--gold)',
+            color:         'var(--champ)',
             marginBottom:  '1rem',
           }}>
             From Maame Ama
@@ -56,7 +56,7 @@ export default function StudioVideoSection() {
             <h2 style={{
               fontFamily: "'Playfair Display', serif",
               fontSize:   'clamp(1.6rem, 4vw, 2.4rem)',
-              color:      'var(--text-primary)',
+              color:      'var(--bone)',
             }}>
               {video.title}
             </h2>

@@ -18,7 +18,7 @@ export default function BrandVideoSection() {
   return (
     <section style={{
       padding:    'clamp(5rem, 10vw, 8rem) 1.5rem',
-      background: 'var(--dark-base)',
+      background: 'var(--ink-2)',
       position:   'relative',
       overflow:   'hidden',
     }}>
@@ -48,7 +48,7 @@ export default function BrandVideoSection() {
             fontSize:      '0.65rem',
             letterSpacing: '0.5em',
             textTransform: 'uppercase',
-            color:         'var(--gold)',
+            color:         'var(--champ)',
             marginBottom:  '1rem',
           }}>
             Meet the Brand
@@ -57,7 +57,7 @@ export default function BrandVideoSection() {
             <h2 style={{
               fontFamily: "'Playfair Display', serif",
               fontSize:   'clamp(1.6rem, 4vw, 2.4rem)',
-              color:      'var(--text-primary)',
+              color:      'var(--bone)',
             }}>
               {video.title}
             </h2>

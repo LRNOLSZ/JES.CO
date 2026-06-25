@@ -3,46 +3,44 @@ from imagekit.models import ProcessedImageField
 from imagekit.processors import ResizeToFit
 
 
+def _video_storage():
+    from jesrestudio_backend.cloudinary_storage import CloudinaryVideoStorage
+    return CloudinaryVideoStorage()
+
+
 class PageImages(models.Model):
     """
     Singleton — one record holds every site-level image.
-    Maame Ama uploads images here from the admin.
-    Organised by page so she always knows where each photo appears.
+    Maame Ama uploads images directly; they go to R2 in production.
     """
 
     # ── Home Page ──────────────────────────────────────────────
     home_hero = ProcessedImageField(
-        upload_to='site/home/', blank=True, null=True,
-        processors=[ResizeToFit(1920, 1080)], format='WEBP', options={'quality': 85},
-        help_text='Full-screen background photo on the JES.CO home page hero.',
-    )
+        upload_to='pages/', blank=True, null=True,
+        processors=[ResizeToFit(1920, 1080)], format='WEBP', options={'quality': 88},
+        help_text='Full-screen background photo on the JES.CO home page hero.')
     home_studio_feature = ProcessedImageField(
-        upload_to='site/home/', blank=True, null=True,
-        processors=[ResizeToFit(1200, 1400)], format='WEBP', options={'quality': 85},
-        help_text='Photo shown in the "Studio" feature section on the home page.',
-    )
+        upload_to='pages/', blank=True, null=True,
+        processors=[ResizeToFit(1200, 900)], format='WEBP', options={'quality': 88},
+        help_text='Photo shown in the "Studio" feature section on the home page.')
 
     # ── Studio Page ────────────────────────────────────────────
     studio_portrait = ProcessedImageField(
-        upload_to='site/studio/', blank=True, null=True,
-        processors=[ResizeToFit(900, 1200)], format='WEBP', options={'quality': 88},
-        help_text="Maame Ama's portrait shown in the studio page hero (arch frame).",
-    )
+        upload_to='pages/', blank=True, null=True,
+        processors=[ResizeToFit(800, 1200)], format='WEBP', options={'quality': 88},
+        help_text="Maame Ama's portrait shown in the studio page hero (arch frame).")
     studio_about = ProcessedImageField(
-        upload_to='site/studio/', blank=True, null=True,
-        processors=[ResizeToFit(1200, 1400)], format='WEBP', options={'quality': 85},
-        help_text='Photo shown in the "About the Studio" section.',
-    )
+        upload_to='pages/', blank=True, null=True,
+        processors=[ResizeToFit(1200, 900)], format='WEBP', options={'quality': 88},
+        help_text='Photo shown in the "About the Studio" section.')
     studio_booking = ProcessedImageField(
-        upload_to='site/studio/', blank=True, null=True,
-        processors=[ResizeToFit(1200, 1600)], format='WEBP', options={'quality': 85},
-        help_text='Atmosphere photo shown beside the booking form.',
-    )
+        upload_to='pages/', blank=True, null=True,
+        processors=[ResizeToFit(1200, 900)], format='WEBP', options={'quality': 88},
+        help_text='Atmosphere photo shown beside the booking form.')
     studio_testimonials_bg = ProcessedImageField(
-        upload_to='site/studio/', blank=True, null=True,
-        processors=[ResizeToFit(1920, 1080)], format='WEBP', options={'quality': 80},
-        help_text='Subtle background photo behind the testimonials section.',
-    )
+        upload_to='pages/', blank=True, null=True,
+        processors=[ResizeToFit(1920, 1080)], format='WEBP', options={'quality': 85},
+        help_text='Subtle background photo behind the testimonials section.')
 
     class Meta:
         verbose_name        = 'Page Images'
@@ -94,8 +92,10 @@ class Testimonial(models.Model):
     name            = models.CharField(max_length=100)
     location        = models.CharField(max_length=100, blank=True, help_text='e.g. Accra, Ghana')
     comment         = models.TextField()
-    profile_picture = models.ImageField(upload_to='testimonials/', blank=True, null=True,
-                        help_text='Client photo or finished makeup shot')
+    profile_picture = ProcessedImageField(
+                        upload_to='testimonials/', blank=True, null=True,
+                        processors=[ResizeToFit(400, 400)], format='WEBP', options={'quality': 88},
+                        help_text='Client photo or finished makeup shot.')
     rating          = models.PositiveSmallIntegerField(default=5, help_text='Star rating out of 5')
     service         = models.CharField(max_length=100, blank=True, help_text='e.g. Bridal Glam, Editorial')
     order           = models.PositiveIntegerField(default=0, help_text='Lower number appears first')
@@ -132,18 +132,22 @@ class SocialLink(models.Model):
 
 class IntroVideo(models.Model):
     """
-    One intro video per page.
+    One intro video per page. Hosted on Cloudinary.
     """
     PAGE_CHOICES = [
         ('jesoco', 'JES.CO Homepage'),
         ('studio', 'Jesres Glam Studio'),
     ]
 
-    page       = models.CharField(max_length=20, choices=PAGE_CHOICES, unique=True,
+    page      = models.CharField(max_length=20, choices=PAGE_CHOICES, unique=True,
                     help_text='Which page this video appears on')
-    video_file = models.FileField(upload_to='videos/', help_text='Upload MP4 video file')
-    title      = models.CharField(max_length=200, blank=True, help_text='Optional caption')
-    is_active  = models.BooleanField(default=True, help_text='Uncheck to hide without deleting')
+    video_url = models.FileField(
+                    upload_to='intro_videos/',
+                    storage=_video_storage,
+                    blank=True, null=True,
+                    help_text='Upload intro video (MP4). Goes to Cloudinary in production.')
+    title     = models.CharField(max_length=200, blank=True, help_text='Optional caption')
+    is_active = models.BooleanField(default=True, help_text='Uncheck to hide without deleting')
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:

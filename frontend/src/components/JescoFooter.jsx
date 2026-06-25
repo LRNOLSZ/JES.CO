@@ -107,7 +107,7 @@ export default function JescoFooter() {
 
           {/* Social icons */}
           {socials.length > 0 && (
-            <div style={{ display: 'flex', gap: '0.7rem', marginTop: '1.8rem' }}>
+            <div className="footer-socials" style={{ display: 'flex', gap: '0.7rem', marginTop: '1.8rem' }}>
               {socials.map(item => (
                 <a
                   key={item.id}
@@ -224,7 +224,7 @@ export default function JescoFooter() {
             © {new Date().getFullYear()} JES.CO · All Rights Reserved
           </span>
           <span style={{ fontFamily: 'var(--sans)', fontSize: '0.7rem', color: 'var(--taupe-mut)' }}>
-            Built by <span style={{ color: 'var(--champ)' }}>Lemuel</span>
+            Built by <a href="mailto:laryea024@gmail.com" style={{ color: 'var(--champ)', textDecoration: 'none' }}>Lemuel</a>
           </span>
         </div>
       </div>

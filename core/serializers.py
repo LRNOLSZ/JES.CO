@@ -2,20 +2,13 @@ from rest_framework import serializers
 from .models import PageImages, SiteSettings, SocialLink, Testimonial, IntroVideo
 
 
-def abs_url(request, field_file):
-    """Return absolute URL for an image/file field, or None."""
-    if not field_file:
-        return None
-    return request.build_absolute_uri(field_file.url) if request else field_file.url
-
-
 class PageImagesSerializer(serializers.ModelSerializer):
-    home_hero_url              = serializers.SerializerMethodField()
-    home_studio_feature_url    = serializers.SerializerMethodField()
-    studio_portrait_url        = serializers.SerializerMethodField()
-    studio_about_url           = serializers.SerializerMethodField()
-    studio_booking_url         = serializers.SerializerMethodField()
-    studio_testimonials_bg_url = serializers.SerializerMethodField()
+    home_hero_url              = serializers.ImageField(source='home_hero',              use_url=True, allow_null=True, read_only=True)
+    home_studio_feature_url    = serializers.ImageField(source='home_studio_feature',    use_url=True, allow_null=True, read_only=True)
+    studio_portrait_url        = serializers.ImageField(source='studio_portrait',        use_url=True, allow_null=True, read_only=True)
+    studio_about_url           = serializers.ImageField(source='studio_about',           use_url=True, allow_null=True, read_only=True)
+    studio_booking_url         = serializers.ImageField(source='studio_booking',         use_url=True, allow_null=True, read_only=True)
+    studio_testimonials_bg_url = serializers.ImageField(source='studio_testimonials_bg', use_url=True, allow_null=True, read_only=True)
 
     class Meta:
         model  = PageImages
@@ -27,24 +20,6 @@ class PageImagesSerializer(serializers.ModelSerializer):
             'studio_booking_url',
             'studio_testimonials_bg_url',
         ]
-
-    def get_home_hero_url(self, obj):
-        return abs_url(self.context.get('request'), obj.home_hero)
-
-    def get_home_studio_feature_url(self, obj):
-        return abs_url(self.context.get('request'), obj.home_studio_feature)
-
-    def get_studio_portrait_url(self, obj):
-        return abs_url(self.context.get('request'), obj.studio_portrait)
-
-    def get_studio_about_url(self, obj):
-        return abs_url(self.context.get('request'), obj.studio_about)
-
-    def get_studio_booking_url(self, obj):
-        return abs_url(self.context.get('request'), obj.studio_booking)
-
-    def get_studio_testimonials_bg_url(self, obj):
-        return abs_url(self.context.get('request'), obj.studio_testimonials_bg)
 
 
 class SiteSettingsSerializer(serializers.ModelSerializer):
@@ -60,22 +35,31 @@ class SocialLinkSerializer(serializers.ModelSerializer):
 
 
 class TestimonialSerializer(serializers.ModelSerializer):
-    profile_picture_url = serializers.SerializerMethodField()
+    # Rename fields to match what the frontend component expects
+    client_name = serializers.CharField(source='name')
+    quote       = serializers.CharField(source='comment')
+    avatar_url  = serializers.ImageField(source='profile_picture', use_url=True, allow_null=True, read_only=True)
 
     class Meta:
         model  = Testimonial
-        fields = ['id', 'name', 'location', 'comment', 'profile_picture_url', 'rating', 'service', 'order']
-
-    def get_profile_picture_url(self, obj):
-        return abs_url(self.context.get('request'), obj.profile_picture)
+        fields = ['id', 'client_name', 'quote', 'avatar_url', 'rating', 'service', 'order']
 
 
 class IntroVideoSerializer(serializers.ModelSerializer):
     video_url = serializers.SerializerMethodField()
 
+    def get_video_url(self, obj):
+        if not obj.video_url:
+            return None
+        try:
+            url = obj.video_url.url
+            if url.startswith('http'):
+                return url
+            request = self.context.get('request')
+            return request.build_absolute_uri(url) if request else url
+        except Exception:
+            return None
+
     class Meta:
         model  = IntroVideo
         fields = ['id', 'page', 'title', 'video_url', 'is_active']
-
-    def get_video_url(self, obj):
-        return abs_url(self.context.get('request'), obj.video_file)

@@ -40,6 +40,11 @@ INSTALLED_APPS = [
 
     # Import/Export
     'import_export',
+
+    # Cloud storage
+    'storages',
+    'cloudinary_storage',
+    'cloudinary',
 ]
 
 MIDDLEWARE = [
@@ -146,6 +151,27 @@ CACHES = {
         'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
     }
 }
+
+# --- Cloudinary (video storage) ---
+CLOUDINARY_STORAGE = {
+    'CLOUD_NAME': config('CLOUDINARY_CLOUD_NAME', default=''),
+    'API_KEY':    config('CLOUDINARY_API_KEY',    default=''),
+    'API_SECRET': config('CLOUDINARY_API_SECRET', default=''),
+}
+
+# --- Cloudflare R2 Storage ---
+# When these four vars are set in .env, all uploaded images go to R2.
+# Without them, files save locally to /media/ (dev mode).
+from .storage_backends import R2_CONFIGURED  # noqa: E402
+if R2_CONFIGURED:
+    STORAGES = {
+        'default': {
+            'BACKEND': 'jesrestudio_backend.storage_backends.R2MediaStorage',
+        },
+        'staticfiles': {
+            'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage',
+        },
+    }
 
 # --- Django Imagekit ---
 IMAGEKIT_CACHEFILE_DIR = 'CACHE/images'

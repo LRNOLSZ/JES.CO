@@ -4,14 +4,57 @@ from import_export.admin import ImportExportModelAdmin
 from unfold.admin import ModelAdmin
 from unfold.contrib.import_export.forms import ExportForm, ImportForm
 
-from .models import Order, OrderItem, ProductItem
+from .models import DeliveryZone, Order, OrderItem, ProductItem
 
+
+# ── Delivery Zones ─────────────────────────────────────────────────────────────
+
+@admin.register(DeliveryZone)
+class DeliveryZoneAdmin(ModelAdmin):
+    list_display  = ('location_name', 'country_badge', 'price_display', 'is_active', 'order')
+    list_editable = ('is_active', 'order')
+    list_filter   = ('country', 'is_active')
+    ordering      = ('country', 'order', 'location_name')
+    fieldsets = (
+        ('Ghana Delivery', {
+            'fields': ('country', 'location_name', 'price', 'is_active', 'order'),
+            'description': 'Set country to "Ghana" for Ghana zones, "USA" for USA zones.',
+        }),
+    )
+
+    def country_badge(self, obj):
+        color = '#60269E' if obj.country == 'ghana' else '#1a56db'
+        label = obj.get_country_display()
+        return format_html(
+            '<span style="background:{};color:#fff;padding:2px 10px;border-radius:999px;font-size:0.7rem;">{}</span>',
+            color, label,
+        )
+    country_badge.short_description = 'Country'
+
+    def price_display(self, obj):
+        currency = 'GHS' if obj.country == 'ghana' else 'USD'
+        return f'{currency} {obj.price}'
+    price_display.short_description = 'Fee'
+    price_display.admin_order_field = 'price'
+
+
+# ── Orders ─────────────────────────────────────────────────────────────────────
 
 class OrderItemInline(admin.TabularInline):
-    model  = OrderItem
-    extra  = 0
-    fields = ('name', 'price', 'quantity')
+    model         = OrderItem
+    extra         = 0
+    fields        = ('name', 'price', 'quantity')
     readonly_fields = ('name', 'price', 'quantity')
+
+
+STATUS_COLORS = {
+    'pending':    ('#6b7280', 'Pending'),
+    'confirmed':  ('#1a56db', 'Confirmed'),
+    'processing': ('#d97706', 'Processing'),
+    'shipped':    ('#60269E', 'Shipped'),
+    'delivered':  ('#16a34a', 'Delivered'),
+    'cancelled':  ('#dc2626', 'Cancelled'),
+}
 
 
 @admin.register(Order)
@@ -19,14 +62,33 @@ class OrderAdmin(ImportExportModelAdmin, ModelAdmin):
     import_form_class = ImportForm
     export_form_class = ExportForm
 
-    list_display  = ('id', 'full_name', 'email', 'phone', 'total', 'status', 'created_at')
-    list_filter   = ('status',)
-    search_fields = ('full_name', 'email', 'phone')
-    list_editable = ('status',)
-    ordering      = ('-created_at',)
-    readonly_fields = ('created_at',)
-    inlines       = [OrderItemInline]
+    list_display    = ('id', 'full_name', 'email', 'phone', 'total', 'status_badge', 'delivery_zone', 'created_at')
+    list_filter     = ('status',)
+    list_editable   = ()
+    search_fields   = ('full_name', 'email', 'phone', 'paystack_reference')
+    ordering        = ('-created_at',)
+    readonly_fields = ('created_at', 'paystack_reference', 'status_badge')
+    inlines         = [OrderItemInline]
 
+    fieldsets = (
+        ('Customer', {
+            'fields': ('full_name', 'email', 'phone', 'address', 'notes'),
+        }),
+        ('Order', {
+            'fields': ('status', 'total', 'delivery_zone', 'delivery_fee', 'paystack_reference', 'created_at'),
+        }),
+    )
+
+    def status_badge(self, obj):
+        color, label = STATUS_COLORS.get(obj.status, ('#6b7280', obj.status))
+        return format_html(
+            '<span style="background:{};color:#fff;padding:2px 10px;border-radius:999px;font-size:0.7rem;font-weight:600;">{}</span>',
+            color, label,
+        )
+    status_badge.short_description = 'Status'
+
+
+# ── Products ───────────────────────────────────────────────────────────────────
 
 @admin.register(ProductItem)
 class ProductItemAdmin(ModelAdmin):

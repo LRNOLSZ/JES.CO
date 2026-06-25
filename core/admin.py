@@ -1,74 +1,42 @@
 from django import forms
 from django.contrib import admin
-from django.contrib.admin.widgets import AdminFileWidget
-from django.utils.html import mark_safe
 from django.shortcuts import redirect
+from django.urls import reverse
+from django.utils.html import mark_safe
 from unfold.admin import ModelAdmin
 
-from .models import PageImages, SiteSettings, SocialLink, Testimonial, IntroVideo
+from .models import IntroVideo as _IntroVideo
 
 
-# ── Helpers ───────────────────────────────────────────────────────────────────
+class IntroVideoAdminForm(forms.ModelForm):
+    class Meta:
+        model  = _IntroVideo
+        fields = '__all__'
+        widgets = {
+            'video_url': forms.FileInput(attrs={'accept': 'video/mp4,video/*'}),
+        }
 
-def img_preview(field_file, size=80):
-    """Return a small thumbnail tag if an image is uploaded, else a dash."""
-    if field_file:
-        return mark_safe(f'<img src="{field_file.url}" style="height:{size}px;width:auto;border-radius:6px;object-fit:cover;" />')
+from .models import PageImages, SiteSettings, SocialLink, Testimonial
+from .models import IntroVideo
+
+
+def url_preview(field, size=80):
+    """Render a small thumbnail from an ImageField or URL string, or a dash if empty."""
+    url = field.url if field and hasattr(field, 'url') else field
+    if url:
+        return mark_safe(f'<img src="{url}" style="height:{size}px;width:auto;border-radius:6px;object-fit:cover;" />')
     return '—'
 
 
-# ── Forms ─────────────────────────────────────────────────────────────────────
-
-class PageImagesForm(forms.ModelForm):
-    class Meta:
-        model  = PageImages
-        fields = '__all__'
-        widgets = {
-            'home_hero':              AdminFileWidget(attrs={'accept': 'image/*'}),
-            'home_studio_feature':    AdminFileWidget(attrs={'accept': 'image/*'}),
-            'studio_portrait':        AdminFileWidget(attrs={'accept': 'image/*'}),
-            'studio_about':           AdminFileWidget(attrs={'accept': 'image/*'}),
-            'studio_booking':         AdminFileWidget(attrs={'accept': 'image/*'}),
-            'studio_testimonials_bg': AdminFileWidget(attrs={'accept': 'image/*'}),
-        }
-
-
-class SiteSettingsForm(forms.ModelForm):
-    class Meta:
-        model  = SiteSettings
-        fields = '__all__'
-
-
-class TestimonialForm(forms.ModelForm):
-    class Meta:
-        model  = Testimonial
-        fields = '__all__'
-        widgets = {
-            'profile_picture': AdminFileWidget(attrs={'accept': 'image/*'}),
-        }
-
-
-class IntroVideoForm(forms.ModelForm):
-    class Meta:
-        model  = IntroVideo
-        fields = '__all__'
-        widgets = {
-            'video_file': AdminFileWidget(attrs={'accept': 'video/*'}),
-        }
-
-
-# ── Admin classes ─────────────────────────────────────────────────────────────
+# ── Page Images ───────────────────────────────────────────────────────────────
 
 @admin.register(PageImages)
 class PageImagesAdmin(ModelAdmin):
-    form = PageImagesForm
     fieldsets = (
         ('Home Page', {
-            'description': 'Images that appear on the main JES.CO landing page.',
             'fields': ('home_hero', 'home_hero_preview', 'home_studio_feature', 'home_studio_feature_preview'),
         }),
         ('Studio Page', {
-            'description': 'Images that appear on the Jesres Glam Studio page.',
             'fields': (
                 'studio_portrait',        'studio_portrait_preview',
                 'studio_about',           'studio_about_preview',
@@ -83,12 +51,12 @@ class PageImagesAdmin(ModelAdmin):
         'studio_booking_preview', 'studio_testimonials_bg_preview',
     )
 
-    def home_hero_preview(self, obj):               return img_preview(obj.home_hero)
-    def home_studio_feature_preview(self, obj):     return img_preview(obj.home_studio_feature)
-    def studio_portrait_preview(self, obj):         return img_preview(obj.studio_portrait)
-    def studio_about_preview(self, obj):            return img_preview(obj.studio_about)
-    def studio_booking_preview(self, obj):          return img_preview(obj.studio_booking)
-    def studio_testimonials_bg_preview(self, obj):  return img_preview(obj.studio_testimonials_bg)
+    def home_hero_preview(self, obj):              return url_preview(obj.home_hero)
+    def home_studio_feature_preview(self, obj):    return url_preview(obj.home_studio_feature)
+    def studio_portrait_preview(self, obj):        return url_preview(obj.studio_portrait)
+    def studio_about_preview(self, obj):           return url_preview(obj.studio_about)
+    def studio_booking_preview(self, obj):         return url_preview(obj.studio_booking)
+    def studio_testimonials_bg_preview(self, obj): return url_preview(obj.studio_testimonials_bg)
 
     home_hero_preview.short_description              = 'Current'
     home_studio_feature_preview.short_description    = 'Current'
@@ -98,10 +66,9 @@ class PageImagesAdmin(ModelAdmin):
     studio_testimonials_bg_preview.short_description = 'Current'
 
     def changelist_view(self, request, extra_context=None):
-        # Singleton: if a record exists, skip the list and go straight to edit
         if PageImages.objects.exists():
-            obj = PageImages.objects.get(pk=1)
-            return redirect(f'../{ obj.pk }/change/')
+            url = reverse('admin:core_pageimages_change', args=[1])
+            return redirect(url)
         return super().changelist_view(request, extra_context)
 
     def has_add_permission(self, request):
@@ -111,9 +78,10 @@ class PageImagesAdmin(ModelAdmin):
         return False
 
 
+# ── Site Settings ─────────────────────────────────────────────────────────────
+
 @admin.register(SiteSettings)
 class SiteSettingsAdmin(ModelAdmin):
-    form = SiteSettingsForm
     fieldsets = (
         ('Brand Tagline', {
             'fields': ('tagline',),
@@ -126,8 +94,8 @@ class SiteSettingsAdmin(ModelAdmin):
 
     def changelist_view(self, request, extra_context=None):
         if SiteSettings.objects.exists():
-            obj = SiteSettings.objects.get(pk=1)
-            return redirect(f'../{ obj.pk }/change/')
+            url = reverse('admin:core_sitesettings_change', args=[1])
+            return redirect(url)
         return super().changelist_view(request, extra_context)
 
     def has_add_permission(self, request):
@@ -137,6 +105,8 @@ class SiteSettingsAdmin(ModelAdmin):
         return False
 
 
+# ── Social Links ──────────────────────────────────────────────────────────────
+
 @admin.register(SocialLink)
 class SocialLinkAdmin(ModelAdmin):
     list_display  = ('platform', 'handle', 'url', 'order', 'is_active')
@@ -144,22 +114,25 @@ class SocialLinkAdmin(ModelAdmin):
     ordering      = ('order', 'platform')
 
 
+# ── Testimonials ──────────────────────────────────────────────────────────────
+
 @admin.register(Testimonial)
 class TestimonialAdmin(ModelAdmin):
-    form          = TestimonialForm
     list_display  = ('name', 'location', 'rating', 'service', 'order', 'is_active', 'created_at')
     list_editable = ('order', 'is_active')
     ordering      = ('order', '-created_at')
     fields        = ('name', 'location', 'comment', 'profile_picture', 'rating', 'service', 'order', 'is_active')
 
 
+# ── Intro Videos ──────────────────────────────────────────────────────────────
+
 @admin.register(IntroVideo)
 class IntroVideoAdmin(ModelAdmin):
-    form          = IntroVideoForm
+    form          = IntroVideoAdminForm
     list_display  = ('get_page_display', 'title', 'is_active', 'updated_at')
     list_editable = ('is_active',)
     ordering      = ('page',)
-    fields        = ('page', 'video_file', 'title', 'is_active')
+    fields        = ('page', 'video_url', 'title', 'is_active')
 
     def get_page_display(self, obj):
         return obj.get_page_display()

@@ -208,7 +208,7 @@ export default function Footer() {
           onMouseEnter={e => { e.currentTarget.style.color = 'var(--text-secondary)' }}
           onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-muted)' }}
         >
-          Built by <span style={{ color: 'var(--gold)' }}>Lemuel</span>
+          Built by <a href="mailto:laryea024@gmail.com" style={{ color: 'var(--gold)', textDecoration: 'none' }}>Lemuel</a>
         </a>
       </div>
     </footer>

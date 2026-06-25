@@ -62,7 +62,7 @@ function CourseCard({ course, onTrailerClick, index }) {
         {/* Thumbnail */}
         <div style={{ position: 'relative', aspectRatio: '16 / 10', borderBottom: '1px solid var(--hair)', overflow: 'hidden', background: 'var(--ink-2)' }}>
           {course.thumbnail_url
-            ? <img src={course.thumbnail_url} alt={course.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            ? <img src={course.thumbnail_url} alt={course.title} style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: '50% 20%' }} />
             : <div className="ph" style={{ position: 'absolute', inset: 0, borderRadius: 0, border: 'none' }}><span className="ph-tag">Course Preview</span></div>
           }
 
@@ -75,7 +75,7 @@ function CourseCard({ course, onTrailerClick, index }) {
             color: 'var(--champ)', fontFamily: 'var(--sans)', fontSize: '0.56rem',
             letterSpacing: '0.18em', textTransform: 'uppercase', fontWeight: 600,
           }}>
-            {course.tier || 'Signature'}
+            {course.tier?.name || 'Signature'}
           </div>
 
           {/* Lock badge */}
@@ -98,15 +98,18 @@ function CourseCard({ course, onTrailerClick, index }) {
 
         {/* Body */}
         <div style={{ padding: '1.3rem', display: 'flex', flexDirection: 'column', gap: '0.6rem', flex: 1 }}>
-          <p style={{ fontFamily: 'var(--sans)', fontSize: '0.56rem', letterSpacing: '0.28em', textTransform: 'uppercase', color: 'var(--champ)' }}>{course.category || 'Foundations'}</p>
+          <p style={{ fontFamily: 'var(--sans)', fontSize: '0.56rem', letterSpacing: '0.28em', textTransform: 'uppercase', color: 'var(--champ)' }}>{course.category_display || 'Foundations'}</p>
           <h3 className="serif" style={{ fontSize: '1.25rem', color: 'var(--bone)', lineHeight: 1.25 }}>{course.title}</h3>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 'auto', paddingTop: '0.9rem', borderTop: '1px solid var(--hair)' }}>
             <span style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontFamily: 'var(--sans)', fontSize: '0.74rem', color: 'var(--taupe)' }}>
-              <ClockIcon /> {course.duration || '—'}
+              <ClockIcon /> {course.duration_display || '—'}
             </span>
-            <span style={{ fontFamily: 'var(--sans)', fontSize: '0.85rem', fontWeight: 600, color: 'var(--champ)' }}>
-              {course.price ? `GHS ${course.price}` : '—'}
-            </span>
+            <Link
+              to="/studio/courses"
+              style={{ fontFamily: 'var(--sans)', fontSize: '0.62rem', letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--champ)', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '0.3rem' }}
+            >
+              More Details <ArrowIcon />
+            </Link>
           </div>
         </div>
       </div>

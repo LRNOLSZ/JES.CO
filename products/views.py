@@ -1,16 +1,27 @@
+import hmac
+import hashlib
+import logging
+import sys
 from urllib.parse import quote
 
 from django.conf import settings
-from django.core.mail import get_connection
+from django.core.mail import EmailMessage
+from django.utils import timezone
 
 from rest_framework import status as drf_status
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny
 
-from .models import ProductItem
-from .serializers import OrderSerializer, ProductItemSerializer
+from .models import DeliveryZone, ProductItem, Order, OrderItem
+from .serializers import (
+    DeliveryZoneSerializer, OrderSerializer, OrderStatusSerializer, ProductItemSerializer,
+)
 
+logger = logging.getLogger(__name__)
+
+
+# ── Helpers ───────────────────────────────────────────────────────────────────
 
 def _build_whatsapp_url(text):
     number = getattr(settings, 'WHATSAPP_NUMBER', '')
@@ -19,34 +30,44 @@ def _build_whatsapp_url(text):
     return f'https://wa.me/{number}?text={quote(text)}'
 
 
-def _send_notification_email(subject, body):
-    from email.mime.text import MIMEText
-    to = getattr(settings, 'MAAME_AMA_EMAIL', '')
-    if not to:
+def _send_order_email(to_email, subject, body):
+    if settings.DEBUG:
+        msg = f'\n{"="*60}\n[DEV] Email to {to_email}\nSubject: {subject}\n{body}\n{"="*60}\n'
+        sys.stderr.write(msg)
+        sys.stderr.flush()
+        logger.warning(msg)
         return
-    mime = MIMEText(body, 'plain', 'utf-8')
-    del mime['Content-Transfer-Encoding']
-    mime['Content-Transfer-Encoding'] = '8bit'
-    mime['Subject'] = subject
-    mime['From']    = settings.DEFAULT_FROM_EMAIL
-    mime['To']      = to
+    msg = EmailMessage(subject=subject, body=body,
+                       from_email=settings.DEFAULT_FROM_EMAIL, to=[to_email])
+    msg.encoding = 'ascii'
+    msg.send(fail_silently=True)
 
-    class _Msg:
-        def message(self): return mime
-        def recipients(self): return [to]
-        extra_headers = {}
 
-    conn = get_connection()
-    conn.open()
-    conn.send_messages([_Msg()])
-    conn.close()
+def _build_receipt_body(order):
+    lines = [f'  {i.name} x{i.quantity}  —  {i.price}' for i in order.items.all()]
+    zone_line = ''
+    if order.delivery_zone:
+        currency = 'GHS' if order.delivery_zone.country == 'ghana' else 'USD'
+        zone_line = f'\n  Delivery — {order.delivery_zone.location_name}  —  {currency} {order.delivery_fee}'
+    frontend_url = getattr(settings, 'FRONTEND_URL', 'http://localhost:5173')
+    tracking_url = f'{frontend_url}/track-order?ref={order.paystack_reference or order.pk}'
+    items_block = '\n'.join(lines)
+    divider     = '─' * 44
+    return (
+        f'Hi {order.full_name},\n\n'
+        f'Your payment was received. Here is your order summary:\n\n'
+        f'{items_block}{zone_line}\n'
+        f'{divider}\n'
+        f'  TOTAL PAID  {order.total}\n\n'
+        f'Track your order: {tracking_url}\n\n'
+        f'We will notify you as your order moves through each stage.\n\n'
+        f'-- The JES.CO Team'
+    )
 
+
+# ── Product endpoints ─────────────────────────────────────────────────────────
 
 class ProductItemListView(APIView):
-    """
-    GET /api/products/                → all active products
-    GET /api/products/?category=makeup|skincare|collections → filtered by category
-    """
     permission_classes = [AllowAny]
 
     def get(self, request):
@@ -58,7 +79,6 @@ class ProductItemListView(APIView):
 
 
 class ProductItemDetailView(APIView):
-    """GET /api/products/<pk>/"""
     permission_classes = [AllowAny]
 
     def get(self, request, pk):
@@ -69,8 +89,25 @@ class ProductItemDetailView(APIView):
             return Response({'detail': 'Not found.'}, status=drf_status.HTTP_404_NOT_FOUND)
 
 
+# ── Delivery zones ────────────────────────────────────────────────────────────
+
+class DeliveryZoneListView(APIView):
+    """GET /api/delivery-zones/ — returns active zones grouped by country."""
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        zones = DeliveryZone.objects.filter(is_active=True)
+        data  = DeliveryZoneSerializer(zones, many=True).data
+        grouped = {'ghana': [], 'usa': []}
+        for zone in data:
+            grouped.setdefault(zone['country'], []).append(zone)
+        return Response(grouped)
+
+
+# ── Orders ────────────────────────────────────────────────────────────────────
+
 class OrderCreateView(APIView):
-    """POST /api/orders/ — create order, notify Maame Ama via email + return WhatsApp URL."""
+    """POST /api/products/orders/ — create order, notify via email + return WhatsApp URL."""
     permission_classes = [AllowAny]
 
     def post(self, request):
@@ -79,29 +116,149 @@ class OrderCreateView(APIView):
             return Response(serializer.errors, status=drf_status.HTTP_400_BAD_REQUEST)
 
         order = serializer.save()
+
         items_text = '\n'.join(
             f'  - {i.name} x{i.quantity} @ {i.price}'
             for i in order.items.all()
         )
+        delivery_text = ''
+        if order.delivery_zone:
+            currency = 'GHS' if order.delivery_zone.country == 'ghana' else 'USD'
+            delivery_text = f'\nDelivery — {order.delivery_zone.location_name}: {currency} {order.delivery_fee}'
+
         wa_text = (
-            f"New Order #{order.pk} — JES.CO\n\n"
-            f"Name: {order.full_name}\n"
-            f"Email: {order.email}\n"
-            f"Phone: {order.phone}\n"
-            f"Address: {order.address or 'N/A'}\n"
-            f"Notes: {order.notes or 'N/A'}\n\n"
-            f"Items:\n{items_text}\n\n"
-            f"Total: {order.total}"
+            f'New Order #{order.pk} — JES.CO\n\n'
+            f'Name: {order.full_name}\n'
+            f'Email: {order.email}\n'
+            f'Phone: {order.phone}\n'
+            f'Address: {order.address or "N/A"}\n'
+            f'Notes: {order.notes or "N/A"}\n\n'
+            f'Items:\n{items_text}{delivery_text}\n\n'
+            f'Total: {order.total}'
         )
         whatsapp_url = _build_whatsapp_url(wa_text)
 
-        _send_notification_email(
-            subject=f'New Order #{order.pk} — {order.full_name}',
-            body=wa_text,
-        )
+        # Admin notification
+        admin_email = getattr(settings, 'MAAME_AMA_EMAIL', '')
+        if admin_email:
+            _send_order_email(admin_email, f'New Order #{order.pk} — {order.full_name}', wa_text)
 
         return Response({
             'detail': 'Order received.',
             'order_id': order.pk,
             'whatsapp_url': whatsapp_url,
         }, status=drf_status.HTTP_201_CREATED)
+
+
+class OrderTrackingView(APIView):
+    """GET /api/orders/track/?ref=PAY_XXX&email=x@x.com"""
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        ref   = request.query_params.get('ref', '').strip()
+        email = request.query_params.get('email', '').strip().lower()
+        if not ref or not email:
+            return Response({'detail': 'ref and email are required.'}, status=drf_status.HTTP_400_BAD_REQUEST)
+
+        order = None
+        # Try matching by paystack_reference first, then by pk
+        if ref.startswith('PAY') or '_' in ref:
+            order = Order.objects.filter(paystack_reference=ref, email__iexact=email).select_related('delivery_zone').prefetch_related('items').first()
+        if not order:
+            try:
+                order = Order.objects.filter(pk=int(ref), email__iexact=email).select_related('delivery_zone').prefetch_related('items').first()
+            except (ValueError, TypeError):
+                pass
+
+        if not order:
+            return Response({'detail': 'No order found. Check your reference and email.'}, status=drf_status.HTTP_404_NOT_FOUND)
+
+        return Response(OrderStatusSerializer(order).data)
+
+
+# ── Paystack webhook ──────────────────────────────────────────────────────────
+
+class PaystackWebhookView(APIView):
+    """POST /api/products/paystack/webhook/"""
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        secret_key = getattr(settings, 'PAYSTACK_SECRET_KEY', '')
+        if not secret_key:
+            return Response({'detail': 'Paystack not configured.'}, status=drf_status.HTTP_503_SERVICE_UNAVAILABLE)
+
+        signature = request.META.get('HTTP_X_PAYSTACK_SIGNATURE', '')
+        expected  = hmac.new(secret_key.encode(), request.body, hashlib.sha512).hexdigest()
+        if not hmac.compare_digest(signature, expected):
+            return Response({'detail': 'Invalid signature.'}, status=drf_status.HTTP_400_BAD_REQUEST)
+
+        event = request.data
+        if event.get('event') != 'charge.success':
+            return Response({'detail': 'Ignored.'})
+
+        data      = event.get('data', {})
+        email     = data.get('customer', {}).get('email', '').lower()
+        reference = data.get('reference', '')
+        amount_pesewas = data.get('amount', 0)
+        meta      = data.get('metadata', {})
+
+        if not email or not reference:
+            return Response({'detail': 'Missing email or reference.'}, status=drf_status.HTTP_400_BAD_REQUEST)
+
+        # Skip if already processed
+        if Order.objects.filter(paystack_reference=reference).exists():
+            return Response({'detail': 'Already processed.'})
+
+        amount_ghs   = amount_pesewas / 100
+        zone_id      = meta.get('delivery_zone_id')
+        customer_name = meta.get('customer_name', '')
+        phone        = meta.get('phone', '')
+        address      = meta.get('address', '')
+        notes        = meta.get('notes', '')
+        items_meta   = meta.get('items', [])
+
+        delivery_zone = None
+        delivery_fee  = 0
+        if zone_id:
+            try:
+                delivery_zone = DeliveryZone.objects.get(pk=zone_id)
+                delivery_fee  = float(delivery_zone.price)
+            except DeliveryZone.DoesNotExist:
+                pass
+
+        subtotal   = amount_ghs - delivery_fee
+        currency   = 'GHS' if (not delivery_zone or delivery_zone.country == 'ghana') else 'USD'
+        total_display = f'{currency} {amount_ghs:.2f}'
+
+        order = Order.objects.create(
+            full_name          = customer_name or email,
+            email              = email,
+            phone              = phone,
+            address            = address,
+            notes              = notes,
+            status             = 'confirmed',
+            total              = total_display,
+            delivery_zone      = delivery_zone,
+            delivery_fee       = delivery_fee,
+            paystack_reference = reference,
+        )
+        for item in items_meta:
+            OrderItem.objects.create(
+                order      = order,
+                product_id = item.get('id', 0),
+                name       = item.get('name', ''),
+                price      = item.get('price', ''),
+                quantity   = item.get('quantity', 1),
+            )
+
+        # Customer receipt
+        receipt = _build_receipt_body(order)
+        _send_order_email(email, f'Your JES.CO Order #{order.pk} — Confirmed', receipt)
+
+        # Admin notification
+        admin_email = getattr(settings, 'MAAME_AMA_EMAIL', '')
+        if admin_email:
+            admin_body = f'New paid order #{order.pk} from {customer_name} ({email}).\n\nReference: {reference}\nTotal: {total_display}'
+            _send_order_email(admin_email, f'New Order #{order.pk} — {customer_name}', admin_body)
+
+        return Response({'detail': 'Order created.'})

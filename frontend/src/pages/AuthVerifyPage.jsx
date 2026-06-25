@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { flushSync } from 'react-dom'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { verifyMagicLink } from '../api/auth'
 import { useAuth } from '../context/AuthContext'
@@ -24,7 +25,7 @@ export default function AuthVerifyPage() {
 
     verifyMagicLink(token)
       .then(({ data }) => {
-        login(data.token, data.user)
+        flushSync(() => login(data.token, data.user))
         navigate('/dashboard', { replace: true })
       })
       .catch(err => {

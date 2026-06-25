@@ -5,7 +5,7 @@ import JescoNavbar from '../components/JescoNavbar'
 import JescoFooter from '../components/JescoFooter'
 import { Reveal, ArrowIcon, SectionHead } from '../components/Reveal'
 import { usePageImages } from '../hooks/usePageImages'
-import heroBgFallback from '../assets/hero.jpg'
+import BrandVideoSection from '../components/BrandVideoSection'
 
 /* ═══════════════════════════════════════════
    DATA
@@ -37,20 +37,22 @@ function HomeHero({ heroUrl }) {
   return (
     <section style={{ position: 'relative', minHeight: '100vh', overflow: 'hidden', background: 'var(--ink-2)' }}>
 
-      {/* Full-bleed background image — from admin or fallback */}
-      <img
-        src={heroUrl || heroBgFallback}
-        alt=""
-        aria-hidden="true"
-        style={{
-          position:       'absolute',
-          inset:          0,
-          width:          '100%',
-          height:         '100%',
-          objectFit:      'cover',
-          objectPosition: 'center center',
-        }}
-      />
+      {/* Full-bleed background image — only renders once the DB URL is available */}
+      {heroUrl && (
+        <img
+          src={heroUrl}
+          alt=""
+          aria-hidden="true"
+          style={{
+            position:       'absolute',
+            inset:          0,
+            width:          '100%',
+            height:         '100%',
+            objectFit:      'cover',
+            objectPosition: 'center center',
+          }}
+        />
+      )}
 
       {/* Legibility scrims */}
       <div style={{
@@ -128,6 +130,7 @@ function HomeHero({ heroUrl }) {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.56, ease: [0.4,0,0.2,1] }}
+            className="hero-cta"
             style={{ display: 'flex', gap: '0.9rem', flexWrap: 'wrap' }}
           >
             <a href="#lines" className="btn btn-gold">Explore Products</a>
@@ -406,6 +409,7 @@ export default function JescoHomePage() {
       <JescoNavbar overDark />
       <HomeHero heroUrl={images.home_hero_url} />
       <HomeMarquee />
+      <BrandVideoSection />
       <ProductLines />
       <StudioFeature studioFeatureUrl={images.home_studio_feature_url} />
       <BrandValues />

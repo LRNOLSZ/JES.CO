@@ -4,35 +4,35 @@ import { motion } from 'framer-motion'
 import axios from 'axios'
 import JescoNavbar from '../components/JescoNavbar'
 import JescoFooter from '../components/JescoFooter'
+import { Reveal, SectionHead, ArrowIcon } from '../components/Reveal'
 import { useCart } from '../context/CartContext'
 
 const META = {
-  makeup:      { label: 'Makeup Sets',         sub: 'Pigment-rich. Studio-grade.',          accent: 'var(--purple)' },
-  skincare:    { label: 'Skincare Sets',        sub: 'Formulated for radiance.',             accent: '#1c6b4a'       },
-  collections: { label: 'Curated Collections', sub: 'Seasonal. Intentional.',               accent: '#8a5a1e'       },
+  makeup:      { label: 'Makeup Sets',        sub: 'Pigment-rich. Studio-grade. Built for the woman who never blends in.',    eyebrow: 'The Collection' },
+  skincare:    { label: 'Skincare Sets',       sub: 'Formulated for radiance. Science-backed, luxury-finished.',              eyebrow: 'The Collection' },
+  collections: { label: 'Curated Collections',sub: 'Seasonal. Intentional. Curated for the connoisseur.',                   eyebrow: 'The Collection' },
 }
 
-const STOCK_STYLES = {
-  in_stock:    { bg: '#16a34a', label: 'In Stock'    },
-  out_of_stock:{ bg: '#dc2626', label: 'Out of Stock' },
-  coming_soon: { bg: '#d97706', label: 'Coming Soon'  },
+const STOCK = {
+  in_stock:    { color: '#2d6a4f', label: 'In Stock'    },
+  out_of_stock:{ color: '#9b1c1c', label: 'Out of Stock' },
+  coming_soon: { color: '#92400e', label: 'Coming Soon'  },
 }
 
 export default function ProductLinePage() {
   const { category }          = useParams()
   const [items, setItems]     = useState([])
   const [loading, setLoading] = useState(true)
+  const { addToCart }         = useCart()
+  const [added, setAdded]     = useState({})
 
-  const { addToCart } = useCart()
-  const [added, setAdded] = useState({})
+  const meta = META[category] || { label: 'Products', sub: '', eyebrow: 'The Collection' }
 
-  const handleAddToCart = (item) => {
+  const handleAdd = (item) => {
     addToCart(item)
     setAdded(prev => ({ ...prev, [item.id]: true }))
     setTimeout(() => setAdded(prev => ({ ...prev, [item.id]: false })), 1500)
   }
-
-  const meta = META[category] || { label: 'Products', sub: '', accent: 'var(--purple)' }
 
   useEffect(() => {
     window.scrollTo(0, 0)
@@ -43,256 +43,205 @@ export default function ProductLinePage() {
   }, [category])
 
   return (
-    <div style={{ width: '100%', minHeight: '100vh', background: 'var(--dark-base)', color: 'var(--text-primary)' }}>
+    <div style={{ width: '100%', minHeight: '100vh', background: 'var(--ink)', color: 'var(--bone)' }}>
       <JescoNavbar />
 
       {/* ── Page header ── */}
       <section style={{
-        paddingTop:   'clamp(7rem, 14vw, 10rem)',
-        paddingBottom:'clamp(3rem, 6vw, 5rem)',
-        padding:      'clamp(7rem, 14vw, 10rem) 1.5rem clamp(3rem, 6vw, 5rem)',
-        textAlign:    'center',
-        position:     'relative',
-        overflow:     'hidden',
-        background:   'linear-gradient(180deg, #1a0d3d 0%, var(--dark-base) 100%)',
+        paddingTop:    'clamp(8rem,16vw,11rem)',
+        paddingBottom: 'clamp(4rem,8vw,6rem)',
+        background:    'var(--ink-2)',
+        borderBottom:  '1px solid var(--hair)',
+        position:      'relative',
+        overflow:      'hidden',
       }}>
+        {/* plum glow */}
         <div style={{
-          position:     'absolute',
-          top:          '50%',
-          left:         '50%',
-          transform:    'translate(-50%,-50%)',
-          width:        '600px',
-          height:       '400px',
-          borderRadius: '50%',
-          background:   'radial-gradient(ellipse, rgba(96,38,158,0.2) 0%, transparent 70%)',
-          pointerEvents:'none',
+          position:   'absolute', inset: 0, pointerEvents: 'none',
+          background: 'radial-gradient(ellipse 55% 70% at 15% 60%, var(--plum), transparent 65%)',
+          opacity:    'var(--glow-plum)',
         }} />
 
-        <motion.div
-          initial={{ opacity: 0, y: 30 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.7 }}
-          style={{ position: 'relative' }}
-        >
-          <Link
-            to="/#products"
-            style={{
-              display:       'inline-flex',
-              alignItems:    'center',
-              gap:           '0.4rem',
-              fontFamily:    "'DM Sans', sans-serif",
-              fontSize:      '0.62rem',
-              letterSpacing: '0.22em',
-              textTransform: 'uppercase',
-              color:         'var(--text-muted)',
-              textDecoration:'none',
-              marginBottom:  '1.5rem',
-              transition:    'color 0.3s',
-            }}
-            onMouseEnter={e => e.currentTarget.style.color = 'var(--gold)'}
-            onMouseLeave={e => e.currentTarget.style.color = 'var(--text-muted)'}
-          >
-            ← Back to JES.CO
-          </Link>
+        <div className="wrap" style={{ position: 'relative', zIndex: 2 }}>
+          <Reveal>
+            <Link
+              to="/"
+              style={{
+                display:       'inline-flex',
+                alignItems:    'center',
+                gap:           '0.4rem',
+                fontFamily:    'var(--sans)',
+                fontSize:      '0.62rem',
+                letterSpacing: '0.22em',
+                textTransform: 'uppercase',
+                color:         'var(--taupe-mut)',
+                marginBottom:  '2.2rem',
+                transition:    'color 0.3s',
+              }}
+              onMouseEnter={e => (e.currentTarget.style.color = 'var(--champ)')}
+              onMouseLeave={e => (e.currentTarget.style.color = 'var(--taupe-mut)')}
+            >
+              ← JES.CO
+            </Link>
+          </Reveal>
 
-          <h1 style={{
-            fontFamily: "'Playfair Display', serif",
-            fontSize:   'clamp(2.2rem, 7vw, 4.5rem)',
-            fontWeight: 700,
-            color:      'var(--text-primary)',
-            marginBottom:'0.75rem',
-          }}>
-            {meta.label}
-          </h1>
-          <p style={{
-            fontFamily: "'DM Sans', sans-serif",
-            fontSize:   '0.9rem',
-            fontWeight: 300,
-            color:      'var(--text-muted)',
-            letterSpacing:'0.05em',
-          }}>
-            {meta.sub}
-          </p>
-
-          {/* Decorative accent line */}
-          <div style={{
-            width:      '48px',
-            height:     '2px',
-            background: `linear-gradient(to right, ${meta.accent}, transparent)`,
-            margin:     '1.5rem auto 0',
-          }} />
-        </motion.div>
+          <SectionHead
+            eyebrow={meta.eyebrow}
+            title={<span className="ital metal-text">{meta.label}</span>}
+            sub={meta.sub}
+          />
+        </div>
       </section>
 
       {/* ── Product grid ── */}
-      <section style={{ padding: 'clamp(3rem, 8vw, 6rem) 1.5rem' }}>
-        <div style={{ maxWidth: '1100px', margin: '0 auto' }}>
+      <section style={{ padding: 'clamp(4rem,9vw,7rem) 0' }}>
+        <div className="wrap">
           {loading ? (
-            <div style={{ display: 'flex', justifyContent: 'center', padding: '5rem 0' }}>
+            <div style={{ display: 'flex', justifyContent: 'center', padding: '6rem 0' }}>
               <div style={{
                 width: '2rem', height: '2rem', borderRadius: '50%',
-                border: '2px solid var(--glass-border)',
-                borderTopColor: 'var(--gold)',
+                border: '2px solid var(--hair)',
+                borderTopColor: 'var(--champ)',
                 animation: 'spin 0.8s linear infinite',
               }} />
             </div>
+
           ) : items.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '5rem 0' }}>
-              <p style={{
-                fontFamily:    "'Playfair Display', serif",
-                fontSize:      '1.4rem',
-                color:         'var(--text-muted)',
-                marginBottom:  '1rem',
-              }}>
+            <div style={{ textAlign: 'center', padding: '6rem 0' }}>
+              <p style={{ fontFamily: 'var(--serif)', fontSize: '1.4rem', fontStyle: 'italic', color: 'var(--taupe)', marginBottom: '0.75rem' }}>
                 Coming Soon
               </p>
-              <p style={{
-                fontFamily: "'DM Sans', sans-serif",
-                fontSize:   '0.85rem',
-                color:      'var(--text-muted)',
-                fontWeight: 300,
-              }}>
+              <p style={{ fontFamily: 'var(--sans)', fontSize: '0.85rem', fontWeight: 300, color: 'var(--taupe-mut)', lineHeight: 1.8 }}>
                 New products are being curated. Check back soon.
               </p>
             </div>
+
           ) : (
-            <div style={{
+            <div className="product-grid" style={{
               display:             'grid',
-              gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
-              gap:                 '2rem',
+              gridTemplateColumns: 'repeat(3, 1fr)',
+              gap:                 '1.8rem',
             }}>
-              {items.map((item, i) => {
-                const stock = STOCK_STYLES[item.stock_status] || STOCK_STYLES.coming_soon
-                return (
-                  <motion.div
-                    key={item.id}
-                    initial={{ opacity: 0, y: 24 }}
-                    whileInView={{ opacity: 1, y: 0 }}
-                    viewport={{ once: true }}
-                    transition={{ duration: 0.55, delay: i * 0.07 }}
-                    whileHover={{ y: -6, boxShadow: '0 24px 60px rgba(0,0,0,0.4)' }}
-                    style={{
-                      background:   'var(--dark-surface)',
-                      borderRadius: '16px',
-                      overflow:     'hidden',
-                      border:       '1px solid var(--glass-border)',
-                      transition:   'transform 0.35s, box-shadow 0.35s',
-                    }}
-                  >
-                    {/* Product image */}
-                    <div style={{
-                      width:    '100%',
-                      height:   '240px',
-                      overflow: 'hidden',
-                      background:'#0C0A14',
-                      position: 'relative',
-                    }}>
-                      {item.image_url ? (
-                        <img
-                          src={item.image_url}
-                          alt={item.name}
-                          style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                        />
-                      ) : (
-                        <div style={{
-                          width: '100%', height: '100%',
-                          display: 'flex', alignItems: 'center', justifyContent: 'center',
-                          color: 'var(--text-muted)',
-                          fontFamily: "'DM Sans', sans-serif",
-                          fontSize: '0.7rem', letterSpacing: '0.2em', textTransform: 'uppercase',
-                        }}>
-                          No Image
-                        </div>
-                      )}
-                      {/* Stock badge */}
-                      <div style={{
-                        position:      'absolute',
-                        top:           '0.75rem',
-                        right:         '0.75rem',
-                        background:    stock.bg,
-                        color:         '#fff',
-                        fontFamily:    "'DM Sans', sans-serif",
-                        fontSize:      '0.58rem',
-                        letterSpacing: '0.15em',
-                        textTransform: 'uppercase',
-                        padding:       '0.25rem 0.75rem',
-                        borderRadius:  '9999px',
-                        fontWeight:    600,
-                      }}>
-                        {stock.label}
-                      </div>
-                    </div>
-
-                    {/* Product info */}
-                    <div style={{ padding: '1.5rem' }}>
-                      <h3 style={{
-                        fontFamily:   "'Playfair Display', serif",
-                        fontSize:     '1.15rem',
-                        color:        'var(--text-primary)',
-                        marginBottom: '0.5rem',
-                      }}>
-                        {item.name}
-                      </h3>
-                      {item.price && (
-                        <div style={{
-                          fontFamily:    "'DM Sans', sans-serif",
-                          fontSize:      '0.8rem',
-                          fontWeight:    600,
-                          color:         'var(--gold)',
-                          letterSpacing: '0.05em',
-                          marginBottom:  '0.75rem',
-                        }}>
-                          {item.price}
-                        </div>
-                      )}
-                      <p style={{
-                        fontFamily:   "'DM Sans', sans-serif",
-                        fontSize:     '0.82rem',
-                        fontWeight:   300,
-                        color:        'var(--text-muted)',
-                        lineHeight:   1.7,
-                        marginBottom: '1.25rem',
-                      }}>
-                        {item.description}
-                      </p>
-
-                      <button
-                        onClick={() => item.stock_status === 'in_stock' && handleAddToCart(item)}
-                        disabled={item.stock_status !== 'in_stock'}
-                        style={{
-                          width:         '100%',
-                          padding:       '0.7rem',
-                          borderRadius:  '9999px',
-                          border:        'none',
-                          background:    item.stock_status !== 'in_stock'
-                            ? 'rgba(255,255,255,0.06)'
-                            : added[item.id]
-                              ? 'linear-gradient(135deg, #16a34a, #15803d)'
-                              : 'linear-gradient(135deg, var(--gold-light), var(--gold))',
-                          color:         item.stock_status !== 'in_stock' ? 'rgba(255,255,255,0.3)' : '#0C0A14',
-                          fontFamily:    "'DM Sans', sans-serif",
-                          fontSize:      '0.65rem',
-                          letterSpacing: '0.18em',
-                          textTransform: 'uppercase',
-                          fontWeight:    700,
-                          cursor:        item.stock_status !== 'in_stock' ? 'not-allowed' : 'pointer',
-                          transition:    'all 0.3s',
-                        }}
-                      >
-                        {item.stock_status !== 'in_stock'
-                          ? item.stock_status === 'coming_soon' ? 'Coming Soon' : 'Out of Stock'
-                          : added[item.id] ? '✓ Added' : 'Add to Cart'}
-                      </button>
-                    </div>
-                  </motion.div>
-                )
-              })}
+              {items.map((item, i) => (
+                <Reveal key={item.id} delay={i * 0.07}>
+                  <ProductCard
+                    item={item}
+                    added={added[item.id]}
+                    onAdd={() => handleAdd(item)}
+                  />
+                </Reveal>
+              ))}
             </div>
           )}
         </div>
       </section>
 
       <JescoFooter />
+    </div>
+  )
+}
+
+function ProductCard({ item, added, onAdd }) {
+  const [hovered, setHovered] = useState(false)
+  const stock = STOCK[item.stock_status] || STOCK.coming_soon
+  const canBuy = item.stock_status === 'in_stock'
+
+  return (
+    <div
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        display:       'flex',
+        flexDirection: 'column',
+        background:    'var(--ink-3)',
+        border:        `1px solid ${hovered ? 'color-mix(in srgb, var(--champ) 40%, transparent)' : 'var(--hair)'}`,
+        borderRadius:  '18px',
+        overflow:      'hidden',
+        transform:     hovered ? 'translateY(-6px)' : 'none',
+        boxShadow:     hovered ? '0 20px 50px rgba(28,21,15,0.1)' : '0 2px 12px rgba(28,21,15,0.04)',
+        transition:    'transform 0.4s var(--ease), border-color 0.4s, box-shadow 0.4s',
+      }}
+    >
+      {/* Image */}
+      <div style={{ position: 'relative', width: '100%', aspectRatio: '4 / 3', overflow: 'hidden', background: 'var(--ink-2)' }}>
+        {item.image_url ? (
+          <img
+            src={item.image_url}
+            alt={item.name}
+            style={{ width: '100%', height: '100%', objectFit: 'cover', transition: 'transform 0.6s var(--ease)', transform: hovered ? 'scale(1.05)' : 'scale(1)' }}
+          />
+        ) : (
+          <div className="ph" style={{ width: '100%', height: '100%' }}>
+            <span className="ph-tag">Product Image</span>
+          </div>
+        )}
+
+        {/* Stock badge */}
+        <span style={{
+          position:      'absolute',
+          top:           '0.75rem',
+          left:          '0.75rem',
+          background:    stock.color,
+          color:         '#FBF7F0',
+          fontFamily:    'var(--sans)',
+          fontSize:      '0.52rem',
+          letterSpacing: '0.18em',
+          textTransform: 'uppercase',
+          fontWeight:    600,
+          padding:       '0.28rem 0.65rem',
+          borderRadius:  '9999px',
+        }}>
+          {stock.label}
+        </span>
+
+        {/* Gold top accent */}
+        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '3px', background: 'var(--metal)' }} />
+      </div>
+
+      {/* Info */}
+      <div style={{ padding: '1.6rem', display: 'flex', flexDirection: 'column', flex: 1, gap: '0.5rem' }}>
+        <h3 className="serif" style={{ fontSize: '1.25rem', fontWeight: 500, color: 'var(--bone)', lineHeight: 1.2 }}>
+          {item.name}
+        </h3>
+
+        {item.price && (
+          <span style={{ fontFamily: 'var(--sans)', fontSize: '0.82rem', fontWeight: 600, color: 'var(--champ)' }}>
+            {item.price}
+          </span>
+        )}
+
+        <p style={{ fontFamily: 'var(--sans)', fontSize: '0.84rem', fontWeight: 300, color: 'var(--taupe)', lineHeight: 1.75, flex: 1 }}>
+          {item.description}
+        </p>
+
+        <button
+          onClick={() => canBuy && onAdd()}
+          disabled={!canBuy}
+          className={canBuy ? 'btn btn-gold' : ''}
+          style={{
+            marginTop:     '0.9rem',
+            width:         '100%',
+            justifyContent:'center',
+            ...(canBuy ? {} : {
+              padding:       '0.85rem',
+              borderRadius:  '9999px',
+              border:        '1px solid var(--hair)',
+              background:    'transparent',
+              color:         'var(--taupe-mut)',
+              fontFamily:    'var(--sans)',
+              fontSize:      '0.65rem',
+              letterSpacing: '0.18em',
+              textTransform: 'uppercase',
+              fontWeight:    600,
+              cursor:        'not-allowed',
+            }),
+          }}
+        >
+          {!canBuy
+            ? (item.stock_status === 'coming_soon' ? 'Coming Soon' : 'Out of Stock')
+            : added ? '✓ Added' : <>Add to Cart <ArrowIcon /></>}
+        </button>
+      </div>
     </div>
   )
 }

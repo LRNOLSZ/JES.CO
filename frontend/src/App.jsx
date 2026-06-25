@@ -11,14 +11,17 @@ import ServicesSection      from './components/ServicesSection'
 import CoursesSection       from './components/CoursesSection'
 import TestimonialsSection  from './components/TestimonialsSection'
 import BookingSection       from './components/BookingSection'
+import StudioVideoSection  from './components/StudioVideoSection'
 import GalleryPage          from './pages/GalleryPage'
 import JescoHomePage        from './pages/JescoHomePage'
 import ProductLinePage      from './pages/ProductLinePage'
 import CoursesPage          from './pages/CoursesPage'
 import CourseDetailPage     from './pages/CourseDetailPage'
-import AuthVerifyPage       from './pages/AuthVerifyPage'
-import DashboardPage        from './pages/DashboardPage'
-import CartPage             from './pages/CartPage'
+import CourseAccessPage        from './pages/CourseAccessPage'
+import CourseAccessVerifyPage  from './pages/CourseAccessVerifyPage'
+import CoursesDashboardPage    from './pages/CoursesDashboardPage'
+import CartPage                from './pages/CartPage'
+import OrderTrackingPage       from './pages/OrderTrackingPage'
 
 const STUDIO_WORDS = ['Bridal Glam', 'Editorial', 'Corrective Skin', 'Transformation', 'Training', 'Photoshoot']
 
@@ -45,6 +48,7 @@ function StudioHomePage() {
       <main style={{ width: '100%' }}>
         <StudioHero />
         <StudioMarquee />
+        <StudioVideoSection />
         <StudioSection />
         <WorkSection />
         <ServicesSection />
@@ -65,10 +69,12 @@ export default function App() {
       <Route path="/studio/gallery"       element={<GalleryPage />} />
       <Route path="/studio/courses"       element={<CoursesPage />} />
       <Route path="/studio/courses/:slug" element={<CourseDetailPage />} />
-      <Route path="/products/:category"   element={<ProductLinePage />} />
-      <Route path="/auth/verify"           element={<AuthVerifyPage />} />
-      <Route path="/dashboard"             element={<DashboardPage />} />
-      <Route path="/cart"                  element={<CartPage />} />
+      <Route path="/products/:category"              element={<ProductLinePage />} />
+      <Route path="/studio/courses/access"           element={<CourseAccessPage />} />
+      <Route path="/studio/courses/access/verify"    element={<CourseAccessVerifyPage />} />
+      <Route path="/studio/courses/dashboard"        element={<CoursesDashboardPage />} />
+      <Route path="/cart"                            element={<CartPage />} />
+      <Route path="/track-order"                    element={<OrderTrackingPage />} />
     </Routes>
   )
 }

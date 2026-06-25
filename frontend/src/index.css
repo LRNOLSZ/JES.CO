@@ -278,9 +278,12 @@ section { position: relative; }
 @media (max-width: 600px) {
   .work-grid { grid-template-columns: 1fr !important; max-width: 360px; margin: 0 auto; }
   .courses-grid { grid-template-columns: 1fr !important; max-width: 360px; margin: 0 auto; }
-  .footer-top { grid-template-columns: 1fr !important; }
+  .footer-top { grid-template-columns: 1fr 1fr !important; }
+  .footer-top > *:first-child { grid-column: 1 / -1; }
   .product-grid { grid-template-columns: 1fr !important; }
   .btn { padding: 0.85rem 1.7rem; }
+  .hero-cta { justify-content: center !important; }
+  .footer-socials { justify-content: center !important; }
 }
 
 @media (prefers-reduced-motion: reduce) {

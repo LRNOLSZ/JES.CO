@@ -1,13 +1,8 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import axios from 'axios'
 import { Reveal, SectionHead, ArrowIcon } from './Reveal'
 
-const WORK = [
-  { id: 'w1', title: 'Soft Bridal Glow',    category: 'Bridal' },
-  { id: 'w2', title: 'Editorial Bronze',    category: 'Editorial' },
-  { id: 'w3', title: 'Corrective Radiance', category: 'Skin' },
-]
-
-function BeforeAfterCard({ title, category }) {
+function BeforeAfterCard({ title, category, beforeImage, afterImage }) {
   const ref   = useRef(null)
   const [pos,  setPos]  = useState(52)
   const [drag, setDrag] = useState(false)
@@ -37,21 +32,22 @@ function BeforeAfterCard({ title, category }) {
           border:      '1px solid var(--hair)',
         }}
       >
-        {/* AFTER layer */}
-        <div className="ph" style={{
-          position: 'absolute', inset: 0, borderRadius: 0, border: 'none',
-          background: 'repeating-linear-gradient(135deg, rgba(168,134,74,0.13) 0px, rgba(168,134,74,0.13) 2px, transparent 2px, transparent 12px), linear-gradient(160deg, var(--ink-2), var(--ink))',
-        }}>
-          <span className="ph-tag" style={{ left: 'auto', right: 0, color: 'var(--champ)' }}>After</span>
-        </div>
+        {/* AFTER image — full width, always behind */}
+        <img
+          src={afterImage}
+          alt={`${title} — After`}
+          draggable={false}
+          style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'top center', display: 'block' }}
+        />
 
-        {/* BEFORE layer — clipped left */}
-        <div className="ph" style={{
-          position: 'absolute', inset: 0, borderRadius: 0, border: 'none',
-          width: pos + '%', overflow: 'hidden',
-          background: 'repeating-linear-gradient(135deg, rgba(28,21,15,0.06) 0px, rgba(28,21,15,0.06) 2px, transparent 2px, transparent 12px), linear-gradient(160deg, var(--ink-3), var(--ink-2))',
-        }}>
-          <span className="ph-tag">Before</span>
+        {/* BEFORE image — clipped to left portion */}
+        <div style={{ position: 'absolute', inset: 0, width: pos + '%', overflow: 'hidden' }}>
+          <img
+            src={beforeImage}
+            alt={`${title} — Before`}
+            draggable={false}
+            style={{ position: 'absolute', inset: 0, width: `${100 / (pos / 100)}%`, height: '100%', objectFit: 'cover', objectPosition: 'top center', maxWidth: 'none' }}
+          />
         </div>
 
         {/* Divider */}
@@ -73,6 +69,10 @@ function BeforeAfterCard({ title, category }) {
             <path d="M13 5l4 5-4 5" stroke="var(--champ)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
         </div>
+
+        {/* B/A labels */}
+        <span style={{ position: 'absolute', top: '0.75rem', left: '0.75rem', fontFamily: 'var(--sans)', fontSize: '0.55rem', letterSpacing: '0.22em', textTransform: 'uppercase', color: 'var(--taupe)', background: 'color-mix(in srgb, var(--ink) 72%, transparent)', padding: '0.18rem 0.5rem', borderRadius: '4px' }}>Before</span>
+        <span style={{ position: 'absolute', top: '0.75rem', right: '0.75rem', fontFamily: 'var(--sans)', fontSize: '0.55rem', letterSpacing: '0.22em', textTransform: 'uppercase', color: 'var(--champ)', background: 'color-mix(in srgb, var(--ink) 72%, transparent)', padding: '0.18rem 0.5rem', borderRadius: '4px' }}>After</span>
       </div>
 
       <div>
@@ -83,7 +83,31 @@ function BeforeAfterCard({ title, category }) {
   )
 }
 
+function SkeletonCard() {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+      <div style={{ aspectRatio: '3 / 4', borderRadius: '14px', border: '1px solid var(--hair)', background: 'color-mix(in srgb, var(--bone) 4%, transparent)' }} />
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+        <div style={{ height: '0.55rem', width: '38%', background: 'color-mix(in srgb, var(--champ) 18%, transparent)', borderRadius: '4px' }} />
+        <div style={{ height: '1rem', width: '62%', background: 'color-mix(in srgb, var(--bone) 8%, transparent)', borderRadius: '4px' }} />
+      </div>
+    </div>
+  )
+}
+
 export default function WorkSection() {
+  const [items,   setItems]   = useState([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    axios.get('/api/gallery/')
+      .then(r => setItems(r.data.slice(0, 3)))
+      .catch(() => {})
+      .finally(() => setLoading(false))
+  }, [])
+
+  const showSkeletons = loading || items.length === 0
+
   return (
     <section id="work" style={{ padding: 'clamp(5rem,11vw,9rem) 0', background: 'var(--ink-2)', borderTop: '1px solid var(--hair)' }}>
       <div className="wrap">
@@ -100,11 +124,19 @@ export default function WorkSection() {
         </div>
 
         <div className="work-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '1.8rem' }}>
-          {WORK.map((w, i) => (
-            <Reveal key={w.id} delay={i * 0.1}>
-              <BeforeAfterCard title={w.title} category={w.category} />
-            </Reveal>
-          ))}
+          {showSkeletons
+            ? [0, 1, 2].map(i => <SkeletonCard key={i} />)
+            : items.map((item, i) => (
+                <Reveal key={item.id} delay={i * 0.1}>
+                  <BeforeAfterCard
+                    title={item.title}
+                    category={item.category_display}
+                    beforeImage={item.before_image}
+                    afterImage={item.after_image}
+                  />
+                </Reveal>
+              ))
+          }
         </div>
       </div>
     </section>
