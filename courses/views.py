@@ -2,6 +2,7 @@ import logging
 import secrets
 import sys
 from django.conf import settings
+from django.core.cache import cache
 from django.core.mail import EmailMessage
 from django.utils import timezone
 
@@ -113,7 +114,15 @@ def request_access_link(request):
     POST /api/courses/access/request/
     Body: { "email": "student@example.com" }
     Sends magic link only if email has at least one purchase.
+    Rate limited: 10 requests per minute per IP.
     """
+    ip = request.META.get('HTTP_X_FORWARDED_FOR', request.META.get('REMOTE_ADDR', '')).split(',')[0].strip()
+    cache_key = f'magic_link_rate_{ip}'
+    request_count = cache.get(cache_key, 0)
+    if request_count >= 10:
+        return Response({'detail': 'Too many requests. Please wait a minute before trying again.'}, status=status.HTTP_429_TOO_MANY_REQUESTS)
+    cache.set(cache_key, request_count + 1, timeout=60)
+
     email = request.data.get('email', '').strip().lower()
     if not email:
         return Response({'detail': 'Email is required.'}, status=status.HTTP_400_BAD_REQUEST)
@@ -323,10 +332,13 @@ def paystack_webhook(request):
     except Course.DoesNotExist:
         return Response({'detail': 'Course not found.'}, status=status.HTTP_404_NOT_FOUND)
 
-    CoursePurchase.objects.get_or_create(
+    CoursePurchase.objects.update_or_create(
         email=email,
         course=course,
-        defaults={'paystack_reference': reference},
+        defaults={
+            'paystack_reference': reference,
+            'expires_at': timezone.now() + timezone.timedelta(days=180),
+        },
     )
 
     access_token = CourseAccessToken.create_for_email(email, expiry_hours=24)

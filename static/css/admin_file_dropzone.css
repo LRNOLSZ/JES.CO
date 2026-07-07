@@ -1,0 +1,127 @@
+/* ============================================================
+   JES.CO Admin — Drag & Drop File Upload Zones
+   Works in both Unfold light and dark mode
+   ============================================================ */
+
+/* Hide the real <input type="file"> — still in DOM for form submission */
+.fdz-real-input {
+    position: absolute !important;
+    width: 1px !important;
+    height: 1px !important;
+    opacity: 0 !important;
+    overflow: hidden !important;
+    pointer-events: none !important;
+    clip: rect(0, 0, 0, 0) !important;
+}
+
+/* ── Zone container ─────────────────────────────────────── */
+.fdz-zone {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 130px;
+    padding: 1.75rem 1.5rem;
+    margin-top: 0.5rem;
+
+    border: 2px dashed rgba(96, 38, 158, 0.4);
+    border-radius: 12px;
+    background: rgba(96, 38, 158, 0.04);
+
+    cursor: pointer;
+    text-align: center;
+    outline: none;
+    transition: border-color 0.18s ease, background 0.18s ease, box-shadow 0.18s ease, transform 0.15s ease;
+    user-select: none;
+}
+
+.fdz-zone:hover,
+.fdz-zone:focus-visible {
+    border-color: var(--purple, #60269E);
+    border-style: solid;
+    background: rgba(96, 38, 158, 0.09);
+    box-shadow: 0 0 0 4px rgba(96, 38, 158, 0.12);
+}
+
+/* Drag-over state — switches to gold to confirm "drop here" */
+.fdz-zone--over {
+    border-color: var(--gold, #D4AF37) !important;
+    border-style: solid !important;
+    background: rgba(212, 175, 55, 0.07) !important;
+    box-shadow: 0 0 0 4px rgba(212, 175, 55, 0.18) !important;
+    transform: scale(1.015);
+}
+
+/* File selected state */
+.fdz-zone--has-file {
+    border-style: solid;
+    border-color: rgba(96, 38, 158, 0.55);
+    background: rgba(96, 38, 158, 0.06);
+}
+
+/* ── Inner content ──────────────────────────────────────── */
+.fdz-inner {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.4rem;
+    pointer-events: none; /* let clicks fall through to zone */
+    width: 100%;
+}
+
+.fdz-icon {
+    margin-bottom: 0.3rem;
+    line-height: 0;
+    opacity: 0.9;
+}
+
+.fdz-headline {
+    font-size: 0.92rem;
+    font-weight: 600;
+    color: var(--purple, #60269E);
+    margin: 0;
+    letter-spacing: 0.01em;
+}
+
+/* Lighter purple tint in dark mode */
+html.dark .fdz-headline {
+    color: #a06cdb;
+}
+
+.fdz-sub {
+    font-size: 0.78rem;
+    color: #888;
+    margin: 0;
+}
+
+.fdz-browse-link {
+    color: var(--purple, #60269E);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+}
+
+html.dark .fdz-browse-link {
+    color: #a06cdb;
+}
+
+/* ── Selected state content ─────────────────────────────── */
+.fdz-selected-name {
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: var(--gold, #D4AF37);
+    word-break: break-all;
+    max-width: 340px;
+    margin: 0;
+    line-height: 1.35;
+}
+
+.fdz-selected-size {
+    font-size: 0.75rem;
+    color: #888;
+    margin: 0;
+}
+
+.fdz-sub--swap {
+    font-size: 0.72rem;
+    color: #6a6a6a;
+    margin-top: 0.15rem;
+}

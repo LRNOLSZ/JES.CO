@@ -5,7 +5,7 @@ from django.contrib import admin
 from django.db.models import Count, Min
 from django.http import HttpResponse
 from django.urls import reverse
-from django.utils.html import format_html
+from django.utils.html import format_html, mark_safe
 from unfold.admin import ModelAdmin
 
 from .models import (
@@ -39,6 +39,28 @@ class CourseAdminForm(forms.ModelForm):
             'course_video':  forms.FileInput(attrs={'accept': 'video/mp4,video/*'}),
         }
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for field_name in ('trailer_video', 'course_video'):
+            if self.instance.pk and getattr(self.instance, field_name):
+                self.fields[field_name].widget.attrs['data-has-existing'] = '1'
+
+
+def video_preview(field, size=160):
+    """Render a playable <video> tag from a video FileField, or a dash if empty.
+
+    Bunny Stream serves HLS (.m3u8), which only plays natively in Safari — so the
+    URL is passed via data-hls-src and loaded by admin_video_preview.js (hls.js
+    for Chrome/Firefox/Edge, native src for Safari), same split as VideoPlayer.jsx.
+    """
+    url = field.url if field and hasattr(field, 'url') else field
+    if url:
+        return mark_safe(
+            f'<video data-hls-src="{url}" controls '
+            f'style="height:{size}px;width:auto;border-radius:6px;background:#000;"></video>'
+        )
+    return '—'
+
 
 # ── Model admins ──────────────────────────────────────────────────────────────
 
@@ -69,12 +91,17 @@ class CoursePageSettingsAdmin(ModelAdmin):
 @admin.register(Course)
 class CourseAdmin(ModelAdmin):
     form          = CourseAdminForm
+
+    class Media:
+        js = ('js/vendor/hls.min.js', 'js/admin_video_preview.js')
+
     list_display  = ('title', 'category', 'tier', 'price', 'duration_display', 'is_featured', 'is_active', 'order')
     list_editable = ('price', 'order', 'is_featured', 'is_active')
     list_filter   = ('category', 'tier', 'is_active', 'is_featured')
     search_fields = ('title', 'description')
     ordering      = ('order', '-created_at')
     prepopulated_fields = {'slug': ('title',)}
+    readonly_fields = ('trailer_video_preview', 'course_video_preview')
     fieldsets = (
         ('Course Info', {
             'fields': ('title', 'slug', 'description', 'what_youll_learn', 'thumbnail'),
@@ -83,12 +110,24 @@ class CourseAdmin(ModelAdmin):
             'fields': ('category', 'tier', 'price', 'duration_display'),
         }),
         ('Videos', {
-            'fields': ('trailer_video', 'course_video', 'subtitle_url'),
+            'fields': (
+                'trailer_video', 'trailer_video_preview',
+                'course_video', 'course_video_preview',
+                'subtitle_url',
+            ),
         }),
         ('Visibility', {
             'fields': ('is_featured', 'is_active', 'order'),
         }),
     )
+
+    def trailer_video_preview(self, obj):
+        return video_preview(obj.trailer_video)
+    trailer_video_preview.short_description = 'Current'
+
+    def course_video_preview(self, obj):
+        return video_preview(obj.course_video)
+    course_video_preview.short_description = 'Current'
 
 
 @admin.register(CoursePurchase)

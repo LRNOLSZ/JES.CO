@@ -15,6 +15,6 @@ if R2_CONFIGURED:
         secret_key    = _R2_SECRET_KEY
         bucket_name   = _R2_BUCKET
         endpoint_url  = _R2_ENDPOINT
-        custom_domain = config('R2_PUBLIC_DOMAIN', default='') or None
+        custom_domain = (config('R2_PUBLIC_DOMAIN', default='') or '').removeprefix('https://').removeprefix('http://') or None
         file_overwrite = False
         default_acl   = None  # R2 does not use ACLs

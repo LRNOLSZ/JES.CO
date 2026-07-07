@@ -7,8 +7,8 @@ from imagekit.processors import ResizeToFit
 
 
 def _video_storage():
-    from jesrestudio_backend.cloudinary_storage import CloudinaryVideoStorage
-    return CloudinaryVideoStorage()
+    from jesrestudio_backend.bunny_storage import BunnyStreamStorage
+    return BunnyStreamStorage()
 
 
 class CourseTier(models.Model):
@@ -75,7 +75,7 @@ class CoursePageSettings(models.Model):
 class Course(models.Model):
     """
     A single course — has a public trailer and a tier-locked full video.
-    Videos hosted on Cloudinary. Thumbnail hosted on Cloudflare R2.
+    Videos hosted on Bunny Stream (HLS). Thumbnail hosted on Cloudflare R2.
     """
     CATEGORY_CHOICES = [
         ('foundation',   'Foundation & Base'),
@@ -110,14 +110,14 @@ class Course(models.Model):
                       upload_to='courses/trailers/',
                       storage=_video_storage,
                       blank=True, null=True,
-                      help_text='Upload the short public trailer video (MP4). Goes to Cloudinary in production.')
+                      help_text='Upload the short public trailer video (MP4). Streams via Bunny Stream (HLS).')
     course_video  = models.FileField(
                       upload_to='courses/videos/',
                       storage=_video_storage,
                       blank=True, null=True,
-                      help_text='Upload the full tier-locked course video (MP4). Goes to Cloudinary in production.')
+                      help_text='Upload the full tier-locked course video (MP4). Streams via Bunny Stream (HLS).')
     subtitle_url  = models.URLField(blank=True,
-                      help_text='[Cloudinary] Paste Cloudinary .vtt subtitle file URL (optional).')
+                      help_text='Paste the .vtt subtitle file URL (optional).')
 
     duration_display = models.CharField(max_length=30, blank=True,
                          help_text='e.g. 3h 20m — shown on the course card')

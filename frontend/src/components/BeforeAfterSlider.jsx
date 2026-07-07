@@ -23,7 +23,7 @@ function BeforeAfterCard({ title, category, beforeImage, afterImage }) {
         onPointerCancel={() => setDrag(false)}
         style={{
           position:    'relative',
-          aspectRatio: '3 / 4',
+          aspectRatio: '9 / 16',
           borderRadius:'14px',
           overflow:    'hidden',
           cursor:      'ew-resize',

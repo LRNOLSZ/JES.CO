@@ -45,6 +45,9 @@ INSTALLED_APPS = [
     'storages',
     'cloudinary_storage',
     'cloudinary',
+
+    # Must be last — hooks every other app's FileField/ImageField for cleanup
+    'django_cleanup.apps.CleanupConfig',
 ]
 
 MIDDLEWARE = [
@@ -133,9 +136,15 @@ REST_FRAMEWORK = {
     ],
 }
 
-# --- Email (console for dev — swap to SMTP for production) ---
-EMAIL_BACKEND    = 'django.core.mail.backends.console.EmailBackend'
-DEFAULT_FROM_EMAIL = 'JES.CO <noreply@jes.co>'
+# --- Email (Brevo SMTP — swap host/user/password in .env to change provider) ---
+EMAIL_BACKEND      = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST         = config('EMAIL_HOST', default='smtp-relay.brevo.com')
+EMAIL_PORT         = config('EMAIL_PORT', default=587, cast=int)
+EMAIL_USE_TLS      = config('EMAIL_USE_TLS', default=True, cast=bool)
+EMAIL_USE_SSL      = config('EMAIL_USE_SSL', default=False, cast=bool)
+EMAIL_HOST_USER    = config('EMAIL_HOST_USER', default='')
+EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD', default='')
+DEFAULT_FROM_EMAIL = '"JES.CO" <jescomanagement@gmail.com>'
 
 # --- Notifications ---
 MAAME_AMA_EMAIL = config('MAAME_AMA_EMAIL', default='')
@@ -187,6 +196,11 @@ UNFOLD = {
     "SHOW_VIEW_ON_SITE": True,
     "STYLES": [
         lambda request: static("css/admin_custom.css"),
+        lambda request: static("css/admin_file_dropzone.css"),
+    ],
+    "SCRIPTS": [
+        lambda request: static("js/admin_file_dropzone.js"),
+        lambda request: static("js/video_upload_progress.js"),
     ],
     "COLORS": {
         "primary": {
@@ -276,6 +290,55 @@ UNFOLD = {
                     "title": "All Collection Items",
                     "icon": "collections_bookmark",
                     "link": "/admin/products/productitem/?category=collections",
+                },
+            ],
+        },
+        {
+            "title": "Courses",
+            "separator": True,
+            "collapsible": False,
+            "items": [
+                {
+                    "title": "All Courses",
+                    "icon": "play_circle",
+                    "link": reverse_lazy("admin:courses_course_changelist"),
+                },
+                {
+                    "title": "Course Tiers",
+                    "icon": "layers",
+                    "link": reverse_lazy("admin:courses_coursetier_changelist"),
+                },
+                {
+                    "title": "Purchases",
+                    "icon": "receipt_long",
+                    "link": reverse_lazy("admin:courses_coursepurchase_changelist"),
+                },
+                {
+                    "title": "Students",
+                    "icon": "school",
+                    "link": reverse_lazy("admin:courses_student_changelist"),
+                },
+                {
+                    "title": "Active Sessions",
+                    "icon": "devices",
+                    "link": reverse_lazy("admin:courses_coursesession_changelist"),
+                },
+            ],
+        },
+        {
+            "title": "Orders",
+            "separator": True,
+            "collapsible": False,
+            "items": [
+                {
+                    "title": "All Orders",
+                    "icon": "shopping_bag",
+                    "link": reverse_lazy("admin:products_order_changelist"),
+                },
+                {
+                    "title": "Delivery Zones",
+                    "icon": "local_shipping",
+                    "link": reverse_lazy("admin:products_deliveryzone_changelist"),
                 },
             ],
         },

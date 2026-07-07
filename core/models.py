@@ -4,8 +4,8 @@ from imagekit.processors import ResizeToFit
 
 
 def _video_storage():
-    from jesrestudio_backend.cloudinary_storage import CloudinaryVideoStorage
-    return CloudinaryVideoStorage()
+    from jesrestudio_backend.bunny_storage import BunnyStreamStorage
+    return BunnyStreamStorage()
 
 
 class PageImages(models.Model):
@@ -115,7 +115,20 @@ class SocialLink(models.Model):
     """
     One row per social media platform.
     """
-    platform  = models.CharField(max_length=50, help_text='e.g. Instagram, TikTok, YouTube')
+    PLATFORM_CHOICES = [
+        ('instagram', 'Instagram'),
+        ('tiktok', 'TikTok'),
+        ('youtube', 'YouTube'),
+        ('facebook', 'Facebook'),
+        ('x', 'X (Twitter)'),
+        ('pinterest', 'Pinterest'),
+        ('snapchat', 'Snapchat'),
+        ('threads', 'Threads'),
+        ('linkedin', 'LinkedIn'),
+        ('whatsapp', 'WhatsApp'),
+    ]
+
+    platform  = models.CharField(max_length=50, choices=PLATFORM_CHOICES, help_text='Select the social media platform')
     handle    = models.CharField(max_length=100, help_text='Display text e.g. @jesresstudio')
     url       = models.URLField(help_text='Full URL to the social media page')
     order     = models.PositiveIntegerField(default=0, help_text='Lower number appears first')
@@ -132,7 +145,7 @@ class SocialLink(models.Model):
 
 class IntroVideo(models.Model):
     """
-    One intro video per page. Hosted on Cloudinary.
+    One intro video per page. Hosted on Bunny Stream.
     """
     PAGE_CHOICES = [
         ('jesoco', 'JES.CO Homepage'),
@@ -145,7 +158,7 @@ class IntroVideo(models.Model):
                     upload_to='intro_videos/',
                     storage=_video_storage,
                     blank=True, null=True,
-                    help_text='Upload intro video (MP4). Goes to Cloudinary in production.')
+                    help_text='Upload intro video (MP4). Streams via Bunny Stream (HLS).')
     title     = models.CharField(max_length=200, blank=True, help_text='Optional caption')
     is_active = models.BooleanField(default=True, help_text='Uncheck to hide without deleting')
     updated_at = models.DateTimeField(auto_now=True)

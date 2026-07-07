@@ -16,6 +16,11 @@ class IntroVideoAdminForm(forms.ModelForm):
             'video_url': forms.FileInput(attrs={'accept': 'video/mp4,video/*'}),
         }
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if self.instance.pk and self.instance.video_url:
+            self.fields['video_url'].widget.attrs['data-has-existing'] = '1'
+
 from .models import PageImages, SiteSettings, SocialLink, Testimonial
 from .models import IntroVideo
 
@@ -25,6 +30,22 @@ def url_preview(field, size=80):
     url = field.url if field and hasattr(field, 'url') else field
     if url:
         return mark_safe(f'<img src="{url}" style="height:{size}px;width:auto;border-radius:6px;object-fit:cover;" />')
+    return '—'
+
+
+def video_preview(field, size=160):
+    """Render a playable <video> tag from a video FileField, or a dash if empty.
+
+    Bunny Stream serves HLS (.m3u8), which only plays natively in Safari — so the
+    URL is passed via data-hls-src and loaded by admin_video_preview.js (hls.js
+    for Chrome/Firefox/Edge, native src for Safari), same split as VideoPlayer.jsx.
+    """
+    url = field.url if field and hasattr(field, 'url') else field
+    if url:
+        return mark_safe(
+            f'<video data-hls-src="{url}" controls '
+            f'style="height:{size}px;width:auto;border-radius:6px;background:#000;"></video>'
+        )
     return '—'
 
 
@@ -128,11 +149,20 @@ class TestimonialAdmin(ModelAdmin):
 
 @admin.register(IntroVideo)
 class IntroVideoAdmin(ModelAdmin):
-    form          = IntroVideoAdminForm
-    list_display  = ('get_page_display', 'title', 'is_active', 'updated_at')
-    list_editable = ('is_active',)
-    ordering      = ('page',)
-    fields        = ('page', 'video_url', 'title', 'is_active')
+    form            = IntroVideoAdminForm
+
+    class Media:
+        js = ('js/vendor/hls.min.js', 'js/admin_video_preview.js')
+
+    list_display    = ('get_page_display', 'title', 'is_active', 'updated_at')
+    list_editable   = ('is_active',)
+    ordering        = ('page',)
+    fields          = ('page', 'video_url', 'video_url_preview', 'title', 'is_active')
+    readonly_fields = ('video_url_preview',)
+
+    def video_url_preview(self, obj):
+        return video_preview(obj.video_url)
+    video_url_preview.short_description = 'Current'
 
     def get_page_display(self, obj):
         return obj.get_page_display()
