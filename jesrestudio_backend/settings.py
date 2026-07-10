@@ -401,3 +401,28 @@ UNFOLD = {
         },
     ],
 }
+
+# --- Logging ---
+# Django's built-in default only prints errors to console when DEBUG=True (it tries to
+# email admins instead when DEBUG=False). Railway/most hosts capture stdout as the log
+# stream, so without this, 500 errors happen silently with nothing to see in the logs.
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+        },
+    },
+    'root': {
+        'handlers': ['console'],
+        'level': 'WARNING',
+    },
+    'loggers': {
+        'django.request': {
+            'handlers': ['console'],
+            'level': 'ERROR',
+            'propagate': False,
+        },
+    },
+}
