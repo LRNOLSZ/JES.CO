@@ -332,6 +332,11 @@ def paystack_webhook(request):
     except Course.DoesNotExist:
         return Response({'detail': 'Course not found.'}, status=status.HTTP_404_NOT_FOUND)
 
+    # Skip if already processed — Paystack retries webhook delivery until it gets
+    # a 200, which would otherwise re-send the access link email on every retry.
+    if CoursePurchase.objects.filter(paystack_reference=reference).exists():
+        return Response({'detail': 'Already processed.'})
+
     CoursePurchase.objects.update_or_create(
         email=email,
         course=course,

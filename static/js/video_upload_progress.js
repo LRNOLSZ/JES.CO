@@ -13,6 +13,48 @@
     return null;
   }
 
+  // ── Success message restoration ─────────────────────────────────────────────
+  // XMLHttpRequest auto-follows Django's post-save redirect internally, which
+  // consumes the one-time flash message before our own window.location.href
+  // navigation ever happens. The real message text is still sitting unused in
+  // that auto-followed response body — pull it out and replay it after the
+  // navigation completes, styled to match Unfold's own message markup exactly.
+
+  var SUCCESS_MSG_KEY = 'vup-success-msg';
+
+  function extractSuccessMessage(html) {
+    if (!html) return null;
+    var match = html.match(
+      /bg-green-100 text-green-700[^"]*"[^>]*>([\s\S]*?)<\/div>/
+    );
+    return match ? match[1].trim() : null;
+  }
+
+  function injectSuccessMessage(text) {
+    var content = document.getElementById('content');
+    if (!content) return;
+    var contentOuter = content.parentElement;
+    var messagesOuter = contentOuter && contentOuter.previousElementSibling;
+    var messagesInner = messagesOuter && messagesOuter.querySelector('.container.mx-auto');
+    if (!messagesInner) return;
+
+    var list = messagesInner.querySelector('ul.flex.flex-col.gap-4.mb-6');
+    if (!list) {
+      list = document.createElement('ul');
+      list.className = 'flex flex-col gap-4 mb-6';
+      messagesInner.appendChild(list);
+    }
+
+    var item = document.createElement('li');
+    item.className = '*:mb-0!';
+    var box = document.createElement('div');
+    box.className =
+      'mb-3 px-3 py-2.5 leading-[18px] rounded-default bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-400';
+    box.innerHTML = text;
+    item.appendChild(box);
+    list.appendChild(item);
+  }
+
   // ── Formatting helpers ──────────────────────────────────────────────────────
 
   function formatBytes(bytes) {
@@ -206,6 +248,12 @@
   // ── Main ────────────────────────────────────────────────────────────────────
 
   document.addEventListener('DOMContentLoaded', function () {
+    var pendingMessage = sessionStorage.getItem(SUCCESS_MSG_KEY);
+    if (pendingMessage) {
+      sessionStorage.removeItem(SUCCESS_MSG_KEY);
+      injectSuccessMessage(pendingMessage);
+    }
+
     var form = document.querySelector('form[method="post"]:not(#logout-form)');
     if (!form) return;
 
@@ -245,6 +293,11 @@
 
       xhr.addEventListener('load', function () {
         if (xhr.status >= 200 && xhr.status < 400) {
+          var successMessage = extractSuccessMessage(xhr.responseText);
+          if (successMessage) {
+            sessionStorage.setItem(SUCCESS_MSG_KEY, successMessage);
+          }
+
           var elapsed    = Date.now() - overlayShownAt;
           var MIN_SHOW   = 1500;
           var DONE_PAUSE = 700;

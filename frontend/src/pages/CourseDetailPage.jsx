@@ -6,6 +6,8 @@ import JescoNavbar from '../components/JescoNavbar'
 import JescoFooter from '../components/JescoFooter'
 import VideoPlayer from '../components/VideoPlayer'
 
+const PAYSTACK_KEY = import.meta.env.VITE_PAYSTACK_PUBLIC_KEY || ''
+
 function LockIcon({ size = 20 }) {
   return (
     <svg viewBox="0 0 20 20" fill="none" style={{ width: size, height: size }}>
@@ -111,6 +113,9 @@ export default function CourseDetailPage() {
   const [loading,      setLoading]      = useState(true)
   const [notFound,     setNotFound]     = useState(false)
   const [streamBlocked, setStreamBlocked] = useState(false)
+  const [unlockState, setUnlockState] = useState('idle') // idle | collecting-email | loading | success | error
+  const [unlockEmail, setUnlockEmail] = useState('')
+  const [unlockError, setUnlockError] = useState('')
   const heartbeatRef = useRef(null)
 
   const sessionKey = localStorage.getItem('jes_course_session')
@@ -123,6 +128,49 @@ export default function CourseDetailPage() {
       .catch(err => { if (err.response?.status === 404) setNotFound(true) })
       .finally(() => setLoading(false))
   }, [slug, sessionKey])
+
+  // Load Paystack script
+  useEffect(() => {
+    if (!PAYSTACK_KEY) return
+    const existing = document.getElementById('paystack-js')
+    if (existing) return
+    const script = document.createElement('script')
+    script.id    = 'paystack-js'
+    script.src   = 'https://js.paystack.co/v1/inline.js'
+    script.async = true
+    document.body.appendChild(script)
+  }, [])
+
+  function handleUnlockEmailSubmit(e) {
+    e.preventDefault()
+    if (!unlockEmail.trim()) return
+    handlePaystack()
+  }
+
+  function handlePaystack() {
+    if (!PAYSTACK_KEY || !window.PaystackPop) {
+      setUnlockState('error')
+      setUnlockError('Payment not available yet. Please try again later.')
+      return
+    }
+    setUnlockState('loading')
+    const handler = window.PaystackPop.setup({
+      key:      PAYSTACK_KEY,
+      email:    unlockEmail,
+      amount:   Math.round((course?.price || 0) * 100), // whole GHS → pesewas
+      currency: 'GHS',
+      metadata: {
+        course_slug: slug,
+      },
+      callback: () => {
+        setUnlockState('success')
+      },
+      onClose: () => {
+        setUnlockState('idle')
+      },
+    })
+    handler.openIframe()
+  }
 
   function startHeartbeat() {
     if (heartbeatRef.current) return
@@ -293,16 +341,51 @@ export default function CourseDetailPage() {
                       ? `Pay once and watch as many times as you like.`
                       : `No account needed — pay and receive your access link by email.`}
                   </p>
-                  {/* Paystack unlock button — active when PAYSTACK keys are in .env (Phase 6) */}
-                  <button
-                    className="btn btn-gold"
-                    style={{ marginTop: '0.25rem', opacity: 0.5, cursor: 'not-allowed' }}
-                    title="Payment coming soon"
-                    disabled
-                  >
-                    {price ? `Unlock — ${price}` : 'Unlock Course'} ✦ Coming Soon
-                  </button>
-                  {!hasSession && (
+                  {/* Paystack unlock flow */}
+                  {unlockState === 'success' ? (
+                    <p style={{ fontFamily: 'var(--sans)', fontSize: '0.87rem', color: '#5fbf5f', margin: 0, maxWidth: '260px' }}>
+                      ✓ Payment successful — check your email for your access link.
+                    </p>
+                  ) : unlockState === 'collecting-email' || unlockState === 'loading' ? (
+                    <form onSubmit={handleUnlockEmailSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem', width: '100%', maxWidth: '280px' }}>
+                      <input
+                        type="email"
+                        value={unlockEmail}
+                        onChange={e => setUnlockEmail(e.target.value)}
+                        placeholder="your@email.com"
+                        required
+                        autoFocus
+                        style={{
+                          width: '100%', boxSizing: 'border-box',
+                          padding: '0.75rem 1rem',
+                          background: 'color-mix(in srgb, var(--bone) 5%, transparent)',
+                          border: '1px solid var(--hair)',
+                          borderRadius: '10px',
+                          color: 'var(--bone)',
+                          fontFamily: 'var(--sans)',
+                          fontSize: '0.9rem',
+                          outline: 'none',
+                        }}
+                      />
+                      <button type="submit" className="btn btn-gold" disabled={unlockState === 'loading'} style={{ opacity: unlockState === 'loading' ? 0.6 : 1 }}>
+                        {unlockState === 'loading' ? 'Processing…' : `Continue to Payment — ${price || ''}`}
+                      </button>
+                    </form>
+                  ) : (
+                    <button
+                      className="btn btn-gold"
+                      style={{ marginTop: '0.25rem' }}
+                      onClick={() => { setUnlockState('collecting-email'); setUnlockError('') }}
+                    >
+                      {price ? `Unlock — ${price}` : 'Unlock Course'}
+                    </button>
+                  )}
+                  {unlockState === 'error' && (
+                    <p style={{ fontFamily: 'var(--sans)', fontSize: '0.8rem', color: 'rgba(255,120,120,0.9)', margin: 0, maxWidth: '260px' }}>
+                      {unlockError || 'Something went wrong. Please try again.'}
+                    </p>
+                  )}
+                  {!hasSession && unlockState !== 'success' && (
                     <Link to="/studio/courses/access" style={{ fontFamily: 'var(--sans)', fontSize: '0.72rem', color: 'var(--taupe-mut)', textDecoration: 'none', marginTop: '0.25rem', transition: 'color 0.3s' }}
                       onMouseEnter={e => (e.currentTarget.style.color = 'var(--champ)')}
                       onMouseLeave={e => (e.currentTarget.style.color = 'var(--taupe-mut)')}

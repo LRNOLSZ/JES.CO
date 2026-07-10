@@ -52,6 +52,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',  # must be directly after SecurityMiddleware
     'django.contrib.sessions.middleware.SessionMiddleware',
     'corsheaders.middleware.CorsMiddleware',  # Must be before CommonMiddleware
     'django.middleware.common.CommonMiddleware',
@@ -80,17 +81,27 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'jesrestudio_backend.wsgi.application'
 
-# --- Database (PostgreSQL via .env) ---
-DATABASES = {
-    'default': {
-        'ENGINE': config('DB_ENGINE', default='django.db.backends.postgresql'),
-        'NAME': config('DB_NAME'),
-        'USER': config('DB_USER'),
-        'PASSWORD': config('DB_PASSWORD'),
-        'HOST': config('DB_HOST', default='localhost'),
-        'PORT': config('DB_PORT', default='5432'),
+# --- Database ---
+# Railway provides a single DATABASE_URL for its managed Postgres; local dev keeps
+# using the discrete DB_* vars below, so nothing changes day-to-day.
+import dj_database_url  # noqa: E402
+
+DATABASE_URL = config('DATABASE_URL', default='')
+if DATABASE_URL:
+    DATABASES = {
+        'default': dj_database_url.parse(DATABASE_URL, conn_max_age=600)
     }
-}
+else:
+    DATABASES = {
+        'default': {
+            'ENGINE': config('DB_ENGINE', default='django.db.backends.postgresql'),
+            'NAME': config('DB_NAME'),
+            'USER': config('DB_USER'),
+            'PASSWORD': config('DB_PASSWORD'),
+            'HOST': config('DB_HOST', default='localhost'),
+            'PORT': config('DB_PORT', default='5432'),
+        }
+    }
 
 # --- Custom User Model ---
 AUTH_USER_MODEL = 'accounts.User'
@@ -119,11 +130,31 @@ MEDIA_ROOT = BASE_DIR / 'media'
 # --- Default Primary Key ---
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-# --- CORS (React/Vite dev server) ---
-CORS_ALLOWED_ORIGINS = [
-    'http://localhost:5173',
-    'http://127.0.0.1:5173',
-]
+# --- Referrer-Policy ---
+# Django's SecurityMiddleware defaults to 'same-origin', which strips the Referer
+# header entirely on cross-origin requests. hls.js's admin video previews fetch
+# from Bunny Stream's CDN (a different origin), and Bunny's pull zone rejects any
+# request with no Referer present — so the implicit default breaks admin video
+# playback. 'strict-origin-when-cross-origin' is the browser's own common default:
+# it still sends the origin (not the full path/query) cross-origin, which is enough.
+SECURE_REFERRER_POLICY = 'strict-origin-when-cross-origin'
+
+# HTTPS hardening — no-ops locally (DEBUG=True), active once deployed with DEBUG=False.
+# Railway terminates SSL at its edge and forwards plain HTTP internally, so redirecting
+# to HTTPS and marking cookies secure-only is safe and standard here.
+SECURE_SSL_REDIRECT   = not DEBUG
+SESSION_COOKIE_SECURE = not DEBUG
+CSRF_COOKIE_SECURE    = not DEBUG
+
+# --- CORS ---
+# Comma-separated env var, same pattern as ALLOWED_HOSTS — defaults to the Vite dev
+# server so local dev is unaffected. Set a real CORS_ALLOWED_ORIGINS env var on
+# Railway once the Vercel domain exists.
+CORS_ALLOWED_ORIGINS = config(
+    'CORS_ALLOWED_ORIGINS',
+    default='http://localhost:5173,http://127.0.0.1:5173',
+    cast=Csv(),
+)
 
 # --- Django REST Framework ---
 REST_FRAMEWORK = {
@@ -150,6 +181,11 @@ DEFAULT_FROM_EMAIL = '"JES.CO" <jescomanagement@gmail.com>'
 MAAME_AMA_EMAIL = config('MAAME_AMA_EMAIL', default='')
 WHATSAPP_NUMBER = config('WHATSAPP_NUMBER', default='')  # international format, no +
 
+# --- Paystack ---
+# Empty by default — courses/views.py's paystack_webhook stays gated (503) until
+# a real key is set. Public key is frontend-only (frontend/.env, VITE_PAYSTACK_PUBLIC_KEY).
+PAYSTACK_SECRET_KEY = config('PAYSTACK_SECRET_KEY', default='')
+
 # --- Magic Link ---
 MAGIC_LINK_EXPIRY_MINUTES = 15
 FRONTEND_URL = config('FRONTEND_URL', default='http://localhost:5173')
@@ -168,19 +204,23 @@ CLOUDINARY_STORAGE = {
     'API_SECRET': config('CLOUDINARY_API_SECRET', default=''),
 }
 
-# --- Cloudflare R2 Storage ---
-# When these four vars are set in .env, all uploaded images go to R2.
-# Without them, files save locally to /media/ (dev mode).
+# --- Cloudflare R2 Storage (media) + Whitenoise (static) ---
+# When the four R2 vars are set in .env, all uploaded images go to R2; otherwise
+# files save locally to /media/ (dev mode) — same as Django's own default.
+# staticfiles always goes through whitenoise's compressed/manifest storage so
+# `collectstatic` output is served correctly in production regardless of R2.
 from .storage_backends import R2_CONFIGURED  # noqa: E402
-if R2_CONFIGURED:
-    STORAGES = {
-        'default': {
-            'BACKEND': 'jesrestudio_backend.storage_backends.R2MediaStorage',
-        },
-        'staticfiles': {
-            'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage',
-        },
-    }
+
+STORAGES = {
+    'default': {
+        'BACKEND': 'jesrestudio_backend.storage_backends.R2MediaStorage'
+                   if R2_CONFIGURED else
+                   'django.core.files.storage.FileSystemStorage',
+    },
+    'staticfiles': {
+        'BACKEND': 'whitenoise.storage.CompressedManifestStaticFilesStorage',
+    },
+}
 
 # --- Django Imagekit ---
 IMAGEKIT_CACHEFILE_DIR = 'CACHE/images'
