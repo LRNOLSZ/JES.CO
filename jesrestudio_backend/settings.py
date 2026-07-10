@@ -142,6 +142,11 @@ SECURE_REFERRER_POLICY = 'strict-origin-when-cross-origin'
 # HTTPS hardening — no-ops locally (DEBUG=True), active once deployed with DEBUG=False.
 # Railway terminates SSL at its edge and forwards plain HTTP internally, so redirecting
 # to HTTPS and marking cookies secure-only is safe and standard here.
+# SECURE_PROXY_SSL_HEADER tells Django to trust Railway's X-Forwarded-Proto header when
+# deciding if a request is secure — without it, Django can't tell the original request
+# was HTTPS (it only sees the internal plain-HTTP hop) and redirects every request to
+# HTTPS forever, causing ERR_TOO_MANY_REDIRECTS.
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 SECURE_SSL_REDIRECT   = not DEBUG
 SESSION_COOKIE_SECURE = not DEBUG
 CSRF_COOKIE_SECURE    = not DEBUG
