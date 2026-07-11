@@ -285,7 +285,7 @@ export default function CourseDetailPage() {
               <span style={{ fontFamily: 'var(--sans)', fontSize: '0.6rem', letterSpacing: '0.14em', textTransform: 'uppercase', color: '#5fbf5f', background: 'rgba(95,191,95,0.1)', border: '1px solid rgba(95,191,95,0.28)', padding: '0.15rem 0.55rem', borderRadius: '9999px' }}>Unlocked</span>
             </div>
             {course.trailer_url
-              ? <VideoPlayer src={course.trailer_url} style={{ width: '100%', display: 'block', background: '#000', maxHeight: '280px' }} />
+              ? <VideoPlayer src={course.trailer_url} startHighQuality style={{ width: '100%', display: 'block', background: '#000', maxHeight: '280px' }} />
               : <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--taupe-mut)', fontFamily: 'var(--sans)', fontSize: '0.8rem' }}>Trailer coming soon</div>
             }
           </div>

@@ -1,13 +1,16 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { useCourseSession } from '../context/CourseSessionContext'
 import JescoNavbar from '../components/JescoNavbar'
 import JescoFooter from '../components/JescoFooter'
 
+const PAYSTACK_KEY = import.meta.env.VITE_PAYSTACK_PUBLIC_KEY || ''
+
 export default function CoursesDashboardPage() {
-  const { sessionEmail, purchases, isLoading, clearSession } = useCourseSession()
+  const { sessionEmail, purchases, isLoading, clearSession, refreshPurchases } = useCourseSession()
   const navigate = useNavigate()
+  const [renewingSlug, setRenewingSlug] = useState(null) // slug of course currently mid-renewal
 
   useEffect(() => {
     if (!isLoading && !sessionEmail) {
@@ -15,9 +18,43 @@ export default function CoursesDashboardPage() {
     }
   }, [isLoading, sessionEmail, navigate])
 
+  // Load Paystack script
+  useEffect(() => {
+    if (!PAYSTACK_KEY) return
+    if (document.getElementById('paystack-js')) return
+    const script = document.createElement('script')
+    script.id    = 'paystack-js'
+    script.src   = 'https://js.paystack.co/v1/inline.js'
+    script.async = true
+    document.body.appendChild(script)
+  }, [])
+
   function handleSignOut() {
     clearSession()
     navigate('/studio/courses/access')
+  }
+
+  function handleRenew(course) {
+    if (!PAYSTACK_KEY || !window.PaystackPop) return
+    const handler = window.PaystackPop.setup({
+      key:      PAYSTACK_KEY,
+      email:    sessionEmail,
+      amount:   Math.round((course.price || 0) * 100), // whole GHS → pesewas
+      currency: 'GHS',
+      metadata: { course_slug: course.slug },
+      callback: async () => {
+        setRenewingSlug(course.slug)
+        // The webhook that actually extends access runs async on Paystack's side —
+        // give it a moment, then check; retry once more if it hasn't landed yet.
+        await new Promise(r => setTimeout(r, 2000))
+        await refreshPurchases()
+        await new Promise(r => setTimeout(r, 2000))
+        await refreshPurchases()
+        setRenewingSlug(null)
+      },
+      onClose: () => {},
+    })
+    handler.openIframe()
   }
 
   if (isLoading) return (
@@ -129,14 +166,13 @@ export default function CoursesDashboardPage() {
 
                       <div style={{ marginTop: 'auto', paddingTop: '0.75rem' }}>
                         {expired ? (
-                          <a
-                            href={`https://wa.me/${import.meta.env.VITE_WHATSAPP_NUMBER || ''}?text=${encodeURIComponent(`Hi, I'd like to renew access to "${course.title}".`)}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', padding: '0.65rem 1rem', borderRadius: '9999px', background: 'transparent', border: '1px solid rgba(220,80,80,0.4)', color: 'rgba(220,80,80,0.9)', fontFamily: 'var(--sans)', fontSize: '0.64rem', letterSpacing: '0.12em', textTransform: 'uppercase', textDecoration: 'none', boxSizing: 'border-box' }}
+                          <button
+                            onClick={() => handleRenew(course)}
+                            disabled={renewingSlug === course.slug}
+                            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', padding: '0.65rem 1rem', borderRadius: '9999px', background: 'transparent', border: '1px solid rgba(220,80,80,0.4)', color: 'rgba(220,80,80,0.9)', fontFamily: 'var(--sans)', fontSize: '0.64rem', letterSpacing: '0.12em', textTransform: 'uppercase', cursor: renewingSlug === course.slug ? 'default' : 'pointer', boxSizing: 'border-box', opacity: renewingSlug === course.slug ? 0.6 : 1 }}
                           >
-                            Renew Access →
-                          </a>
+                            {renewingSlug === course.slug ? 'Confirming…' : `Renew — GHS ${course.price} →`}
+                          </button>
                         ) : (
                           <Link
                             to={`/studio/courses/${course.slug}`}

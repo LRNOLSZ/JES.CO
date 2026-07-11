@@ -1,11 +1,11 @@
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
 import axios from 'axios'
+import VideoPlayer from './VideoPlayer'
 
 export default function StudioVideoSection() {
   const [video, setVideo] = useState(null)
   const [ready, setReady] = useState(false)
-  const videoRef          = useRef(null)
 
   useEffect(() => {
     axios.get('/api/videos/?page=studio')
@@ -85,10 +85,9 @@ export default function StudioVideoSection() {
             zIndex:     1,
           }} />
 
-          <video
-            ref={videoRef}
+          <VideoPlayer
             src={video.video_url}
-            controls
+            startHighQuality
             playsInline
             onCanPlay={() => setReady(true)}
             style={{

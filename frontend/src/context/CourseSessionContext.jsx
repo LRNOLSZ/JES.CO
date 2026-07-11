@@ -10,12 +10,9 @@ export function CourseSessionProvider({ children }) {
 
   const sessionKey = localStorage.getItem('jes_course_session')
 
-  useEffect(() => {
-    if (!sessionKey) {
-      setIsLoading(false)
-      return
-    }
-    axios.get('/api/courses/dashboard/', {
+  function fetchDashboard() {
+    if (!sessionKey) return Promise.resolve()
+    return axios.get('/api/courses/dashboard/', {
       headers: { 'X-Course-Session': sessionKey },
     })
       .then(r => {
@@ -25,7 +22,14 @@ export function CourseSessionProvider({ children }) {
       .catch(() => {
         localStorage.removeItem('jes_course_session')
       })
-      .finally(() => setIsLoading(false))
+  }
+
+  useEffect(() => {
+    if (!sessionKey) {
+      setIsLoading(false)
+      return
+    }
+    fetchDashboard().finally(() => setIsLoading(false))
   }, [sessionKey])
 
   function clearSession() {
@@ -41,7 +45,7 @@ export function CourseSessionProvider({ children }) {
   }
 
   return (
-    <CourseSessionContext.Provider value={{ sessionEmail, purchases, isLoading, clearSession }}>
+    <CourseSessionContext.Provider value={{ sessionEmail, purchases, isLoading, clearSession, refreshPurchases: fetchDashboard }}>
       {children}
     </CourseSessionContext.Provider>
   )

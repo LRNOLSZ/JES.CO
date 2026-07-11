@@ -343,6 +343,9 @@ def paystack_webhook(request):
         defaults={
             'paystack_reference': reference,
             'expires_at': timezone.now() + timezone.timedelta(days=180),
+            'reminder_14_sent': False,
+            'reminder_5_sent': False,
+            'expiry_notice_sent': False,
         },
     )
 

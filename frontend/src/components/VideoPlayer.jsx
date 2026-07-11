@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react'
 
-export default function VideoPlayer({ src, style, onPlay, onPause, onEnded, ...props }) {
+export default function VideoPlayer({ src, style, onPlay, onPause, onEnded, startHighQuality, ...props }) {
   const videoRef = useRef(null)
   const hlsRef   = useRef(null)
 
@@ -28,6 +28,16 @@ export default function VideoPlayer({ src, style, onPlay, onPause, onEnded, ...p
         return
       }
       const hls = new Hls({ enableWorker: true, lowLatencyMode: false })
+      if (startHighQuality) {
+        hls.on(Hls.Events.MANIFEST_PARSED, (event, data) => {
+          if (!data.levels || data.levels.length === 0) return
+          let bestIndex = 0
+          data.levels.forEach((level, i) => {
+            if (level.bitrate > data.levels[bestIndex].bitrate) bestIndex = i
+          })
+          hls.currentLevel = bestIndex
+        })
+      }
       hls.loadSource(src)
       hls.attachMedia(video)
       hlsRef.current = hls

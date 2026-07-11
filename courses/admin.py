@@ -28,6 +28,11 @@ def export_emails_csv(modeladmin, request, queryset):
     return response
 
 
+@admin.action(description='Reset reminder flags (allow re-sending)')
+def reset_reminder_flags(modeladmin, request, queryset):
+    queryset.update(reminder_14_sent=False, reminder_5_sent=False, expiry_notice_sent=False)
+
+
 # ── Course admin form ─────────────────────────────────────────────────────────
 
 class CourseAdminForm(forms.ModelForm):
@@ -137,7 +142,7 @@ class CoursePurchaseAdmin(ModelAdmin):
     search_fields   = ('email', 'course__title', 'paystack_reference')
     ordering        = ('-purchased_at',)
     readonly_fields = ('purchased_at', 'add_course_for_email')
-    fields          = ('email', 'course', 'expires_at', 'paystack_reference', 'purchased_at', 'add_course_for_email')
+    fields          = ('email', 'course', 'expires_at', 'reminder_14_sent', 'reminder_5_sent', 'expiry_notice_sent', 'paystack_reference', 'purchased_at', 'add_course_for_email')
 
     def access_status(self, obj):
         if obj.is_access_expired:
@@ -148,7 +153,7 @@ class CoursePurchaseAdmin(ModelAdmin):
             return format_html('<span style="color:#5fbf5f;">{} days left</span>', obj.days_remaining)
         return format_html('<span style="color:#888;">Lifetime</span>')
     access_status.short_description = 'Access'
-    actions         = [export_emails_csv]
+    actions         = [export_emails_csv, reset_reminder_flags]
 
     def add_course_for_email(self, obj):
         url = reverse('admin:courses_coursepurchase_add') + f'?email={obj.email}'
