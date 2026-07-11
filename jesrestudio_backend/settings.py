@@ -19,6 +19,7 @@ INSTALLED_APPS = [
 
     'django.contrib.admin',
     'django.contrib.auth',
+    'axes',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
@@ -58,9 +59,20 @@ MIDDLEWARE = [
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'axes.middleware.AxesMiddleware',  # must be after AuthenticationMiddleware
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
+
+# --- django-axes (admin login brute-force protection) ---
+AUTHENTICATION_BACKENDS = [
+    'axes.backends.AxesStandaloneBackend',  # must be first
+    'django.contrib.auth.backends.ModelBackend',
+]
+AXES_FAILURE_LIMIT = 10          # lock after 10 failed attempts
+AXES_COOLOFF_TIME = 1            # auto-unlock after 1 hour
+AXES_RESET_ON_SUCCESS = True     # reset counter on successful login
+AXES_LOCKOUT_PARAMETERS = ['ip_address']
 
 ROOT_URLCONF = 'jesrestudio_backend.urls'
 
@@ -150,6 +162,15 @@ SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 SECURE_SSL_REDIRECT   = not DEBUG
 SESSION_COOKIE_SECURE = not DEBUG
 CSRF_COOKIE_SECURE    = not DEBUG
+
+# --- Admin session timeout ---
+# Auto-logs the admin out after 15 minutes of inactivity — protects Maame Ama if she
+# forgets to sign out on a borrowed/shared device. SESSION_SAVE_EVERY_REQUEST resets the
+# countdown on every request, so this is 15 minutes of inactivity, not a fixed 15-minute
+# session regardless of activity. This is the only place Django's built-in session cookie
+# is used in this project (students authenticate via magic-link + CourseSession instead).
+SESSION_COOKIE_AGE = 900  # 15 minutes, in seconds
+SESSION_SAVE_EVERY_REQUEST = True
 
 # --- CORS ---
 # Comma-separated env var, same pattern as ALLOWED_HOSTS — defaults to the Vite dev
