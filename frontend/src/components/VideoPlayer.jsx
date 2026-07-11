@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react'
 
-export default function VideoPlayer({ src, style, onPlay, onPause, onEnded, startHighQuality, ...props }) {
+export default function VideoPlayer({ src, style, onPlay, onPause, onEnded, ...props }) {
   const videoRef = useRef(null)
   const hlsRef   = useRef(null)
 
@@ -27,25 +27,7 @@ export default function VideoPlayer({ src, style, onPlay, onPause, onEnded, star
         video.src = src
         return
       }
-      const hls = new Hls({
-        enableWorker: true,
-        lowLatencyMode: false,
-        // Bias hls.js's very first quality guess toward "fast connection" so chunk #1
-        // (not just chunk #2 onward) starts at the highest level — the default estimate
-        // is deliberately conservative, which is what caused the low-quality first chunk.
-        ...(startHighQuality ? { abrEwmaDefaultEstimate: 500_000_000 } : {}),
-      })
-      if (startHighQuality) {
-        // Backup: if a level swap is still needed after the manifest loads, force it.
-        hls.on(Hls.Events.MANIFEST_PARSED, (event, data) => {
-          if (!data.levels || data.levels.length === 0) return
-          let bestIndex = 0
-          data.levels.forEach((level, i) => {
-            if (level.bitrate > data.levels[bestIndex].bitrate) bestIndex = i
-          })
-          hls.currentLevel = bestIndex
-        })
-      }
+      const hls = new Hls({ enableWorker: true, lowLatencyMode: false })
       hls.loadSource(src)
       hls.attachMedia(video)
       hlsRef.current = hls

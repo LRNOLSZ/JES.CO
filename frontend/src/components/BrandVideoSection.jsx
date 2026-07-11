@@ -89,7 +89,6 @@ export default function BrandVideoSection() {
 
           <VideoPlayer
             src={video.video_url}
-            startHighQuality
             playsInline
             onCanPlay={() => setReady(true)}
             style={{

@@ -87,7 +87,6 @@ export default function StudioVideoSection() {
 
           <VideoPlayer
             src={video.video_url}
-            startHighQuality
             playsInline
             onCanPlay={() => setReady(true)}
             style={{
