@@ -1,12 +1,42 @@
+import base64
+import hashlib
+import time
+
 import requests
 from decouple import config
 from django.core.files.storage import Storage
 
-_BUNNY_API_KEY    = config('BUNNY_API_KEY',    default='')
-_BUNNY_LIBRARY_ID = config('BUNNY_LIBRARY_ID', default='')
-_BUNNY_CDN_URL    = config('BUNNY_CDN_URL',    default='')
+_BUNNY_API_KEY        = config('BUNNY_API_KEY',        default='')
+_BUNNY_LIBRARY_ID     = config('BUNNY_LIBRARY_ID',      default='')
+_BUNNY_CDN_URL        = config('BUNNY_CDN_URL',         default='')
+_BUNNY_TOKEN_AUTH_KEY = config('BUNNY_TOKEN_AUTH_KEY',  default='')
 
 BUNNY_CONFIGURED = all([_BUNNY_API_KEY, _BUNNY_LIBRARY_ID, _BUNNY_CDN_URL])
+
+# Signing is opt-in by the presence of this key alone — without it, .url() falls back
+# to today's permanent unsigned links, so shipping this code has zero effect until the
+# key is actually set (locally or on Railway). See BUNNY_TOKEN_AUTH_KEY in the plan doc
+# for where this comes from in Bunny's dashboard (Pull Zone/Library -> Security ->
+# Token Authentication) and the rollout order (code first, key second, enable
+# enforcement in Bunny's dashboard last, once a signed URL has been tested directly).
+BUNNY_SIGNING_CONFIGURED = bool(_BUNNY_TOKEN_AUTH_KEY)
+
+# 8-hour signed-URL window — matches this project's existing CourseSession expiry
+# elsewhere (a comfortable full-viewing-session length), not an arbitrary number.
+BUNNY_SIGNED_URL_TTL_SECONDS = 8 * 60 * 60
+
+
+def _bunny_directory_token(directory_path, expires):
+    """
+    Bunny CDN 'Basic' token auth, directory mode: sign the *folder* path (trailing
+    slash), not the exact file — HLS playback fetches many nested files (quality
+    sub-playlists, .ts segments) that we don't individually control the URL for, so
+    only a directory-scoped token can cover all of them with one signature.
+    """
+    hashable = f'{_BUNNY_TOKEN_AUTH_KEY}{directory_path}{expires}'
+    digest = hashlib.md5(hashable.encode()).digest()
+    token = base64.b64encode(digest).decode()
+    return token.replace('+', '-').replace('/', '_').replace('=', '')
 
 
 if BUNNY_CONFIGURED:
@@ -43,7 +73,13 @@ if BUNNY_CONFIGURED:
             return guid
 
         def url(self, name):
-            return f'{self.cdn_url}/{name}/playlist.m3u8'
+            if not BUNNY_SIGNING_CONFIGURED:
+                return f'{self.cdn_url}/{name}/playlist.m3u8'
+
+            expires = int(time.time()) + BUNNY_SIGNED_URL_TTL_SECONDS
+            directory_path = f'/{name}/'
+            token = _bunny_directory_token(directory_path, expires)
+            return f'{self.cdn_url}/{name}/playlist.m3u8?token={token}&expires={expires}'
 
         def exists(self, name):
             return False
