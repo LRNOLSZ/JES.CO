@@ -3,9 +3,11 @@ import { Link, useNavigate } from 'react-router-dom'
 import axios from 'axios'
 import JescoNavbar from '../components/JescoNavbar'
 import JescoFooter from '../components/JescoFooter'
+import { useCourseSession } from '../context/CourseSessionContext'
 
 export default function CourseAccessVerifyPage() {
   const navigate = useNavigate()
+  const { refreshPurchases } = useCourseSession()
   const [state, setState] = useState('verifying') // verifying | success | error
 
   useEffect(() => {
@@ -20,12 +22,20 @@ export default function CourseAccessVerifyPage() {
     if (!token) { setState('error'); return }
 
     axios.get(`/api/courses/access/verify/?token=${token}`)
-      .then(r => {
+      .then(async r => {
         localStorage.setItem('jes_course_session', r.data.session_key)
+        // The shared session context is a long-lived instance that only checks
+        // localStorage reactively on its own mount — it has no way to know we just
+        // wrote a new key here, so explicitly tell it to refetch before navigating,
+        // otherwise the dashboard loads still thinking there's no active session.
+        await refreshPurchases()
         setState('success')
         setTimeout(() => navigate('/studio/courses/dashboard', { replace: true }), 1200)
       })
       .catch(() => setState('error'))
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- deliberately run once on
+    // mount only; refreshPurchases' identity changes every time it's called (which we
+    // do inside this very effect), so including it would cause a redundant re-run.
   }, [navigate])
 
   return (

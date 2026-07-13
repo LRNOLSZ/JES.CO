@@ -11,9 +11,14 @@ export function CourseSessionProvider({ children }) {
   const sessionKey = localStorage.getItem('jes_course_session')
 
   function fetchDashboard() {
-    if (!sessionKey) return Promise.resolve()
+    // Read fresh from localStorage rather than closing over the outer `sessionKey` —
+    // this function is exposed as `refreshPurchases` and gets called right after other
+    // pages (e.g. the magic-link verify page) write a brand new session key; a stale
+    // closure would still see the old (often empty) key and silently no-op.
+    const key = localStorage.getItem('jes_course_session')
+    if (!key) return Promise.resolve()
     return axios.get('/api/courses/dashboard/', {
-      headers: { 'X-Course-Session': sessionKey },
+      headers: { 'X-Course-Session': key },
     })
       .then(r => {
         setSessionEmail(r.data.email)
