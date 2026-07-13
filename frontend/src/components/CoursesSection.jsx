@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import axios from 'axios'
 import { Reveal, SectionHead, ArrowIcon } from './Reveal'
+import VideoPlayer from './VideoPlayer'
 
 function LockIcon() {
   return (
@@ -34,7 +35,11 @@ function TrailerModal({ course, onClose }) {
           </p>
           <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--taupe-mut)', cursor: 'pointer', fontSize: '1.4rem' }}>✕</button>
         </div>
-        <video src={course.trailer_url} controls autoPlay style={{ width: '100%', borderRadius: '0.75rem', background: '#000' }} />
+        <VideoPlayer
+          src={course.trailer_url}
+          autoPlay
+          style={{ width: '100%', maxHeight: '75vh', objectFit: 'contain', borderRadius: '0.75rem', background: '#000', display: 'block', margin: '0 auto' }}
+        />
       </div>
     </div>
   )

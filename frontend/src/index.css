@@ -277,7 +277,20 @@ section { position: relative; }
 
 @media (max-width: 600px) {
   .work-grid { grid-template-columns: 1fr !important; max-width: 360px; margin: 0 auto; }
-  .courses-grid { grid-template-columns: 1fr !important; max-width: 360px; margin: 0 auto; }
+  /* Carousel on mobile only — desktop keeps the static 3-column grid */
+  .courses-grid {
+    display: flex !important;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+    gap: 1.1rem;
+    padding: 0 1.5rem 0.75rem;
+    margin: 0 -1.5rem;
+  }
+  .courses-grid > * {
+    flex: 0 0 85%;
+    scroll-snap-align: center;
+  }
   .footer-top { grid-template-columns: 1fr 1fr !important; }
   .footer-top > *:first-child { grid-column: 1 / -1; }
   .product-grid { grid-template-columns: 1fr !important; }
