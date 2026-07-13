@@ -27,7 +27,26 @@ export default function VideoPlayer({ src, style, onPlay, onPause, onEnded, ...p
         video.src = src
         return
       }
-      const hls = new Hls({ enableWorker: true, lowLatencyMode: false })
+
+      // Bunny's signed URLs put ?token=...&expires=... on the manifest we hand hls.js —
+      // but hls.js resolves every nested file the manifest references (quality
+      // sub-playlists, then the actual .ts segments) as its own separate request, and
+      // none of those carry the query string forward automatically. Without this, only
+      // the very first request is authenticated and everything else 403s once Bunny's
+      // token enforcement is on. So we re-attach the same token/expires to every
+      // request hls.js makes, not just the one we gave it as `src`.
+      const authQuery = src.includes('?') ? src.split('?')[1] : ''
+      function withAuth(url) {
+        if (!authQuery || url.includes('token=')) return url
+        return url.includes('?') ? `${url}&${authQuery}` : `${url}?${authQuery}`
+      }
+
+      const hls = new Hls({
+        enableWorker: true,
+        lowLatencyMode: false,
+        xhrSetup: (xhr, url) => xhr.open('GET', withAuth(url), true),
+        fetchSetup: (context, initParams) => new Request(withAuth(context.url), initParams),
+      })
       hls.loadSource(src)
       hls.attachMedia(video)
       hlsRef.current = hls
