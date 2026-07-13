@@ -36,16 +36,25 @@ export default function VideoPlayer({ src, style, onPlay, onPause, onEnded, ...p
       // token enforcement is on. So we re-attach the same token/expires to every
       // request hls.js makes, not just the one we gave it as `src`.
       const authQuery = src.includes('?') ? src.split('?')[1] : ''
+      console.log('[VideoPlayer debug] authQuery:', authQuery)
       function withAuth(url) {
         if (!authQuery || url.includes('token=')) return url
-        return url.includes('?') ? `${url}&${authQuery}` : `${url}?${authQuery}`
+        const result = url.includes('?') ? `${url}&${authQuery}` : `${url}?${authQuery}`
+        console.log('[VideoPlayer debug] withAuth:', url, '->', result)
+        return result
       }
 
       const hls = new Hls({
         enableWorker: true,
         lowLatencyMode: false,
-        xhrSetup: (xhr, url) => xhr.open('GET', withAuth(url), true),
-        fetchSetup: (context, initParams) => new Request(withAuth(context.url), initParams),
+        xhrSetup: (xhr, url) => {
+          console.log('[VideoPlayer debug] xhrSetup called for:', url)
+          xhr.open('GET', withAuth(url), true)
+        },
+        fetchSetup: (context, initParams) => {
+          console.log('[VideoPlayer debug] fetchSetup called for:', context.url)
+          return new Request(withAuth(context.url), initParams)
+        },
       })
       hls.loadSource(src)
       hls.attachMedia(video)
