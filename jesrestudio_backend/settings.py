@@ -193,8 +193,12 @@ REST_FRAMEWORK = {
     ],
 }
 
-# --- Email (Brevo SMTP — swap host/user/password in .env to change provider) ---
-EMAIL_BACKEND      = 'django.core.mail.backends.smtp.EmailBackend'
+# --- Email (Brevo, via HTTP API not SMTP — Railway blocks outbound SMTP by default,
+# confirmed via a real TimeoutError connecting to smtp-relay.brevo.com:587 in prod.
+# See jesrestudio_backend/email_backends.py) ---
+EMAIL_BACKEND      = 'jesrestudio_backend.email_backends.BrevoAPIBackend'
+# SMTP settings below are no longer read by the active backend — kept only as a
+# documented rollback path if ever needed.
 EMAIL_HOST         = config('EMAIL_HOST', default='smtp-relay.brevo.com')
 EMAIL_PORT         = config('EMAIL_PORT', default=587, cast=int)
 EMAIL_USE_TLS      = config('EMAIL_USE_TLS', default=True, cast=bool)
