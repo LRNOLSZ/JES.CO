@@ -5,15 +5,10 @@ export default function VideoPlayer({ src, style, onPlay, onPause, onEnded, ...p
   const hlsRef   = useRef(null)
 
   useEffect(() => {
-    console.log('[VideoPlayer debug] effect running, src:', src)
-    if (!src || !videoRef.current) {
-      console.log('[VideoPlayer debug] bailing early — no src or no videoRef')
-      return
-    }
+    if (!src || !videoRef.current) return
     const video = videoRef.current
 
     const isHLS = src.includes('.m3u8')
-    console.log('[VideoPlayer debug] isHLS:', isHLS)
 
     if (!isHLS) {
       video.src = src
@@ -25,18 +20,13 @@ export default function VideoPlayer({ src, style, onPlay, onPause, onEnded, ...p
     // non-empty string so it was being treated as truthy/yes. Only "probably"
     // is a confident native-support answer; require that exact value so Chrome/
     // Firefox/Edge/Android correctly fall through to hls.js below instead.
-    const canPlayNative = video.canPlayType('application/vnd.apple.mpegurl')
-    console.log('[VideoPlayer debug] canPlayType result:', JSON.stringify(canPlayNative))
-    if (canPlayNative === 'probably') {
-      console.log('[VideoPlayer debug] taking NATIVE path, not hls.js')
+    if (video.canPlayType('application/vnd.apple.mpegurl') === 'probably') {
       video.src = src
       return
     }
 
     // Chrome, Firefox, Edge — use hls.js
-    console.log('[VideoPlayer debug] taking hls.js path')
     import('hls.js').then(({ default: Hls }) => {
-      console.log('[VideoPlayer debug] hls.js module loaded, isSupported:', Hls.isSupported())
       if (!Hls.isSupported()) {
         video.src = src
         return
@@ -50,25 +40,16 @@ export default function VideoPlayer({ src, style, onPlay, onPause, onEnded, ...p
       // token enforcement is on. So we re-attach the same token/expires to every
       // request hls.js makes, not just the one we gave it as `src`.
       const authQuery = src.includes('?') ? src.split('?')[1] : ''
-      console.log('[VideoPlayer debug] authQuery:', authQuery)
       function withAuth(url) {
         if (!authQuery || url.includes('token=')) return url
-        const result = url.includes('?') ? `${url}&${authQuery}` : `${url}?${authQuery}`
-        console.log('[VideoPlayer debug] withAuth:', url, '->', result)
-        return result
+        return url.includes('?') ? `${url}&${authQuery}` : `${url}?${authQuery}`
       }
 
       const hls = new Hls({
         enableWorker: true,
         lowLatencyMode: false,
-        xhrSetup: (xhr, url) => {
-          console.log('[VideoPlayer debug] xhrSetup called for:', url)
-          xhr.open('GET', withAuth(url), true)
-        },
-        fetchSetup: (context, initParams) => {
-          console.log('[VideoPlayer debug] fetchSetup called for:', context.url)
-          return new Request(withAuth(context.url), initParams)
-        },
+        xhrSetup: (xhr, url) => xhr.open('GET', withAuth(url), true),
+        fetchSetup: (context, initParams) => new Request(withAuth(context.url), initParams),
       })
       hls.loadSource(src)
       hls.attachMedia(video)
