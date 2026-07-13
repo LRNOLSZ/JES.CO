@@ -24,7 +24,6 @@ export default function OrderTrackingPage() {
   const [state,  setState]  = useState('idle')  // idle | loading | found | not_found | error
 
   useEffect(() => {
-    window.scrollTo(0, 0)
     const refParam = searchParams.get('ref')
     if (refParam) setRef(refParam)
   }, [])

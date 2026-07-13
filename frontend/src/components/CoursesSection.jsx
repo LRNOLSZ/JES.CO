@@ -65,7 +65,7 @@ function CourseCard({ course, onTrailerClick, index }) {
         }}
       >
         {/* Thumbnail */}
-        <div style={{ position: 'relative', aspectRatio: '16 / 10', borderBottom: '1px solid var(--hair)', overflow: 'hidden', background: 'var(--ink-2)' }}>
+        <div className="course-card-thumb" style={{ position: 'relative', aspectRatio: '16 / 10', borderBottom: '1px solid var(--hair)', overflow: 'hidden', background: 'var(--ink-2)' }}>
           {course.thumbnail_url
             ? <img src={course.thumbnail_url} alt={course.title} style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: '50% 20%' }} />
             : <div className="ph" style={{ position: 'absolute', inset: 0, borderRadius: 0, border: 'none' }}><span className="ph-tag">Course Preview</span></div>

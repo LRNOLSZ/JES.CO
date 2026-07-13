@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import axios from 'axios'
 import { SectionHead } from './Reveal'
 import { usePageImages } from '../hooks/usePageImages'
@@ -34,6 +34,21 @@ export default function TestimonialsSection() {
     setAnimKey(k => k + 1)
   }, [testimonials.length])
 
+  // Swipe support — same prev/next nav the buttons already use, just triggered
+  // by a horizontal drag/swipe instead of a click. Buttons and dots are untouched.
+  const dragStartX = useRef(null)
+  function handleSwipeStart(e) {
+    dragStartX.current = e.clientX
+  }
+  function handleSwipeEnd(e) {
+    if (dragStartX.current === null) return
+    const delta = e.clientX - dragStartX.current
+    dragStartX.current = null
+    const SWIPE_THRESHOLD = 50
+    if (delta > SWIPE_THRESHOLD) go(-1)
+    else if (delta < -SWIPE_THRESHOLD) go(1)
+  }
+
   if (!testimonials.length) return null
 
   const t = testimonials[idx]
@@ -42,7 +57,7 @@ export default function TestimonialsSection() {
     <section id="testimonials" style={{ padding: 'clamp(5rem,11vw,9rem) 0', background: 'var(--ink-2)', position: 'relative', overflow: 'hidden' }}>
       {bgUrl && (
         <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
-          <img src={bgUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center', opacity: 0.07 }} />
+          <img src={bgUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center', opacity: 0.42 }} />
         </div>
       )}
 
@@ -59,6 +74,8 @@ export default function TestimonialsSection() {
         <div style={{ maxWidth: '720px', margin: '0 auto' }}>
           <div
             key={animKey}
+            onPointerDown={handleSwipeStart}
+            onPointerUp={handleSwipeEnd}
             style={{
               padding:      'clamp(2rem,5vw,3.5rem)',
               background:   'color-mix(in srgb, var(--bone) 4%, transparent)',
@@ -66,6 +83,8 @@ export default function TestimonialsSection() {
               borderRadius: '20px',
               textAlign:    'center',
               animation:    'fadeSlideUp 0.45s var(--ease) both',
+              touchAction:  'pan-y',
+              cursor:       testimonials.length > 1 ? 'grab' : 'default',
             }}
           >
             <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '1.4rem' }}>

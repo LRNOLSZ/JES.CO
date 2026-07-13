@@ -71,7 +71,7 @@ export default function JescoNavbar({ overDark = false }) {
       }}>
 
         {/* Logo */}
-        <Link to="/" style={{ textDecoration: 'none', display: 'flex', alignItems: 'baseline', gap: '0.7rem', flexShrink: 0 }}>
+        <Link to="/" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '0.7rem', flexShrink: 0 }}>
           <span style={{
             fontFamily:    'var(--serif)',
             fontSize:      '1.3rem',

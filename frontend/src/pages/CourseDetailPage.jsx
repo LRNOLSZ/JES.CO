@@ -121,7 +121,6 @@ export default function CourseDetailPage() {
   const sessionKey = localStorage.getItem('jes_course_session')
 
   useEffect(() => {
-    window.scrollTo(0, 0)
     const headers = sessionKey ? { 'X-Course-Session': sessionKey } : {}
     axios.get(`/api/courses/${slug}/`, { headers })
       .then(r => setCourse(r.data))

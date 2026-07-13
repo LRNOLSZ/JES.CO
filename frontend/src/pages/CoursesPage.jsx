@@ -233,7 +233,6 @@ export default function CoursesPage() {
   const [trailerCourse, setTrailerCourse] = useState(null)
 
   useEffect(() => {
-    window.scrollTo(0, 0)
     Promise.all([
       axios.get('/api/courses/'),
       axios.get('/api/course-page-settings/'),

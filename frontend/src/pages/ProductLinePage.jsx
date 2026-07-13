@@ -35,7 +35,6 @@ export default function ProductLinePage() {
   }
 
   useEffect(() => {
-    window.scrollTo(0, 0)
     setLoading(true)
     axios.get(`/api/products/?category=${category}`)
       .then(r => setItems(r.data))

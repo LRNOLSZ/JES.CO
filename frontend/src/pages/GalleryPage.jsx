@@ -94,7 +94,6 @@ export default function GalleryPage() {
   const [activeTab, setActiveTab] = useState(ALL)
 
   useEffect(() => {
-    window.scrollTo(0, 0)
     axios.get('/api/gallery/')
       .then(r => setItems(r.data))
       .finally(() => setLoading(false))

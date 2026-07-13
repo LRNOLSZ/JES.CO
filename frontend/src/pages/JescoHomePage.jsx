@@ -23,7 +23,7 @@ const VALUES = [
 ]
 
 const STATS = [
-  { n: '500+', label: 'Transformations' },
+  { n: '200+', label: 'Transformations' },
   { n: '4.9★', label: 'Client Rating' },
   { n: '3+',   label: 'Years of Craft' },
 ]

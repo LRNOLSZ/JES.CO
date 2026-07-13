@@ -106,8 +106,8 @@ export default function JescoFooter() {
       }}>
 
         {/* Column 1 — brand */}
-        <div>
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.7rem', marginBottom: '1.1rem' }}>
+        <div className="footer-brand">
+          <div className="footer-brand-logo" style={{ display: 'flex', alignItems: 'center', gap: '0.7rem', marginBottom: '1.1rem' }}>
             <span style={{
               fontFamily:    'var(--serif)',
               fontSize:      '1.6rem',

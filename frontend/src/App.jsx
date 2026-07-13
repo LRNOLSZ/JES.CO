@@ -1,5 +1,6 @@
 import { Routes, Route } from 'react-router-dom'
 
+import ScrollToTop           from './components/ScrollToTop'
 import Navbar               from './components/Navbar'
 import Footer               from './components/Footer'
 import JescoNavbar          from './components/JescoNavbar'
@@ -63,6 +64,8 @@ function StudioHomePage() {
 
 export default function App() {
   return (
+    <>
+    <ScrollToTop />
     <Routes>
       <Route path="/"                    element={<JescoHomePage />} />
       <Route path="/studio"              element={<StudioHomePage />} />
@@ -76,5 +79,6 @@ export default function App() {
       <Route path="/cart"                            element={<CartPage />} />
       <Route path="/track-order"                    element={<OrderTrackingPage />} />
     </Routes>
+    </>
   )
 }

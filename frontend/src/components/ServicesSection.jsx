@@ -2,10 +2,10 @@ import { useState } from 'react'
 import { Reveal, SectionHead, ArrowIcon } from './Reveal'
 
 const SERVICES = [
-  { id: '01', name: 'Bridal Glam',            note: 'For the day everything is looked at.',           price: 'from GHS 280' },
-  { id: '02', name: 'Editorial & Photoshoot', note: 'Camera-ready looks built for the lens.',         price: 'from GHS 220' },
-  { id: '03', name: 'Corrective Skin',        note: 'Treatment-led prep for skin that glows back.',   price: 'from GHS 150' },
-  { id: '04', name: 'Transformation Session', note: 'A full sit-down — face, mood, presence.',        price: 'from GHS 190' },
+  { id: '01', name: 'Bridal Glam',            note: 'For the day everything is looked at.' },
+  { id: '02', name: 'Editorial & Photoshoot', note: 'Camera-ready looks built for the lens.' },
+  { id: '03', name: 'Corrective Skin',        note: 'Treatment-led prep for skin that glows back.' },
+  { id: '04', name: 'Transformation Session', note: 'A full sit-down — face, mood, presence.' },
 ]
 
 export default function ServicesSection() {
@@ -26,7 +26,7 @@ export default function ServicesSection() {
             index="02"
             eyebrow="The Menu"
             title={<span>Services &amp; <span className="ital metal-text">rituals</span></span>}
-            sub="Every service begins with a consultation. Prices are a starting point — the look is always yours."
+            sub="Every service begins with a consultation — reach out and we'll tailor it to you."
           />
           <Reveal delay={0.18} style={{ marginTop: '2.2rem' }}>
             <a href="#booking" className="btn btn-gold">Reserve a Date</a>
@@ -61,16 +61,13 @@ export default function ServicesSection() {
                   <span className="serif" style={{ display: 'block', fontSize: 'clamp(1.4rem,2.6vw,2rem)', fontWeight: 500, color: 'var(--bone)', lineHeight: 1.15 }}>{s.name}</span>
                   <span style={{ fontFamily: 'var(--sans)', fontSize: '0.84rem', fontWeight: 300, color: 'var(--taupe)' }}>{s.note}</span>
                 </span>
-                <span style={{ display: 'flex', alignItems: 'center', gap: '0.9rem' }}>
-                  <span style={{ fontFamily: 'var(--sans)', fontSize: '0.82rem', color: 'var(--champ)', whiteSpace: 'nowrap' }}>{s.price}</span>
-                  <span style={{
-                    color:     'var(--champ)',
-                    opacity:   hover === s.id ? 1 : 0,
-                    transform: hover === s.id ? 'translateX(0)' : 'translateX(-6px)',
-                    transition:'all 0.35s var(--ease)',
-                  }}>
-                    <ArrowIcon />
-                  </span>
+                <span style={{
+                  color:     'var(--champ)',
+                  opacity:   hover === s.id ? 1 : 0,
+                  transform: hover === s.id ? 'translateX(0)' : 'translateX(-6px)',
+                  transition:'all 0.35s var(--ease)',
+                }}>
+                  <ArrowIcon />
                 </span>
               </a>
             </Reveal>

@@ -291,6 +291,10 @@ section { position: relative; }
     flex: 0 0 85%;
     scroll-snap-align: center;
   }
+  .course-card-thumb { aspect-ratio: 16 / 11.5 !important; }
+  .footer-brand { text-align: center; }
+  .footer-brand-logo { justify-content: center; }
+  .footer-brand p { margin-left: auto; margin-right: auto; }
   .footer-top { grid-template-columns: 1fr 1fr !important; }
   .footer-top > *:first-child { grid-column: 1 / -1; }
   .product-grid { grid-template-columns: 1fr !important; }
