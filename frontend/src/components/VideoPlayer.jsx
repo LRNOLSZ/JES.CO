@@ -5,10 +5,15 @@ export default function VideoPlayer({ src, style, onPlay, onPause, onEnded, ...p
   const hlsRef   = useRef(null)
 
   useEffect(() => {
-    if (!src || !videoRef.current) return
+    console.log('[VideoPlayer debug] effect running, src:', src)
+    if (!src || !videoRef.current) {
+      console.log('[VideoPlayer debug] bailing early — no src or no videoRef')
+      return
+    }
     const video = videoRef.current
 
     const isHLS = src.includes('.m3u8')
+    console.log('[VideoPlayer debug] isHLS:', isHLS)
 
     if (!isHLS) {
       video.src = src
@@ -16,13 +21,18 @@ export default function VideoPlayer({ src, style, onPlay, onPause, onEnded, ...p
     }
 
     // Safari supports HLS natively
-    if (video.canPlayType('application/vnd.apple.mpegurl')) {
+    const canPlayNative = video.canPlayType('application/vnd.apple.mpegurl')
+    console.log('[VideoPlayer debug] canPlayType result:', JSON.stringify(canPlayNative))
+    if (canPlayNative) {
+      console.log('[VideoPlayer debug] taking NATIVE path, not hls.js')
       video.src = src
       return
     }
 
     // Chrome, Firefox, Edge — use hls.js
+    console.log('[VideoPlayer debug] taking hls.js path')
     import('hls.js').then(({ default: Hls }) => {
+      console.log('[VideoPlayer debug] hls.js module loaded, isSupported:', Hls.isSupported())
       if (!Hls.isSupported()) {
         video.src = src
         return
