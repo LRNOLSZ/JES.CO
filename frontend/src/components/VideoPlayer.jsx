@@ -20,10 +20,14 @@ export default function VideoPlayer({ src, style, onPlay, onPause, onEnded, ...p
       return
     }
 
-    // Safari supports HLS natively
+    // Safari supports HLS natively — but canPlayType returns "maybe" for many
+    // non-Safari browsers too (Chrome on Android included), and "maybe" is a
+    // non-empty string so it was being treated as truthy/yes. Only "probably"
+    // is a confident native-support answer; require that exact value so Chrome/
+    // Firefox/Edge/Android correctly fall through to hls.js below instead.
     const canPlayNative = video.canPlayType('application/vnd.apple.mpegurl')
     console.log('[VideoPlayer debug] canPlayType result:', JSON.stringify(canPlayNative))
-    if (canPlayNative) {
+    if (canPlayNative === 'probably') {
       console.log('[VideoPlayer debug] taking NATIVE path, not hls.js')
       video.src = src
       return
