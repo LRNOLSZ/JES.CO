@@ -13,7 +13,9 @@ export default function CoursesDashboardPage() {
   const [renewingSlug, setRenewingSlug] = useState(null) // slug of course currently mid-renewal
 
   useEffect(() => {
+    console.log('[Dashboard] guard effect: isLoading=', isLoading, 'sessionEmail=', sessionEmail)
     if (!isLoading && !sessionEmail) {
+      console.warn('[Dashboard] redirecting to /studio/courses/access — isLoading is false and sessionEmail is falsy')
       navigate('/studio/courses/access')
     }
   }, [isLoading, sessionEmail, navigate])

@@ -45,12 +45,14 @@ export default function CourseAccessVerifyPage() {
     setState('confirming')
     axios.post('/api/courses/access/verify/', { token })
       .then(async r => {
+        console.log('[Verify] confirm OK, session_key received, email:', r.data.email)
         localStorage.setItem('jes_course_session', r.data.session_key)
         // The shared session context is a long-lived instance that only checks
         // localStorage reactively on its own mount — it has no way to know we just
         // wrote a new key here, so explicitly tell it to refetch before navigating,
         // otherwise the dashboard loads still thinking there's no active session.
         await refreshPurchases()
+        console.log('[Verify] refreshPurchases resolved, navigating to dashboard now')
         setState('success')
         setTimeout(() => navigate('/studio/courses/dashboard', { replace: true }), 1200)
       })
