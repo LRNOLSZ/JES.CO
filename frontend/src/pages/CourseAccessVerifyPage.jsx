@@ -8,7 +8,10 @@ import { useCourseSession } from '../context/CourseSessionContext'
 export default function CourseAccessVerifyPage() {
   const navigate = useNavigate()
   const { refreshPurchases } = useCourseSession()
-  const [state, setState] = useState('verifying') // verifying | success | error
+  const [state, setState] = useState('verifying') // verifying | ready | confirming | success | error
+  const [email, setEmail] = useState('')
+  const [errorDetail, setErrorDetail] = useState('')
+  const [token, setToken] = useState('')
 
   useEffect(() => {
     // If a session already exists, the token was already consumed — go straight to dashboard
@@ -18,10 +21,29 @@ export default function CourseAccessVerifyPage() {
     }
 
     const params = new URLSearchParams(window.location.search)
-    const token  = params.get('token')
-    if (!token) { setState('error'); return }
+    const t = params.get('token')
+    if (!t) { setState('error'); return }
+    setToken(t)
 
-    axios.get(`/api/courses/access/verify/?token=${token}`)
+    // Read-only check — deliberately does NOT consume the token. Email clients
+    // (Gmail especially) auto-fetch links in emails to scan them for safety before
+    // a human ever taps them; if this GET consumed the token, that automatic scan
+    // would burn it and the real click would fail with "already used".
+    axios.get(`/api/courses/access/verify/?token=${t}`)
+      .then(r => {
+        setEmail(r.data.email)
+        setState('ready')
+      })
+      .catch(err => {
+        console.error('Magic link verify failed:', err.response?.data)
+        setErrorDetail(err.response?.data?.detail || '')
+        setState('error')
+      })
+  }, [navigate])
+
+  function handleConfirm() {
+    setState('confirming')
+    axios.post('/api/courses/access/verify/', { token })
       .then(async r => {
         localStorage.setItem('jes_course_session', r.data.session_key)
         // The shared session context is a long-lived instance that only checks
@@ -32,11 +54,12 @@ export default function CourseAccessVerifyPage() {
         setState('success')
         setTimeout(() => navigate('/studio/courses/dashboard', { replace: true }), 1200)
       })
-      .catch(() => setState('error'))
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- deliberately run once on
-    // mount only; refreshPurchases' identity changes every time it's called (which we
-    // do inside this very effect), so including it would cause a redundant re-run.
-  }, [navigate])
+      .catch(err => {
+        console.error('Magic link confirm failed:', err.response?.data)
+        setErrorDetail(err.response?.data?.detail || '')
+        setState('error')
+      })
+  }
 
   return (
     <>
@@ -48,6 +71,30 @@ export default function CourseAccessVerifyPage() {
             <>
               <div style={{ width: '2.5rem', height: '2.5rem', borderRadius: '50%', border: '2px solid var(--hair)', borderTopColor: 'var(--champ)', animation: 'spin 0.8s linear infinite' }} />
               <p className="serif" style={{ fontSize: '1.3rem', color: 'var(--bone)', margin: 0 }}>Verifying your link…</p>
+            </>
+          )}
+
+          {state === 'ready' && (
+            <>
+              <div style={{ width: '56px', height: '56px', borderRadius: '50%', background: 'rgba(212,175,55,0.12)', border: '1px solid rgba(212,175,55,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--champ)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M12 2l3 7h7l-5.5 4.5L18 21l-6-4.5L6 21l1.5-7.5L2 9h7z" />
+                </svg>
+              </div>
+              <p className="serif" style={{ fontSize: '1.3rem', color: 'var(--bone)', margin: 0 }}>Link verified</p>
+              <p style={{ fontFamily: 'var(--sans)', fontSize: '0.87rem', fontWeight: 300, color: 'var(--taupe)', lineHeight: 1.7, margin: 0 }}>
+                Continue as <strong style={{ color: 'var(--bone)', fontWeight: 500 }}>{email}</strong>
+              </p>
+              <button onClick={handleConfirm} className="btn btn-gold" style={{ marginTop: '0.5rem' }}>
+                Continue to dashboard
+              </button>
+            </>
+          )}
+
+          {state === 'confirming' && (
+            <>
+              <div style={{ width: '2.5rem', height: '2.5rem', borderRadius: '50%', border: '2px solid var(--hair)', borderTopColor: 'var(--champ)', animation: 'spin 0.8s linear infinite' }} />
+              <p className="serif" style={{ fontSize: '1.3rem', color: 'var(--bone)', margin: 0 }}>Signing you in…</p>
             </>
           )}
 
@@ -72,7 +119,7 @@ export default function CourseAccessVerifyPage() {
               </div>
               <p className="serif" style={{ fontSize: '1.3rem', color: 'var(--bone)', margin: 0 }}>Link expired or already used</p>
               <p style={{ fontFamily: 'var(--sans)', fontSize: '0.87rem', fontWeight: 300, color: 'var(--taupe)', lineHeight: 1.7, margin: 0 }}>
-                Access links are single-use and expire after 24 hours.
+                {errorDetail || 'Access links are single-use and expire after 24 hours.'}
               </p>
               <Link to="/studio/courses/access" className="btn btn-gold" style={{ marginTop: '0.5rem' }}>
                 Get a new link

@@ -140,15 +140,19 @@ def request_access_link(request):
     return Response({'detail': 'Access link sent. Check your inbox.'})
 
 
-@api_view(['GET'])
+@api_view(['GET', 'POST'])
 @permission_classes([AllowAny])
 def verify_access_token(request):
     """
-    GET /api/courses/access/verify/?token=xxx
-    Validates token, creates a CourseSession (max 2 per email — oldest auto-kicked).
-    Returns: { session_key, email }
+    GET  /api/courses/access/verify/?token=xxx   — read-only check, no side effects.
+        Safe for email clients' automatic link-scanning/prefetching to hit without
+        burning the token. Returns: { email }
+    POST /api/courses/access/verify/ { token }   — actually consumes the token and
+        creates a CourseSession (max 2 per email — oldest auto-kicked). Only fires
+        on an explicit user action (button tap), never on a passive GET.
+        Returns: { session_key, email }
     """
-    raw_token = request.query_params.get('token', '').strip()
+    raw_token = (request.query_params.get('token') if request.method == 'GET' else request.data.get('token', '')).strip()
     if not raw_token:
         return Response({'detail': 'Token is required.'}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -162,6 +166,9 @@ def verify_access_token(request):
 
     if access_token.is_expired:
         return Response({'detail': 'This link has expired. Please request a new one.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    if request.method == 'GET':
+        return Response({'email': access_token.email})
 
     access_token.is_used = True
     access_token.save(update_fields=['is_used'])
