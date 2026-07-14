@@ -2,6 +2,7 @@ from pathlib import Path
 from decouple import config, Csv
 from django.templatetags.static import static
 from django.urls import reverse_lazy
+from corsheaders.defaults import default_headers
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -181,6 +182,11 @@ CORS_ALLOWED_ORIGINS = config(
     default='http://localhost:5173,http://127.0.0.1:5173',
     cast=Csv(),
 )
+
+# Course dashboard/session endpoints authenticate via a custom X-Course-Session
+# header instead of cookies — corsheaders' default allow-list doesn't include it,
+# so the browser's preflight was rejecting every request carrying it.
+CORS_ALLOW_HEADERS = list(default_headers) + ['x-course-session']
 
 # --- Django REST Framework ---
 REST_FRAMEWORK = {
