@@ -303,30 +303,8 @@ def post_comment(request, slug):
 
 # ── Paystack (Phase 6 — wired when keys are in .env) ─────────────────────────
 
-@api_view(['POST'])
-@permission_classes([AllowAny])
-def paystack_webhook(request):
-    """
-    POST /api/courses/paystack/webhook/
-    Receives confirmed payment from Paystack, creates CoursePurchase, sends access link.
-    Inactive until PAYSTACK_SECRET_KEY is set in .env.
-    """
-    secret_key = getattr(settings, 'PAYSTACK_SECRET_KEY', '')
-    if not secret_key:
-        return Response({'detail': 'Paystack not configured.'}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
-
-    import hmac, hashlib
-    signature = request.META.get('HTTP_X_PAYSTACK_SIGNATURE', '')
-    body      = request.body
-    expected  = hmac.new(secret_key.encode(), body, hashlib.sha512).hexdigest()
-    if not hmac.compare_digest(signature, expected):
-        return Response({'detail': 'Invalid signature.'}, status=status.HTTP_400_BAD_REQUEST)
-
-    event = request.data
-    if event.get('event') != 'charge.success':
-        return Response({'detail': 'Ignored.'})
-
-    data       = event.get('data', {})
+def _process_course_charge(data):
+    """Handles a verified charge.success event whose metadata identifies a course purchase."""
     email      = data.get('customer', {}).get('email', '').lower()
     course_slug = data.get('metadata', {}).get('course_slug', '')
     reference  = data.get('reference', '')

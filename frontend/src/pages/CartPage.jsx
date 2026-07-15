@@ -41,6 +41,8 @@ export default function CartPage() {
   const [selectedZone, setSelectedZone] = useState(null)
   const [status,       setStatus]       = useState('idle')  // idle | loading | success | error
   const [errorMsg,     setErrorMsg]     = useState('')
+  const [trackingRef,   setTrackingRef]   = useState('')
+  const [trackingEmail, setTrackingEmail] = useState('')
 
   const subtotal    = cart.reduce((sum, i) => sum + parsePrice(i.price) * i.quantity, 0)
   const deliveryFee = selectedZone ? parseFloat(selectedZone.price) : 0
@@ -123,7 +125,10 @@ export default function CartPage() {
         items: cart.map(i => ({ id: i.id, name: i.name, price: i.price, quantity: i.quantity })),
       },
       callback: (response) => {
-        placeOrder(response.reference)
+        setTrackingRef(response.reference)
+        setTrackingEmail(form.email)
+        clearCart()
+        setStatus('success')
       },
       onClose: () => {
         setStatus('idle')
@@ -152,7 +157,17 @@ export default function CartPage() {
           <p style={{ fontFamily: 'var(--sans)', fontSize: '0.9rem', color: 'var(--taupe)', lineHeight: 1.7, marginBottom: '2rem' }}>
             Your order has been received. Check your email for your receipt and tracking link.
           </p>
-          <Link to="/" className="btn btn-gold">Back to JES.CO</Link>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', alignItems: 'center' }}>
+            {trackingRef && (
+              <Link
+                to={`/track-order?ref=${encodeURIComponent(trackingRef)}&email=${encodeURIComponent(trackingEmail)}`}
+                className="btn btn-gold"
+              >
+                Track Your Order
+              </Link>
+            )}
+            <Link to="/" className="btn btn-ghost">Back to JES.CO</Link>
+          </div>
         </motion.div>
       </main>
       <JescoFooter />

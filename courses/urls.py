@@ -7,7 +7,6 @@ urlpatterns = [
     path('courses/access/verify/',          views.verify_access_token,  name='course-access-verify'),
     path('courses/access/session/',         views.logout_session,       name='course-session-logout'),
     path('courses/dashboard/',              views.course_dashboard,     name='course-dashboard'),
-    path('courses/paystack/webhook/',       views.paystack_webhook,     name='paystack-webhook'),
 
     # Course list + detail (slug wildcard after specific paths)
     path('courses/',                        views.course_list,          name='course-list'),

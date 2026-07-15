@@ -19,27 +19,34 @@ const STEPS = ['pending', 'confirmed', 'processing', 'shipped', 'delivered']
 export default function OrderTrackingPage() {
   const [searchParams] = useSearchParams()
   const [ref,    setRef]    = useState(searchParams.get('ref') || '')
-  const [email,  setEmail]  = useState('')
+  const [email,  setEmail]  = useState(searchParams.get('email') || '')
   const [order,  setOrder]  = useState(null)
   const [state,  setState]  = useState('idle')  // idle | loading | found | not_found | error
 
-  useEffect(() => {
-    const refParam = searchParams.get('ref')
-    if (refParam) setRef(refParam)
-  }, [])
-
-  async function handleSubmit(e) {
-    e.preventDefault()
-    if (!ref.trim() || !email.trim()) return
+  async function lookup(refValue, emailValue) {
+    if (!refValue.trim() || !emailValue.trim()) return
     setState('loading')
     try {
-      const { data } = await axios.get(`/api/orders/track/?ref=${encodeURIComponent(ref.trim())}&email=${encodeURIComponent(email.trim().toLowerCase())}`)
+      const { data } = await axios.get(`/api/orders/track/?ref=${encodeURIComponent(refValue.trim())}&email=${encodeURIComponent(emailValue.trim().toLowerCase())}`)
       setOrder(data)
       setState('found')
     } catch (err) {
       if (err.response?.status === 404) setState('not_found')
       else setState('error')
     }
+  }
+
+  useEffect(() => {
+    const refParam   = searchParams.get('ref')
+    const emailParam = searchParams.get('email')
+    if (refParam) setRef(refParam)
+    if (emailParam) setEmail(emailParam)
+    if (refParam && emailParam) lookup(refParam, emailParam)
+  }, [])
+
+  function handleSubmit(e) {
+    e.preventDefault()
+    lookup(ref, email)
   }
 
   const inputStyle = {

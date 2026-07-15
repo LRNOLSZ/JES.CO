@@ -1,5 +1,3 @@
-import hmac
-import hashlib
 import logging
 import sys
 from urllib.parse import quote
@@ -43,14 +41,19 @@ def _send_order_email(to_email, subject, body):
     msg.send(fail_silently=True)
 
 
+def _tracking_url(order):
+    frontend_url = getattr(settings, 'FRONTEND_URL', 'http://localhost:5173')
+    ref = order.paystack_reference or order.pk
+    return f'{frontend_url}/track-order?ref={quote(str(ref))}&email={quote(order.email)}'
+
+
 def _build_receipt_body(order):
     lines = [f'  {i.name} x{i.quantity}  —  {i.price}' for i in order.items.all()]
     zone_line = ''
     if order.delivery_zone:
         currency = 'GHS' if order.delivery_zone.country == 'ghana' else 'USD'
         zone_line = f'\n  Delivery — {order.delivery_zone.location_name}  —  {currency} {order.delivery_fee}'
-    frontend_url = getattr(settings, 'FRONTEND_URL', 'http://localhost:5173')
-    tracking_url = f'{frontend_url}/track-order?ref={order.paystack_reference or order.pk}'
+    tracking_url = _tracking_url(order)
     items_block = '\n'.join(lines)
     divider     = '─' * 44
     return (
@@ -160,10 +163,8 @@ class OrderTrackingView(APIView):
         if not ref or not email:
             return Response({'detail': 'ref and email are required.'}, status=drf_status.HTTP_400_BAD_REQUEST)
 
-        order = None
         # Try matching by paystack_reference first, then by pk
-        if ref.startswith('PAY') or '_' in ref:
-            order = Order.objects.filter(paystack_reference=ref, email__iexact=email).select_related('delivery_zone').prefetch_related('items').first()
+        order = Order.objects.filter(paystack_reference=ref, email__iexact=email).select_related('delivery_zone').prefetch_related('items').first()
         if not order:
             try:
                 order = Order.objects.filter(pk=int(ref), email__iexact=email).select_related('delivery_zone').prefetch_related('items').first()
@@ -178,87 +179,70 @@ class OrderTrackingView(APIView):
 
 # ── Paystack webhook ──────────────────────────────────────────────────────────
 
-class PaystackWebhookView(APIView):
-    """POST /api/products/paystack/webhook/"""
-    permission_classes = [AllowAny]
+def _process_product_charge(data):
+    """Handles a verified charge.success event whose metadata identifies a shop order."""
+    email     = data.get('customer', {}).get('email', '').lower()
+    reference = data.get('reference', '')
+    amount_pesewas = data.get('amount', 0)
+    meta      = data.get('metadata', {})
 
-    def post(self, request):
-        secret_key = getattr(settings, 'PAYSTACK_SECRET_KEY', '')
-        if not secret_key:
-            return Response({'detail': 'Paystack not configured.'}, status=drf_status.HTTP_503_SERVICE_UNAVAILABLE)
+    if not email or not reference:
+        return Response({'detail': 'Missing email or reference.'}, status=drf_status.HTTP_400_BAD_REQUEST)
 
-        signature = request.META.get('HTTP_X_PAYSTACK_SIGNATURE', '')
-        expected  = hmac.new(secret_key.encode(), request.body, hashlib.sha512).hexdigest()
-        if not hmac.compare_digest(signature, expected):
-            return Response({'detail': 'Invalid signature.'}, status=drf_status.HTTP_400_BAD_REQUEST)
+    # Skip if already processed
+    if Order.objects.filter(paystack_reference=reference).exists():
+        return Response({'detail': 'Already processed.'})
 
-        event = request.data
-        if event.get('event') != 'charge.success':
-            return Response({'detail': 'Ignored.'})
+    amount_ghs   = amount_pesewas / 100
+    zone_id      = meta.get('delivery_zone_id')
+    customer_name = meta.get('customer_name', '')
+    phone        = meta.get('phone', '')
+    address      = meta.get('address', '')
+    notes        = meta.get('notes', '')
+    items_meta   = meta.get('items', [])
 
-        data      = event.get('data', {})
-        email     = data.get('customer', {}).get('email', '').lower()
-        reference = data.get('reference', '')
-        amount_pesewas = data.get('amount', 0)
-        meta      = data.get('metadata', {})
+    delivery_zone = None
+    delivery_fee  = 0
+    if zone_id:
+        try:
+            delivery_zone = DeliveryZone.objects.get(pk=zone_id)
+            delivery_fee  = float(delivery_zone.price)
+        except DeliveryZone.DoesNotExist:
+            pass
 
-        if not email or not reference:
-            return Response({'detail': 'Missing email or reference.'}, status=drf_status.HTTP_400_BAD_REQUEST)
+    subtotal   = amount_ghs - delivery_fee
+    currency   = 'GHS' if (not delivery_zone or delivery_zone.country == 'ghana') else 'USD'
+    total_display = f'{currency} {amount_ghs:.2f}'
 
-        # Skip if already processed
-        if Order.objects.filter(paystack_reference=reference).exists():
-            return Response({'detail': 'Already processed.'})
-
-        amount_ghs   = amount_pesewas / 100
-        zone_id      = meta.get('delivery_zone_id')
-        customer_name = meta.get('customer_name', '')
-        phone        = meta.get('phone', '')
-        address      = meta.get('address', '')
-        notes        = meta.get('notes', '')
-        items_meta   = meta.get('items', [])
-
-        delivery_zone = None
-        delivery_fee  = 0
-        if zone_id:
-            try:
-                delivery_zone = DeliveryZone.objects.get(pk=zone_id)
-                delivery_fee  = float(delivery_zone.price)
-            except DeliveryZone.DoesNotExist:
-                pass
-
-        subtotal   = amount_ghs - delivery_fee
-        currency   = 'GHS' if (not delivery_zone or delivery_zone.country == 'ghana') else 'USD'
-        total_display = f'{currency} {amount_ghs:.2f}'
-
-        order = Order.objects.create(
-            full_name          = customer_name or email,
-            email              = email,
-            phone              = phone,
-            address            = address,
-            notes              = notes,
-            status             = 'confirmed',
-            total              = total_display,
-            delivery_zone      = delivery_zone,
-            delivery_fee       = delivery_fee,
-            paystack_reference = reference,
+    order = Order.objects.create(
+        full_name          = customer_name or email,
+        email              = email,
+        phone              = phone,
+        address            = address,
+        notes              = notes,
+        status             = 'confirmed',
+        total              = total_display,
+        delivery_zone      = delivery_zone,
+        delivery_fee       = delivery_fee,
+        paystack_reference = reference,
+    )
+    for item in items_meta:
+        OrderItem.objects.create(
+            order      = order,
+            product_id = item.get('id', 0),
+            name       = item.get('name', ''),
+            price      = item.get('price', ''),
+            quantity   = item.get('quantity', 1),
         )
-        for item in items_meta:
-            OrderItem.objects.create(
-                order      = order,
-                product_id = item.get('id', 0),
-                name       = item.get('name', ''),
-                price      = item.get('price', ''),
-                quantity   = item.get('quantity', 1),
-            )
 
-        # Customer receipt
-        receipt = _build_receipt_body(order)
-        _send_order_email(email, f'Your JES.CO Order #{order.pk} — Confirmed', receipt)
+    # Customer receipt
+    receipt = _build_receipt_body(order)
+    _send_order_email(email, f'Your JES.CO Order #{order.pk} — Confirmed', receipt)
 
-        # Admin notification
-        admin_email = getattr(settings, 'MAAME_AMA_EMAIL', '')
-        if admin_email:
-            admin_body = f'New paid order #{order.pk} from {customer_name} ({email}).\n\nReference: {reference}\nTotal: {total_display}'
-            _send_order_email(admin_email, f'New Order #{order.pk} — {customer_name}', admin_body)
+    # Admin notification
+    admin_email = getattr(settings, 'MAAME_AMA_EMAIL', '')
+    if admin_email:
+        admin_body = f'New paid order #{order.pk} from {customer_name} ({email}).\n\nReference: {reference}\nTotal: {total_display}'
+        _send_order_email(admin_email, f'New Order #{order.pk} — {customer_name}', admin_body)
 
-        return Response({'detail': 'Order created.'})
+    return Response({'detail': 'Order created.'})

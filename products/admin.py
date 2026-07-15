@@ -5,6 +5,7 @@ from unfold.admin import ModelAdmin
 from unfold.contrib.import_export.forms import ExportForm, ImportForm
 
 from .models import DeliveryZone, Order, OrderItem, ProductItem
+from .views import _send_order_email, _tracking_url
 
 
 # ── Delivery Zones ─────────────────────────────────────────────────────────────
@@ -56,6 +57,14 @@ STATUS_COLORS = {
     'cancelled':  ('#dc2626', 'Cancelled'),
 }
 
+STATUS_EMAIL_MESSAGES = {
+    'confirmed':  'Your order has been confirmed and is being prepared.',
+    'processing': 'Your order is being packed and prepared for dispatch.',
+    'shipped':    'Your order is on its way to you.',
+    'delivered':  'Your order has been delivered. Enjoy!',
+    'cancelled':  'Your order has been cancelled. Contact us if you have questions.',
+}
+
 
 @admin.register(Order)
 class OrderAdmin(ImportExportModelAdmin, ModelAdmin):
@@ -86,6 +95,19 @@ class OrderAdmin(ImportExportModelAdmin, ModelAdmin):
             color, label,
         )
     status_badge.short_description = 'Status'
+
+    def save_model(self, request, obj, form, change):
+        old_status = form.initial.get('status') if change else None
+        super().save_model(request, obj, form, change)
+        if change and old_status and old_status != obj.status and obj.status in STATUS_EMAIL_MESSAGES:
+            body = (
+                f'Hi {obj.full_name},\n\n'
+                f'{STATUS_EMAIL_MESSAGES[obj.status]}\n\n'
+                f'Order total: {obj.total}\n\n'
+                f'Track your order: {_tracking_url(obj)}\n\n'
+                f'-- The JES.CO Team'
+            )
+            _send_order_email(obj.email, f'Your JES.CO Order #{obj.pk} — {obj.get_status_display()}', body)
 
 
 # ── Products ───────────────────────────────────────────────────────────────────
