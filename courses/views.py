@@ -140,6 +140,32 @@ def request_access_link(request):
     return Response({'detail': 'Access link sent. Check your inbox.'})
 
 
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def check_purchase(request, slug):
+    """
+    GET /api/courses/<slug>/purchase-check/?email=x@x.com
+    Lets the unlock form warn a buyer if they already own this course.
+    Rate limited: 10 requests per minute per IP (mirrors request_access_link).
+    """
+    ip = request.META.get('HTTP_X_FORWARDED_FOR', request.META.get('REMOTE_ADDR', '')).split(',')[0].strip()
+    cache_key = f'purchase_check_rate_{ip}'
+    request_count = cache.get(cache_key, 0)
+    if request_count >= 10:
+        return Response({'detail': 'Too many requests.'}, status=status.HTTP_429_TOO_MANY_REQUESTS)
+    cache.set(cache_key, request_count + 1, timeout=60)
+
+    email = request.query_params.get('email', '').strip().lower()
+    purchase = CoursePurchase.objects.filter(course__slug=slug, email__iexact=email).first() if email else None
+    if not purchase:
+        return Response({'already_purchased': False})
+
+    return Response({
+        'already_purchased': True,
+        'days_remaining':    purchase.days_remaining,
+    })
+
+
 @api_view(['GET', 'POST'])
 @permission_classes([AllowAny])
 def verify_access_token(request):

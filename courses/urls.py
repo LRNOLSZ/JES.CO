@@ -12,6 +12,7 @@ urlpatterns = [
     path('courses/',                        views.course_list,          name='course-list'),
     path('courses/<slug:slug>/heartbeat/',  views.video_heartbeat,      name='course-heartbeat'),
     path('courses/<slug:slug>/comments/',   views.post_comment,         name='course-comment'),
+    path('courses/<slug:slug>/purchase-check/', views.check_purchase,   name='course-purchase-check'),
     path('courses/<slug:slug>/',            views.course_detail,        name='course-detail'),
 
     # Tier + settings

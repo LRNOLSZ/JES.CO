@@ -116,6 +116,7 @@ export default function CourseDetailPage() {
   const [unlockState, setUnlockState] = useState('idle') // idle | collecting-email | loading | success | error
   const [unlockEmail, setUnlockEmail] = useState('')
   const [unlockError, setUnlockError] = useState('')
+  const [ownsAlready, setOwnsAlready] = useState(null) // null | { is_expired, days_remaining }
   const heartbeatRef = useRef(null)
 
   const sessionKey = localStorage.getItem('jes_course_session')
@@ -140,9 +141,24 @@ export default function CourseDetailPage() {
     document.body.appendChild(script)
   }, [])
 
-  function handleUnlockEmailSubmit(e) {
+  async function handleUnlockEmailSubmit(e) {
     e.preventDefault()
     if (!unlockEmail.trim()) return
+
+    if (!ownsAlready) {
+      try {
+        const { data } = await axios.get(`/api/courses/${slug}/purchase-check/`, {
+          params: { email: unlockEmail.trim().toLowerCase() },
+        })
+        if (data.already_purchased) {
+          setOwnsAlready(data)
+          return
+        }
+      } catch {
+        // check failed — don't block checkout on it
+      }
+    }
+
     handlePaystack()
   }
 
@@ -350,7 +366,7 @@ export default function CourseDetailPage() {
                       <input
                         type="email"
                         value={unlockEmail}
-                        onChange={e => setUnlockEmail(e.target.value)}
+                        onChange={e => { setUnlockEmail(e.target.value); setOwnsAlready(null) }}
                         placeholder="your@email.com"
                         required
                         autoFocus
@@ -366,8 +382,15 @@ export default function CourseDetailPage() {
                           outline: 'none',
                         }}
                       />
+                      {ownsAlready && (
+                        <p style={{ fontFamily: 'var(--sans)', fontSize: '0.78rem', fontWeight: 300, color: 'var(--taupe)', lineHeight: 1.6, margin: 0, textAlign: 'left' }}>
+                          {`You already have access to this course (${ownsAlready.days_remaining} day${ownsAlready.days_remaining === 1 ? '' : 's'} left). Paying again will renew it to a fresh 180 days, not charge you for a second copy.`}
+                          {' '}
+                          <Link to="/studio/courses/access" style={{ color: 'var(--champ)', textDecoration: 'none' }}>Log in instead →</Link>
+                        </p>
+                      )}
                       <button type="submit" className="btn btn-gold" disabled={unlockState === 'loading'} style={{ opacity: unlockState === 'loading' ? 0.6 : 1 }}>
-                        {unlockState === 'loading' ? 'Processing…' : `Continue to Payment — ${price || ''}`}
+                        {unlockState === 'loading' ? 'Processing…' : ownsAlready ? `Continue & Renew — ${price || ''}` : `Continue to Payment — ${price || ''}`}
                       </button>
                     </form>
                   ) : (
