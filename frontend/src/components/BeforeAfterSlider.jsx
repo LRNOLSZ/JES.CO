@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import axios from 'axios'
 import { Reveal, SectionHead, ArrowIcon } from './Reveal'
 
-function BeforeAfterCard({ title, category, beforeImage, afterImage }) {
+export function BeforeAfterCard({ title, category, beforeImage, afterImage }) {
   const ref   = useRef(null)
   const [pos,  setPos]  = useState(52)
   const [drag, setDrag] = useState(false)

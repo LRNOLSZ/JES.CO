@@ -4,6 +4,8 @@ from urllib.parse import quote
 
 from django.conf import settings
 from django.core.mail import EmailMessage
+from django.db.models import F
+from django.db.models.functions import Greatest
 from django.utils import timezone
 
 from rest_framework import status as drf_status
@@ -45,6 +47,26 @@ def _tracking_url(order):
     frontend_url = getattr(settings, 'FRONTEND_URL', 'http://localhost:5173')
     ref = order.paystack_reference or order.pk
     return f'{frontend_url}/track-order?ref={quote(str(ref))}&email={quote(order.email)}'
+
+
+def _decrement_stock(items_meta):
+    """Atomically reduces ProductItem.quantity for a confirmed sale. Clamps at 0, never goes negative."""
+    for item in items_meta:
+        product_id = item.get('id')
+        qty = item.get('quantity', 1)
+        if not product_id:
+            continue
+        updated = ProductItem.objects.filter(pk=product_id).update(
+            quantity=Greatest(F('quantity') - qty, 0)
+        )
+        if not updated:
+            continue
+        try:
+            product = ProductItem.objects.get(pk=product_id)
+        except ProductItem.DoesNotExist:
+            continue
+        if product.quantity <= 0 and product.stock_status != 'coming_soon':
+            ProductItem.objects.filter(pk=product_id).update(stock_status='out_of_stock')
 
 
 def _build_receipt_body(order):
@@ -222,6 +244,7 @@ def _process_product_charge(data):
         notes              = notes,
         status             = 'confirmed',
         total              = total_display,
+        amount_ghs         = amount_ghs,
         delivery_zone      = delivery_zone,
         delivery_fee       = delivery_fee,
         paystack_reference = reference,
@@ -234,6 +257,7 @@ def _process_product_charge(data):
             price      = item.get('price', ''),
             quantity   = item.get('quantity', 1),
         )
+    _decrement_stock(items_meta)
 
     # Customer receipt
     receipt = _build_receipt_body(order)

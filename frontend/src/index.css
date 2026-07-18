@@ -269,6 +269,7 @@ section { position: relative; }
   .studio-img, .booking-img { width: min(440px, 100%); justify-self: center; }
   .work-grid { grid-template-columns: repeat(2, 1fr) !important; }
   .courses-grid { grid-template-columns: repeat(2, 1fr) !important; }
+  .events-grid { grid-template-columns: repeat(2, 1fr) !important; }
   .footer-top { grid-template-columns: 1fr 1fr !important; }
   .lines-grid { grid-template-columns: 1fr !important; }
   .values-grid { grid-template-columns: 1fr !important; }
@@ -292,6 +293,19 @@ section { position: relative; }
     scroll-snap-align: center;
   }
   .course-card-thumb { aspect-ratio: 16 / 11.5 !important; }
+  .events-grid {
+    display: flex !important;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+    gap: 1.1rem;
+    padding: 0 1.5rem 0.75rem;
+    margin: 0 -1.5rem;
+  }
+  .events-grid > * {
+    flex: 0 0 85%;
+    scroll-snap-align: center;
+  }
   .footer-brand { text-align: center; }
   .footer-brand-logo { justify-content: center; }
   .footer-brand p { margin-left: auto; margin-right: auto; }

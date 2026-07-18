@@ -144,6 +144,7 @@ function ProductCard({ item, added, onAdd }) {
   const [hovered, setHovered] = useState(false)
   const stock = STOCK[item.stock_status] || STOCK.coming_soon
   const canBuy = item.stock_status === 'in_stock'
+  const soldOut = item.stock_status === 'out_of_stock'
 
   return (
     <div
@@ -159,6 +160,8 @@ function ProductCard({ item, added, onAdd }) {
         transform:     hovered ? 'translateY(-6px)' : 'none',
         boxShadow:     hovered ? '0 20px 50px rgba(28,21,15,0.1)' : '0 2px 12px rgba(28,21,15,0.04)',
         transition:    'transform 0.4s var(--ease), border-color 0.4s, box-shadow 0.4s',
+        filter:        soldOut ? 'grayscale(0.8)' : 'none',
+        opacity:       soldOut ? 0.55 : 1,
       }}
     >
       {/* Image */}

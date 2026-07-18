@@ -1,8 +1,14 @@
+import json
+from datetime import date
+
 from django import forms
 from django.contrib import admin
+from django.db.models import Sum
+from django.db.models.functions import TruncMonth
 from django.shortcuts import redirect
 from django.urls import reverse
-from django.utils.html import mark_safe
+from django.utils import timezone
+from django.utils.html import format_html, mark_safe
 from unfold.admin import ModelAdmin
 
 from .models import IntroVideo as _IntroVideo
@@ -23,6 +29,7 @@ class IntroVideoAdminForm(forms.ModelForm):
 
 from .models import PageImages, SiteSettings, SocialLink, Testimonial
 from .models import IntroVideo
+from .models import BookingRevenue, Announcement
 
 
 def url_preview(field, size=80):
@@ -139,10 +146,21 @@ class SocialLinkAdmin(ModelAdmin):
 
 @admin.register(Testimonial)
 class TestimonialAdmin(ModelAdmin):
-    list_display  = ('name', 'location', 'rating', 'service', 'order', 'is_active', 'created_at')
+    list_display  = ('name', 'testimonial_type', 'location', 'rating', 'service', 'order', 'is_active', 'created_at')
     list_editable = ('order', 'is_active')
+    list_filter   = ('testimonial_type', 'is_active')
     ordering      = ('order', '-created_at')
-    fields        = ('name', 'location', 'comment', 'profile_picture', 'rating', 'service', 'order', 'is_active')
+    fields        = (
+        'testimonial_type', 'name', 'location', 'comment', 'profile_picture',
+        'before_image', 'before_image_preview', 'after_image', 'after_image_preview',
+        'rating', 'service', 'source_comment', 'order', 'is_active',
+    )
+    readonly_fields = ('before_image_preview', 'after_image_preview')
+
+    def before_image_preview(self, obj): return url_preview(obj.before_image)
+    def after_image_preview(self, obj):  return url_preview(obj.after_image)
+    before_image_preview.short_description = 'Current'
+    after_image_preview.short_description  = 'Current'
 
 
 # ── Intro Videos ──────────────────────────────────────────────────────────────
@@ -167,3 +185,103 @@ class IntroVideoAdmin(ModelAdmin):
     def get_page_display(self, obj):
         return obj.get_page_display()
     get_page_display.short_description = 'Page'
+
+
+# ── Booking Revenue ────────────────────────────────────────────────────────────
+
+@admin.register(BookingRevenue)
+class BookingRevenueAdmin(ModelAdmin):
+    list_display  = ('date', 'amount', 'description')
+    search_fields = ('description',)
+    ordering      = ('-date',)
+
+
+# ── Announcements ──────────────────────────────────────────────────────────────
+
+ANNOUNCEMENT_STATUS_COLORS = {
+    'ongoing':  ('#16a34a', 'Happening Now'),
+    'upcoming': ('#D4AF37', 'Upcoming'),
+    'past':     ('#6b7280', 'Past'),
+}
+
+
+@admin.register(Announcement)
+class AnnouncementAdmin(ModelAdmin):
+    list_display  = ('title', 'start_date', 'end_date', 'status_badge', 'is_active', 'order')
+    list_editable = ('order', 'is_active')
+    list_filter   = ('is_active',)
+    ordering      = ('-start_date',)
+    fields        = ('title', 'description', 'image', 'start_date', 'end_date', 'order', 'is_active')
+
+    def status_badge(self, obj):
+        color, label = ANNOUNCEMENT_STATUS_COLORS.get(obj.status, ('#6b7280', obj.status))
+        return format_html(
+            '<span style="background:{};color:#fff;padding:2px 10px;border-radius:999px;font-size:0.7rem;font-weight:600;">{}</span>',
+            color, label,
+        )
+    status_badge.short_description = 'Status'
+
+
+# ── Finance dashboard ──────────────────────────────────────────────────────────
+
+def _last_12_months():
+    today = timezone.now().date().replace(day=1)
+    months = []
+    for i in range(11, -1, -1):
+        year, month = today.year, today.month - i
+        while month <= 0:
+            month += 12
+            year -= 1
+        months.append(date(year, month, 1))
+    return months
+
+
+def _monthly_totals(queryset, date_field, value_field, months):
+    rows = (
+        queryset.annotate(month=TruncMonth(date_field))
+        .values('month')
+        .annotate(total=Sum(value_field))
+        .order_by('month')
+    )
+    by_month = {r['month'].strftime('%Y-%m'): float(r['total'] or 0) for r in rows if r['month']}
+    return [by_month.get(m.strftime('%Y-%m'), 0) for m in months]
+
+
+def dashboard_callback(request, context):
+    """Feeds the Django admin index page a monthly revenue chart + details table."""
+    from products.models import Order
+    from courses.models import CoursePurchase
+
+    months = _last_12_months()
+    labels = [m.strftime('%b %Y') for m in months]
+
+    product_data = _monthly_totals(Order.objects.filter(amount_ghs__isnull=False), 'created_at', 'amount_ghs', months)
+    course_data  = _monthly_totals(CoursePurchase.objects.filter(price_paid__isnull=False), 'purchased_at', 'price_paid', months)
+    booking_data = _monthly_totals(BookingRevenue.objects.all(), 'date', 'amount', months)
+
+    chart_data = {
+        'labels': labels,
+        'datasets': [
+            {'label': 'Products', 'data': product_data, 'backgroundColor': '#60269E'},
+            {'label': 'Courses',  'data': course_data,  'backgroundColor': '#D4AF37'},
+            {'label': 'Bookings', 'data': booking_data, 'backgroundColor': '#1a56db'},
+        ],
+    }
+
+    revenue_table = [
+        {
+            'month':    labels[i],
+            'products': product_data[i],
+            'courses':  course_data[i],
+            'bookings': booking_data[i],
+            'total':    product_data[i] + course_data[i] + booking_data[i],
+        }
+        for i in range(len(labels))
+    ]
+
+    context.update({
+        'revenue_chart_data': json.dumps(chart_data),
+        'revenue_table':      revenue_table,
+        'revenue_total':      sum(row['total'] for row in revenue_table),
+    })
+    return context

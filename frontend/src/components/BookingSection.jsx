@@ -64,7 +64,7 @@ export default function BookingSection() {
           {/* Right — content */}
           <div>
             <SectionHead
-              index="05"
+              index="06"
               eyebrow="Reserve a Session"
               title={<span>Begin your <span className="ital metal-text">transformation</span></span>}
               sub="Sessions book fast — select a date that suits you and we'll take it from there."

@@ -1,11 +1,14 @@
+from django.utils import timezone
+
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.permissions import AllowAny
 
-from .models import PageImages, SiteSettings, SocialLink, Testimonial, IntroVideo
+from .models import PageImages, SiteSettings, SocialLink, Testimonial, IntroVideo, Announcement
 from .serializers import (
     PageImagesSerializer, SiteSettingsSerializer,
     SocialLinkSerializer, TestimonialSerializer, IntroVideoSerializer,
+    AnnouncementSerializer,
 )
 
 
@@ -68,3 +71,32 @@ class IntroVideoView(APIView):
             return Response(IntroVideoSerializer(video, context={'request': request}).data)
         except IntroVideo.DoesNotExist:
             return Response(None)
+
+
+class AnnouncementListView(APIView):
+    """GET /api/announcements/ — all active announcements (upcoming, ongoing, and past)."""
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        items = Announcement.objects.filter(is_active=True)
+        return Response(AnnouncementSerializer(items, many=True, context={'request': request}).data)
+
+
+class AnnouncementFeaturedView(APIView):
+    """GET /api/announcements/featured/ — the one announcement to show in the popup.
+
+    Priority: the soonest-ending ongoing announcement, else the soonest-starting
+    upcoming one, else null.
+    """
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        today = timezone.now().date()
+        qs = Announcement.objects.filter(is_active=True)
+        featured = (
+            qs.filter(start_date__lte=today, end_date__gte=today).order_by('end_date').first()
+            or qs.filter(start_date__gt=today).order_by('start_date').first()
+        )
+        if not featured:
+            return Response(None)
+        return Response(AnnouncementSerializer(featured, context={'request': request}).data)

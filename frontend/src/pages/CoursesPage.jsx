@@ -6,6 +6,7 @@ import JescoNavbar from '../components/JescoNavbar'
 import JescoFooter from '../components/JescoFooter'
 import VideoPlayer from '../components/VideoPlayer'
 import { Reveal, SectionHead, ArrowIcon } from '../components/Reveal'
+import Modal from '../components/Modal'
 
 const CATEGORIES = [
   { key: 'all',          label: 'All' },
@@ -40,21 +41,19 @@ function ClockIcon() {
 function TrailerModal({ course, onClose }) {
   if (!course) return null
   return (
-    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(28,21,15,0.92)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1.5rem' }}>
-      <div onClick={e => e.stopPropagation()} style={{ width: '100%', maxWidth: '720px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-          <p className="serif" style={{ fontSize: '1.1rem', color: 'var(--lite-ink)' }}>
-            {course.title} — <span className="ital" style={{ color: 'var(--champ)' }}>Free Preview</span>
-          </p>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--taupe-mut)', cursor: 'pointer', fontSize: '1.4rem' }}>✕</button>
-        </div>
-        <VideoPlayer
-          src={course.trailer_url}
-          autoPlay
-          style={{ width: '100%', maxHeight: '75vh', objectFit: 'contain', borderRadius: '0.75rem', background: '#000', display: 'block', margin: '0 auto' }}
-        />
+    <Modal onClose={onClose}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+        <p className="serif" style={{ fontSize: '1.1rem', color: 'var(--lite-ink)' }}>
+          {course.title} — <span className="ital" style={{ color: 'var(--champ)' }}>Free Preview</span>
+        </p>
+        <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--taupe-mut)', cursor: 'pointer', fontSize: '1.4rem' }}>✕</button>
       </div>
-    </div>
+      <VideoPlayer
+        src={course.trailer_url}
+        autoPlay
+        style={{ width: '100%', maxHeight: '75vh', objectFit: 'contain', borderRadius: '0.75rem', background: '#000', display: 'block', margin: '0 auto' }}
+      />
+    </Modal>
   )
 }
 

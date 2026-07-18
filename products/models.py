@@ -30,6 +30,8 @@ class ProductItem(models.Model):
                    )
     category     = models.CharField(max_length=20, choices=CATEGORY_CHOICES)
     stock_status = models.CharField(max_length=20, choices=STOCK_CHOICES, default='in_stock')
+    quantity     = models.PositiveIntegerField(default=0,
+                     help_text='Units in stock. Auto-syncs Stock Status below — flips to Out of Stock at 0.')
     order        = models.PositiveIntegerField(default=0,
                      help_text='Lower number appears first')
     is_active    = models.BooleanField(default=True,
@@ -40,6 +42,13 @@ class ProductItem(models.Model):
         ordering            = ['order', '-created_at']
         verbose_name        = 'Product Item'
         verbose_name_plural = 'Product Items'
+
+    def save(self, *args, **kwargs):
+        if self.quantity <= 0 and self.stock_status == 'in_stock':
+            self.stock_status = 'out_of_stock'
+        elif self.quantity > 0 and self.stock_status == 'out_of_stock':
+            self.stock_status = 'in_stock'
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return f'{self.get_category_display()} — {self.name}'
@@ -82,6 +91,8 @@ class Order(models.Model):
     notes               = models.TextField(blank=True)
     status              = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
     total               = models.CharField(max_length=50, help_text='Display total e.g. GHS 350')
+    amount_ghs          = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True,
+                            help_text='Real numeric amount charged via Paystack. Null for WhatsApp/manual orders.')
     delivery_zone       = models.ForeignKey(DeliveryZone, on_delete=models.SET_NULL, null=True, blank=True, related_name='orders')
     delivery_fee        = models.DecimalField(max_digits=8, decimal_places=2, default=0)
     paystack_reference  = models.CharField(max_length=100, blank=True)

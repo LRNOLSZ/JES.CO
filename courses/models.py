@@ -156,6 +156,8 @@ class CoursePurchase(models.Model):
                             help_text='Access expiry date. Auto-set to 6 months from purchase. Edit to extend.')
     paystack_reference  = models.CharField(max_length=100, blank=True,
                             help_text='Paystack transaction reference — auto-filled by webhook.')
+    price_paid          = models.PositiveIntegerField(null=True, blank=True,
+                            help_text='GHS amount actually paid at time of purchase/renewal — snapshot so revenue stays accurate if the course price changes later.')
     reminder_14_sent    = models.BooleanField(default=False, help_text='14-day expiry reminder email sent.')
     reminder_5_sent     = models.BooleanField(default=False, help_text='5-day expiry reminder email sent.')
     expiry_notice_sent  = models.BooleanField(default=False, help_text='Access-expired notice email sent.')

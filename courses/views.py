@@ -353,6 +353,7 @@ def _process_course_charge(data):
         course=course,
         defaults={
             'paystack_reference': reference,
+            'price_paid': course.price,
             'expires_at': timezone.now() + timezone.timedelta(days=180),
             'reminder_14_sent': False,
             'reminder_5_sent': False,

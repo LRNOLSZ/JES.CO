@@ -10,6 +10,7 @@ import StudioSection        from './components/StudioSection'
 import WorkSection          from './components/BeforeAfterSlider'
 import ServicesSection      from './components/ServicesSection'
 import CoursesSection       from './components/CoursesSection'
+import EventsSection        from './components/EventsSection'
 import TestimonialsSection  from './components/TestimonialsSection'
 import BookingSection       from './components/BookingSection'
 import StudioVideoSection  from './components/StudioVideoSection'
@@ -23,6 +24,8 @@ import CourseAccessVerifyPage  from './pages/CourseAccessVerifyPage'
 import CoursesDashboardPage    from './pages/CoursesDashboardPage'
 import CartPage                from './pages/CartPage'
 import OrderTrackingPage       from './pages/OrderTrackingPage'
+import TestimonialsPage        from './pages/TestimonialsPage'
+import AnnouncementPopup       from './components/AnnouncementPopup'
 
 const STUDIO_WORDS = ['Bridal Glam', 'Editorial', 'Corrective Skin', 'Transformation', 'Training', 'Photoshoot']
 
@@ -54,6 +57,7 @@ function StudioHomePage() {
         <WorkSection />
         <ServicesSection />
         <CoursesSection />
+        <EventsSection />
         <TestimonialsSection />
         <BookingSection />
       </main>
@@ -66,10 +70,12 @@ export default function App() {
   return (
     <>
     <ScrollToTop />
+    <AnnouncementPopup />
     <Routes>
       <Route path="/"                    element={<JescoHomePage />} />
       <Route path="/studio"              element={<StudioHomePage />} />
       <Route path="/studio/gallery"       element={<GalleryPage />} />
+      <Route path="/studio/testimonials"  element={<TestimonialsPage />} />
       <Route path="/studio/courses"       element={<CoursesPage />} />
       <Route path="/studio/courses/:slug" element={<CourseDetailPage />} />
       <Route path="/products/:category"              element={<ProductLinePage />} />

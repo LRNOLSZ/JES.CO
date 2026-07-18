@@ -1,0 +1,40 @@
+{% extends "unfold/admin/index.html" %}
+
+{% load unfold %}
+
+{% block content %}
+    <div class="mb-8">
+        <h2 class="text-font-important-light dark:text-font-important-dark text-lg font-semibold mb-4">
+            Revenue — Last 12 Months (Total: GHS {{ revenue_total|floatformat:2 }})
+        </h2>
+
+        {% component "unfold/components/chart/bar.html" with data=revenue_chart_data class="mb-6" %}{% endcomponent %}
+
+        <div class="overflow-x-auto border border-base-200 dark:border-base-800 rounded-default">
+            <table class="w-full text-sm">
+                <thead>
+                    <tr class="border-b border-base-200 dark:border-base-800">
+                        <th class="text-left p-3">Month</th>
+                        <th class="text-right p-3">Products (GHS)</th>
+                        <th class="text-right p-3">Courses (GHS)</th>
+                        <th class="text-right p-3">Bookings (GHS)</th>
+                        <th class="text-right p-3">Total (GHS)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in revenue_table %}
+                    <tr class="border-b border-base-200 dark:border-base-800 last:border-0">
+                        <td class="p-3">{{ row.month }}</td>
+                        <td class="text-right p-3">{{ row.products|floatformat:2 }}</td>
+                        <td class="text-right p-3">{{ row.courses|floatformat:2 }}</td>
+                        <td class="text-right p-3">{{ row.bookings|floatformat:2 }}</td>
+                        <td class="text-right p-3 font-semibold">{{ row.total|floatformat:2 }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    {{ block.super }}
+{% endblock %}

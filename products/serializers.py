@@ -68,7 +68,7 @@ class ProductItemSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'name', 'description', 'price',
             'image_url', 'category', 'category_display',
-            'stock_status', 'stock_display', 'order',
+            'stock_status', 'stock_display', 'quantity', 'order',
         ]
 
     def get_image_url(self, obj):

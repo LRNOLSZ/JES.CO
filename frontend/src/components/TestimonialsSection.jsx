@@ -1,9 +1,10 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
+import { Link } from 'react-router-dom'
 import axios from 'axios'
 import { SectionHead } from './Reveal'
 import { usePageImages } from '../hooks/usePageImages'
 
-function StarRow({ count = 5 }) {
+export function StarRow({ count = 5 }) {
   return (
     <span style={{ display: 'flex', gap: '2px' }}>
       {Array.from({ length: 5 }).map((_, i) => (
@@ -64,7 +65,7 @@ export default function TestimonialsSection() {
       <div className="wrap" style={{ position: 'relative', zIndex: 2 }}>
         <div style={{ marginBottom: '3.5rem' }}>
           <SectionHead
-            index="04"
+            index="05"
             eyebrow="Client Voices"
             title={<span>What they <span className="ital metal-text">say</span></span>}
             align="center"
@@ -145,6 +146,10 @@ export default function TestimonialsSection() {
               </button>
             </div>
           )}
+
+          <div style={{ textAlign: 'center', marginTop: '2.5rem' }}>
+            <Link to="/studio/testimonials" className="btn btn-ghost">See All Success Stories →</Link>
+          </div>
         </div>
       </div>
     </section>

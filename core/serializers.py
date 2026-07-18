@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import PageImages, SiteSettings, SocialLink, Testimonial, IntroVideo
+from .models import PageImages, SiteSettings, SocialLink, Testimonial, IntroVideo, Announcement
 
 
 class PageImagesSerializer(serializers.ModelSerializer):
@@ -36,13 +36,18 @@ class SocialLinkSerializer(serializers.ModelSerializer):
 
 class TestimonialSerializer(serializers.ModelSerializer):
     # Rename fields to match what the frontend component expects
-    client_name = serializers.CharField(source='name')
-    quote       = serializers.CharField(source='comment')
-    avatar_url  = serializers.ImageField(source='profile_picture', use_url=True, allow_null=True, read_only=True)
+    client_name    = serializers.CharField(source='name')
+    quote          = serializers.CharField(source='comment')
+    avatar_url     = serializers.ImageField(source='profile_picture', use_url=True, allow_null=True, read_only=True)
+    before_image_url = serializers.ImageField(source='before_image', use_url=True, allow_null=True, read_only=True)
+    after_image_url  = serializers.ImageField(source='after_image',  use_url=True, allow_null=True, read_only=True)
 
     class Meta:
         model  = Testimonial
-        fields = ['id', 'client_name', 'quote', 'avatar_url', 'rating', 'service', 'order']
+        fields = [
+            'id', 'testimonial_type', 'client_name', 'quote', 'avatar_url',
+            'before_image_url', 'after_image_url', 'rating', 'service', 'location', 'order',
+        ]
 
 
 class IntroVideoSerializer(serializers.ModelSerializer):
@@ -63,3 +68,11 @@ class IntroVideoSerializer(serializers.ModelSerializer):
     class Meta:
         model  = IntroVideo
         fields = ['id', 'page', 'title', 'video_url', 'is_active']
+
+
+class AnnouncementSerializer(serializers.ModelSerializer):
+    image_url = serializers.ImageField(source='image', use_url=True, allow_null=True, read_only=True)
+
+    class Meta:
+        model  = Announcement
+        fields = ['id', 'title', 'description', 'image_url', 'start_date', 'end_date', 'status', 'order']

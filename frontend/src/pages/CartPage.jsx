@@ -78,6 +78,23 @@ export default function CartPage() {
 
   const isFormValid = () => form.full_name && form.email && form.phone && selectedZone
 
+  async function checkStock() {
+    try {
+      const { data } = await axios.get('/api/products/')
+      const byId = Object.fromEntries(data.map(p => [p.id, p]))
+      const shortages = cart.filter(i => {
+        const p = byId[i.id]
+        return p && p.quantity != null && i.quantity > p.quantity
+      })
+      if (shortages.length) {
+        return `Not enough stock for: ${shortages.map(i => i.name).join(', ')}. Please adjust your cart.`
+      }
+      return null
+    } catch {
+      return null // fail open — don't block checkout on a network hiccup
+    }
+  }
+
   async function placeOrder(paystackReference = '') {
     const payload = {
       ...form,
@@ -100,7 +117,7 @@ export default function CartPage() {
     }
   }
 
-  function handlePaystack() {
+  async function handlePaystack() {
     if (!PAYSTACK_KEY || !window.PaystackPop) {
       setErrorMsg('Payment not available yet. Please use WhatsApp order.')
       return
@@ -110,6 +127,12 @@ export default function CartPage() {
       return
     }
     setStatus('loading')
+    const stockError = await checkStock()
+    if (stockError) {
+      setStatus('idle')
+      setErrorMsg(stockError)
+      return
+    }
     const amountSmallest = Math.round(total * 100) // pesewas for GHS, cents for USD
     const handler = window.PaystackPop.setup({
       key:      PAYSTACK_KEY,
@@ -144,6 +167,12 @@ export default function CartPage() {
       return
     }
     setStatus('loading')
+    const stockError = await checkStock()
+    if (stockError) {
+      setStatus('idle')
+      setErrorMsg(stockError)
+      return
+    }
     await placeOrder('')
   }
 

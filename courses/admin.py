@@ -33,6 +33,28 @@ def reset_reminder_flags(modeladmin, request, queryset):
     queryset.update(reminder_14_sent=False, reminder_5_sent=False, expiry_notice_sent=False)
 
 
+@admin.action(description='Promote to testimonial (draft)')
+def promote_to_testimonial(modeladmin, request, queryset):
+    from core.models import Testimonial
+    created = 0
+    for comment in queryset.filter(is_approved=True):
+        if Testimonial.objects.filter(source_comment=comment).exists():
+            continue
+        Testimonial.objects.create(
+            testimonial_type='student',
+            name='(add student name)',
+            comment=comment.body,
+            service=comment.course.title,
+            source_comment=comment,
+            is_active=False,
+        )
+        created += 1
+    modeladmin.message_user(
+        request,
+        f'{created} draft testimonial(s) created. Edit them under Testimonials to add a name/photo, then activate.'
+    )
+
+
 # ── Course admin form ─────────────────────────────────────────────────────────
 
 class CourseAdminForm(forms.ModelForm):
@@ -285,6 +307,7 @@ class CourseCommentAdmin(ModelAdmin):
     list_filter   = ('course', 'is_approved')
     search_fields = ('email', 'body')
     ordering      = ('-created_at',)
+    actions       = [promote_to_testimonial]
 
     def short_body(self, obj):
         return obj.body[:80] + '…' if len(obj.body) > 80 else obj.body

@@ -80,7 +80,7 @@ ROOT_URLCONF = 'jesrestudio_backend.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS': [BASE_DIR / 'templates'],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -270,6 +270,7 @@ UNFOLD = {
     "SITE_URL": "/",
     "SHOW_HISTORY": True,
     "SHOW_VIEW_ON_SITE": True,
+    "DASHBOARD_CALLBACK": "core.admin.dashboard_callback",
     "STYLES": [
         lambda request: static("css/admin_custom.css"),
         lambda request: static("css/admin_file_dropzone.css"),

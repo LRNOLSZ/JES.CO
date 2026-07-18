@@ -114,12 +114,12 @@ class OrderAdmin(ImportExportModelAdmin, ModelAdmin):
 
 @admin.register(ProductItem)
 class ProductItemAdmin(ModelAdmin):
-    list_display  = ('thumb', 'name', 'category_badge', 'price', 'stock_badge', 'order', 'is_active', 'created_at')
-    list_editable = ('order', 'is_active')
+    list_display  = ('thumb', 'name', 'category_badge', 'price', 'stock_badge', 'quantity', 'order', 'is_active', 'created_at')
+    list_editable = ('quantity', 'order', 'is_active')
     list_filter   = ('category', 'stock_status', 'is_active')
     search_fields = ('name', 'description')
     ordering      = ('category', 'order', '-created_at')
-    fields        = ('category', 'name', 'description', 'price', 'image', 'stock_status', 'order', 'is_active')
+    fields        = ('category', 'name', 'description', 'price', 'image', 'stock_status', 'quantity', 'order', 'is_active')
 
     def thumb(self, obj):
         if obj.image:
