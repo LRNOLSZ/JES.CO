@@ -4,6 +4,7 @@ import { BrowserRouter } from 'react-router-dom'
 import axios from 'axios'
 import { CourseSessionProvider } from './context/CourseSessionContext'
 import { CartProvider } from './context/CartContext'
+import { RegionProvider } from './context/RegionContext'
 import './index.css'
 import App from './App.jsx'
 
@@ -16,9 +17,11 @@ createRoot(document.getElementById('root')).render(
   <StrictMode>
     <BrowserRouter>
       <CourseSessionProvider>
-        <CartProvider>
-          <App />
-        </CartProvider>
+        <RegionProvider>
+          <CartProvider>
+            <App />
+          </CartProvider>
+        </RegionProvider>
       </CourseSessionProvider>
     </BrowserRouter>
   </StrictMode>,

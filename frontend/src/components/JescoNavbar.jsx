@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useCart } from '../context/CartContext'
+import RegionSwitcher from './RegionSwitcher'
 
 const LINKS = [
   { key: 'home',    label: 'Home',    to: '/' },
@@ -151,8 +152,13 @@ export default function JescoNavbar({ overDark = false }) {
           })}
         </ul>
 
-        {/* Right: cart + CTA + hamburger */}
+        {/* Right: region + cart + CTA + hamburger */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexShrink: 0 }}>
+
+          {/* Region / currency switcher — desktop only, mirrors nav-links visibility */}
+          <div className="nav-links" style={{ display: 'flex' }}>
+            <RegionSwitcher light={light} />
+          </div>
 
           {/* Cart */}
           <Link
@@ -312,6 +318,9 @@ export default function JescoNavbar({ overDark = false }) {
             >
               Book a Session
             </Link>
+          </li>
+          <li>
+            <RegionSwitcher />
           </li>
         </ul>
       </div>

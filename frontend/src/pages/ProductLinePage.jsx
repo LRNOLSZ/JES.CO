@@ -6,6 +6,7 @@ import JescoNavbar from '../components/JescoNavbar'
 import JescoFooter from '../components/JescoFooter'
 import { Reveal, SectionHead, ArrowIcon } from '../components/Reveal'
 import { useCart } from '../context/CartContext'
+import { useRegion } from '../context/RegionContext'
 
 const META = {
   makeup:      { label: 'Makeup Sets',        sub: 'Pigment-rich. Studio-grade. Built for the woman who never blends in.',    eyebrow: 'The Collection' },
@@ -142,9 +143,11 @@ export default function ProductLinePage() {
 
 function ProductCard({ item, added, onAdd }) {
   const [hovered, setHovered] = useState(false)
+  const { region } = useRegion()
   const stock = STOCK[item.stock_status] || STOCK.coming_soon
   const canBuy = item.stock_status === 'in_stock'
   const soldOut = item.stock_status === 'out_of_stock'
+  const displayPrice = region === 'usa' && item.price_usd ? item.price_usd : item.price
 
   return (
     <div
@@ -206,9 +209,9 @@ function ProductCard({ item, added, onAdd }) {
           {item.name}
         </h3>
 
-        {item.price && (
+        {displayPrice && (
           <span style={{ fontFamily: 'var(--sans)', fontSize: '0.82rem', fontWeight: 600, color: 'var(--champ)' }}>
-            {item.price}
+            {displayPrice}
           </span>
         )}
 

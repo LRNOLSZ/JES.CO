@@ -5,6 +5,7 @@ import axios from 'axios'
 import JescoNavbar from '../components/JescoNavbar'
 import JescoFooter from '../components/JescoFooter'
 import { useCart } from '../context/CartContext'
+import { useRegion } from '../context/RegionContext'
 
 const PAYSTACK_KEY = import.meta.env.VITE_PAYSTACK_PUBLIC_KEY || ''
 
@@ -35,6 +36,7 @@ function parsePrice(str) {
 
 export default function CartPage() {
   const { cart, removeFromCart, updateQty, clearCart, cartCount } = useCart()
+  const { region } = useRegion()
 
   const [form,         setForm]         = useState({ full_name: '', email: '', phone: '', address: '', notes: '' })
   const [zones,        setZones]        = useState({ ghana: [], usa: [] })
@@ -44,10 +46,17 @@ export default function CartPage() {
   const [trackingRef,   setTrackingRef]   = useState('')
   const [trackingEmail, setTrackingEmail] = useState('')
 
-  const subtotal    = cart.reduce((sum, i) => sum + parsePrice(i.price) * i.quantity, 0)
+  const currency  = region === 'usa' ? 'USD' : 'GHS'
+  const itemPrice = (item) => (region === 'usa' && item.price_usd) ? item.price_usd : item.price
+
+  const subtotal    = cart.reduce((sum, i) => sum + parsePrice(itemPrice(i)) * i.quantity, 0)
   const deliveryFee = selectedZone ? parseFloat(selectedZone.price) : 0
   const total       = subtotal + deliveryFee
-  const currency    = selectedZone?.country === 'usa' ? 'USD' : 'GHS'
+
+  // Reset the chosen delivery zone if it no longer matches the active region
+  useEffect(() => {
+    setSelectedZone(prev => (prev && prev.country === region) ? prev : null)
+  }, [region])
 
   // Load Paystack script
   useEffect(() => {
@@ -102,7 +111,7 @@ export default function CartPage() {
       delivery_zone_id:    selectedZone?.id || null,
       delivery_fee:        deliveryFee,
       paystack_reference:  paystackReference,
-      items: cart.map(i => ({ product_id: i.id, name: i.name, price: i.price || '', quantity: i.quantity })),
+      items: cart.map(i => ({ product_id: i.id, name: i.name, price: itemPrice(i) || '', quantity: i.quantity })),
     }
     try {
       const { data } = await axios.post('/api/products/orders/', payload)
@@ -145,7 +154,7 @@ export default function CartPage() {
         address:          form.address,
         notes:            form.notes,
         delivery_zone_id: selectedZone?.id,
-        items: cart.map(i => ({ id: i.id, name: i.name, price: i.price, quantity: i.quantity })),
+        items: cart.map(i => ({ id: i.id, name: i.name, price: itemPrice(i), quantity: i.quantity })),
       },
       callback: (response) => {
         setTrackingRef(response.reference)
@@ -247,7 +256,7 @@ export default function CartPage() {
                       )}
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <p className="serif" style={{ fontSize: '0.95rem', color: 'var(--bone)', marginBottom: '0.2rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.name}</p>
-                        <p style={{ fontFamily: 'var(--sans)', fontSize: '0.78rem', color: 'var(--champ)' }}>{item.price}</p>
+                        <p style={{ fontFamily: 'var(--sans)', fontSize: '0.78rem', color: 'var(--champ)' }}>{itemPrice(item)}</p>
                       </div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexShrink: 0 }}>
                         <button onClick={() => updateQty(item.id, item.quantity - 1)} style={{ width: '24px', height: '24px', borderRadius: '50%', border: '1px solid var(--hair)', background: 'transparent', color: 'var(--bone)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.9rem' }}>−</button>
@@ -259,35 +268,31 @@ export default function CartPage() {
                   ))}
                 </div>
 
-                {/* Delivery zones */}
-                <p style={{ fontFamily: 'var(--sans)', fontSize: '0.62rem', letterSpacing: '0.38em', textTransform: 'uppercase', color: 'var(--champ)', marginBottom: '1rem' }}>Delivery Location *</p>
-                {['ghana', 'usa'].map(country => {
-                  const countryZones = zones[country] || []
-                  if (!countryZones.length) return null
-                  return (
-                    <div key={country} style={{ marginBottom: '1rem' }}>
-                      <p style={{ fontFamily: 'var(--sans)', fontSize: '0.65rem', letterSpacing: '0.15em', textTransform: 'uppercase', color: 'var(--taupe)', marginBottom: '0.5rem' }}>
-                        {country === 'ghana' ? 'Ghana' : 'USA'}
-                      </p>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-                        {countryZones.map(zone => (
-                          <label key={zone.id} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.65rem 0.9rem', borderRadius: '8px', border: `1px solid ${selectedZone?.id === zone.id ? 'var(--champ)' : 'var(--hair)'}`, background: selectedZone?.id === zone.id ? 'color-mix(in srgb, var(--champ) 6%, transparent)' : 'transparent', cursor: 'pointer', transition: 'all 0.2s' }}>
-                            <input
-                              type="radio"
-                              name="delivery_zone"
-                              value={zone.id}
-                              checked={selectedZone?.id === zone.id}
-                              onChange={() => setSelectedZone(zone)}
-                              style={{ accentColor: 'var(--champ)' }}
-                            />
-                            <span style={{ flex: 1, fontFamily: 'var(--sans)', fontSize: '0.85rem', color: 'var(--bone)' }}>{zone.location_name}</span>
-                            <span style={{ fontFamily: 'var(--sans)', fontSize: '0.82rem', color: 'var(--champ)', fontWeight: 600 }}>{zone.currency} {parseFloat(zone.price).toFixed(2)}</span>
-                          </label>
-                        ))}
-                      </div>
-                    </div>
-                  )
-                })}
+                {/* Delivery zones — only the active region's zones show, so pricing is never mixed on-screen */}
+                <p style={{ fontFamily: 'var(--sans)', fontSize: '0.62rem', letterSpacing: '0.38em', textTransform: 'uppercase', color: 'var(--champ)', marginBottom: '1rem' }}>
+                  Delivery Location — {region === 'usa' ? 'USA' : 'Ghana'} *
+                </p>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', marginBottom: '1rem' }}>
+                  {(zones[region] || []).map(zone => (
+                    <label key={zone.id} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.65rem 0.9rem', borderRadius: '8px', border: `1px solid ${selectedZone?.id === zone.id ? 'var(--champ)' : 'var(--hair)'}`, background: selectedZone?.id === zone.id ? 'color-mix(in srgb, var(--champ) 6%, transparent)' : 'transparent', cursor: 'pointer', transition: 'all 0.2s' }}>
+                      <input
+                        type="radio"
+                        name="delivery_zone"
+                        value={zone.id}
+                        checked={selectedZone?.id === zone.id}
+                        onChange={() => setSelectedZone(zone)}
+                        style={{ accentColor: 'var(--champ)' }}
+                      />
+                      <span style={{ flex: 1, fontFamily: 'var(--sans)', fontSize: '0.85rem', color: 'var(--bone)' }}>{zone.location_name}</span>
+                      <span style={{ fontFamily: 'var(--sans)', fontSize: '0.82rem', color: 'var(--champ)', fontWeight: 600 }}>{zone.currency} {parseFloat(zone.price).toFixed(2)}</span>
+                    </label>
+                  ))}
+                  {!(zones[region] || []).length && (
+                    <p style={{ fontFamily: 'var(--sans)', fontSize: '0.8rem', color: 'var(--taupe-mut)' }}>
+                      No delivery zones set up yet for this region.
+                    </p>
+                  )}
+                </div>
 
                 {/* Order total */}
                 {selectedZone && (
