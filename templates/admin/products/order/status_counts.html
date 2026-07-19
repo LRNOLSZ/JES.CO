@@ -1,0 +1,16 @@
+{% load i18n %}
+
+<div class="flex flex-wrap gap-2 mb-4">
+    <a href="{% url 'admin:products_order_changelist' %}"
+       class="flex items-center gap-2 px-3 py-2 rounded-default border border-base-200 dark:border-base-800 bg-white dark:bg-base-900 text-sm font-medium hover:border-primary-600 dark:hover:border-primary-500 transition-colors">
+        <span class="text-font-important-light dark:text-font-important-dark">All</span>
+    </a>
+    {% for s in status_counts %}
+    <a href="?status={{ s.value }}"
+       class="flex items-center gap-2 px-3 py-2 rounded-default border border-base-200 dark:border-base-800 bg-white dark:bg-base-900 text-sm font-medium hover:border-primary-600 dark:hover:border-primary-500 transition-colors">
+        <span class="w-2 h-2 rounded-full flex-shrink-0" style="background:{{ s.color }};"></span>
+        <span class="text-font-important-light dark:text-font-important-dark">{{ s.label }}</span>
+        <span class="text-font-subtle-light dark:text-font-subtle-dark">{{ s.count }}</span>
+    </a>
+    {% endfor %}
+</div>

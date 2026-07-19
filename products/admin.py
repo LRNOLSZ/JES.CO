@@ -1,4 +1,5 @@
 from django.contrib import admin
+from django.db.models import Count
 from django.utils.html import format_html
 from import_export.admin import ImportExportModelAdmin
 from unfold.admin import ModelAdmin
@@ -78,6 +79,7 @@ class OrderAdmin(ImportExportModelAdmin, ModelAdmin):
     ordering        = ('-created_at',)
     readonly_fields = ('created_at', 'paystack_reference', 'status_badge')
     inlines         = [OrderItemInline]
+    list_before_template = 'admin/products/order/status_counts.html'
 
     fieldsets = (
         ('Customer', {
@@ -95,6 +97,23 @@ class OrderAdmin(ImportExportModelAdmin, ModelAdmin):
             color, label,
         )
     status_badge.short_description = 'Status'
+
+    def changelist_view(self, request, extra_context=None):
+        counts_by_status = dict(
+            Order.objects.values_list('status').annotate(count=Count('id'))
+        )
+        status_counts = [
+            {
+                'value': value,
+                'label': label,
+                'color': STATUS_COLORS.get(value, ('#6b7280', label))[0],
+                'count': counts_by_status.get(value, 0),
+            }
+            for value, label in Order.STATUS_CHOICES
+        ]
+        extra_context = extra_context or {}
+        extra_context['status_counts'] = status_counts
+        return super().changelist_view(request, extra_context=extra_context)
 
     def save_model(self, request, obj, form, change):
         old_status = form.initial.get('status') if change else None

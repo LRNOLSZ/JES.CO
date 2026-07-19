@@ -30,19 +30,6 @@ class OrderSerializer(serializers.ModelSerializer):
             'total', 'delivery_zone_id', 'delivery_fee', 'paystack_reference', 'items',
         ]
 
-    def create(self, validated_data):
-        items_data       = validated_data.pop('items')
-        zone_id          = validated_data.pop('delivery_zone_id', None)
-        if zone_id:
-            try:
-                validated_data['delivery_zone'] = DeliveryZone.objects.get(pk=zone_id)
-            except DeliveryZone.DoesNotExist:
-                pass
-        order = Order.objects.create(**validated_data)
-        for item in items_data:
-            OrderItem.objects.create(order=order, **item)
-        return order
-
 
 class OrderStatusSerializer(serializers.ModelSerializer):
     items         = OrderItemSerializer(many=True, read_only=True)

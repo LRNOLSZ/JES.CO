@@ -132,7 +132,14 @@ class DeliveryZoneListView(APIView):
 # ── Orders ────────────────────────────────────────────────────────────────────
 
 class OrderCreateView(APIView):
-    """POST /api/products/orders/ — create order, notify via email + return WhatsApp URL."""
+    """POST /api/products/orders/ — WhatsApp order request.
+
+    Nothing is verified yet at this point, so no Order is created here. This
+    just validates the cart/customer details, sends them to Maame Ama (via
+    WhatsApp + a backup email), and lets her complete the real order herself
+    via Paystack checkout once she's actually received payment from the
+    customer — that's the one, already-verified path that creates an Order.
+    """
     permission_classes = [AllowAny]
 
     def post(self, request):
@@ -140,39 +147,48 @@ class OrderCreateView(APIView):
         if not serializer.is_valid():
             return Response(serializer.errors, status=drf_status.HTTP_400_BAD_REQUEST)
 
-        order = serializer.save()
+        data = serializer.validated_data
+
+        delivery_zone = None
+        zone_id = data.get('delivery_zone_id')
+        if zone_id:
+            try:
+                delivery_zone = DeliveryZone.objects.get(pk=zone_id)
+            except DeliveryZone.DoesNotExist:
+                pass
 
         items_text = '\n'.join(
-            f'  - {i.name} x{i.quantity} @ {i.price}'
-            for i in order.items.all()
+            f'  - {i["name"]} x{i["quantity"]} @ {i["price"]}'
+            for i in data.get('items', [])
         )
         delivery_text = ''
-        if order.delivery_zone:
-            currency = 'GHS' if order.delivery_zone.country == 'ghana' else 'USD'
-            delivery_text = f'\nDelivery — {order.delivery_zone.location_name}: {currency} {order.delivery_fee}'
+        if delivery_zone:
+            currency = 'GHS' if delivery_zone.country == 'ghana' else 'USD'
+            delivery_text = f'\nDelivery — {delivery_zone.location_name}: {currency} {data.get("delivery_fee", 0)}'
 
         wa_text = (
-            f'New Order #{order.pk} — JES.CO\n\n'
-            f'Name: {order.full_name}\n'
-            f'Email: {order.email}\n'
-            f'Phone: {order.phone}\n'
-            f'Address: {order.address or "N/A"}\n'
-            f'Notes: {order.notes or "N/A"}\n\n'
+            f'New WhatsApp Order Request — JES.CO\n\n'
+            f'Name: {data["full_name"]}\n'
+            f'Email: {data["email"]}\n'
+            f'Phone: {data["phone"]}\n'
+            f'Address: {data.get("address") or "N/A"}\n'
+            f'Notes: {data.get("notes") or "N/A"}\n\n'
             f'Items:\n{items_text}{delivery_text}\n\n'
-            f'Total: {order.total}'
+            f'Total: {data["total"]}\n\n'
+            f'Once payment is received, complete this order via Paystack checkout '
+            f'on the customer\'s behalf so they get their automatic receipt and tracking link.'
         )
         whatsapp_url = _build_whatsapp_url(wa_text)
 
         # Admin notification
         admin_email = getattr(settings, 'MAAME_AMA_EMAIL', '')
         if admin_email:
-            _send_order_email(admin_email, f'New Order #{order.pk} — {order.full_name}', wa_text)
+            _send_order_email(admin_email, f'New WhatsApp Order Request — {data["full_name"]}', wa_text)
 
         return Response({
-            'detail': 'Order received.',
-            'order_id': order.pk,
+            'detail': 'Request sent.',
             'whatsapp_url': whatsapp_url,
-        }, status=drf_status.HTTP_201_CREATED)
+        }, status=drf_status.HTTP_200_OK)
 
 
 class OrderTrackingView(APIView):

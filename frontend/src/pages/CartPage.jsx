@@ -105,20 +105,22 @@ export default function CartPage() {
     }
   }
 
-  async function placeOrder(paystackReference = '') {
+  // WhatsApp-only: sends the order details to Maame Ama and opens WhatsApp — no
+  // Order is created here since nothing is verified yet. She completes the real
+  // order via Paystack checkout herself once she's received payment.
+  async function sendWhatsAppRequest() {
     const payload = {
       ...form,
       total:               `${currency} ${total.toFixed(2)}`,
       delivery_zone_id:    selectedZone?.id || null,
       delivery_fee:        deliveryFee,
-      paystack_reference:  paystackReference,
       items: cart.map(i => ({ product_id: i.id, name: i.name, price: itemPrice(i) || '', quantity: i.quantity })),
     }
     try {
       const { data } = await axios.post('/api/products/orders/', payload)
-      setStatus('success')
+      setStatus('sent')
       clearCart()
-      if (!paystackReference && data.whatsapp_url) {
+      if (data.whatsapp_url) {
         window.open(data.whatsapp_url, '_blank')
       }
     } catch {
@@ -183,18 +185,22 @@ export default function CartPage() {
       setErrorMsg(stockError)
       return
     }
-    await placeOrder('')
+    await sendWhatsAppRequest()
   }
 
-  if (status === 'success') return (
+  if (status === 'success' || status === 'sent') return (
     <>
       <JescoNavbar />
       <main style={{ background: 'var(--ink)', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '6rem 1.5rem' }}>
         <motion.div {...fadeUp()} style={{ maxWidth: '500px', width: '100%', textAlign: 'center', padding: '3rem 2rem', border: '1px solid color-mix(in srgb, var(--champ) 30%, transparent)', borderRadius: '16px', background: 'color-mix(in srgb, var(--champ) 4%, transparent)' }}>
           <div className="serif ital metal-text" style={{ fontSize: '2.5rem', marginBottom: '1rem' }}>✦</div>
-          <h2 className="serif" style={{ fontSize: '1.8rem', color: 'var(--bone)', marginBottom: '0.75rem' }}>Order Confirmed</h2>
+          <h2 className="serif" style={{ fontSize: '1.8rem', color: 'var(--bone)', marginBottom: '0.75rem' }}>
+            {status === 'sent' ? 'Request Sent' : 'Order Confirmed'}
+          </h2>
           <p style={{ fontFamily: 'var(--sans)', fontSize: '0.9rem', color: 'var(--taupe)', lineHeight: 1.7, marginBottom: '2rem' }}>
-            Your order has been received. Check your email for your receipt and tracking link.
+            {status === 'sent'
+              ? "Your order details have been sent to Maame Ama via WhatsApp. Once she's received your payment, she'll complete your order and you'll get an automatic confirmation email with your receipt and tracking link."
+              : 'Your order has been received. Check your email for your receipt and tracking link.'}
           </p>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', alignItems: 'center' }}>
             {trackingRef && (
