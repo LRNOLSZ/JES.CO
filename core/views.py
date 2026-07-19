@@ -1,3 +1,5 @@
+import requests
+from django.core.cache import cache
 from django.utils import timezone
 
 from rest_framework.response import Response
@@ -10,6 +12,36 @@ from .serializers import (
     SocialLinkSerializer, TestimonialSerializer, IntroVideoSerializer,
     AnnouncementSerializer,
 )
+
+RATE_CACHE_KEY          = 'ghs_usd_rate'
+RATE_LAST_KNOWN_KEY      = 'ghs_usd_rate_last_known'   # never expires — fallback if the API call fails
+RATE_CACHE_TIMEOUT       = 60 * 60 * 24                # refresh once a day
+
+
+def get_ghs_usd_rate():
+    """Returns how many USD one GHS is worth, cached for a day. Display-only —
+    never used to compute an actual Paystack charge, so a stale/missing rate
+    is never a financial correctness issue, only a cosmetic one."""
+    rate = cache.get(RATE_CACHE_KEY)
+    if rate is not None:
+        return rate
+    try:
+        resp = requests.get('https://open.er-api.com/v6/latest/GHS', timeout=5)
+        resp.raise_for_status()
+        rate = resp.json()['rates']['USD']
+        cache.set(RATE_CACHE_KEY, rate, timeout=RATE_CACHE_TIMEOUT)
+        cache.set(RATE_LAST_KNOWN_KEY, rate, timeout=None)
+        return rate
+    except Exception:
+        return cache.get(RATE_LAST_KNOWN_KEY)
+
+
+class ExchangeRateView(APIView):
+    """GET /api/exchange-rate/ — GHS→USD rate for display-only price estimates."""
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        return Response({'ghs_to_usd': get_ghs_usd_rate()})
 
 
 _EMPTY_PAGE_IMAGES = {

@@ -36,6 +36,10 @@ export default function JescoNavbar({ overDark = false }) {
     : location.pathname.startsWith('/studio') ? 'studio'
     : ''
 
+  // Courses are a global digital product, priced the same everywhere — the
+  // region/currency switcher only applies to the physical shop.
+  const isCoursesRoute = location.pathname.startsWith('/studio/courses')
+
   function handleShopClick(e) {
     e.preventDefault()
     setOpen(false)
@@ -155,10 +159,12 @@ export default function JescoNavbar({ overDark = false }) {
         {/* Right: region + cart + CTA + hamburger */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexShrink: 0 }}>
 
-          {/* Region / currency switcher — desktop only, mirrors nav-links visibility */}
-          <div className="nav-links" style={{ display: 'flex' }}>
-            <RegionSwitcher light={light} />
-          </div>
+          {/* Region / currency switcher — desktop only, mirrors nav-links visibility. Hidden on course pages, which are priced the same everywhere. */}
+          {!isCoursesRoute && (
+            <div className="nav-links" style={{ display: 'flex' }}>
+              <RegionSwitcher light={light} />
+            </div>
+          )}
 
           {/* Cart */}
           <Link
@@ -319,9 +325,11 @@ export default function JescoNavbar({ overDark = false }) {
               Book a Session
             </Link>
           </li>
-          <li>
-            <RegionSwitcher />
-          </li>
+          {!isCoursesRoute && (
+            <li>
+              <RegionSwitcher />
+            </li>
+          )}
         </ul>
       </div>
     </nav>

@@ -5,6 +5,7 @@ import axios from 'axios'
 import JescoNavbar from '../components/JescoNavbar'
 import JescoFooter from '../components/JescoFooter'
 import VideoPlayer from '../components/VideoPlayer'
+import { useExchangeRate, formatUsdEstimate } from '../hooks/useExchangeRate'
 
 const PAYSTACK_KEY = import.meta.env.VITE_PAYSTACK_PUBLIC_KEY || ''
 
@@ -118,6 +119,7 @@ export default function CourseDetailPage() {
   const [unlockError, setUnlockError] = useState('')
   const [ownsAlready, setOwnsAlready] = useState(null) // null | { is_expired, days_remaining }
   const heartbeatRef = useRef(null)
+  const usdRate = useExchangeRate()
 
   const sessionKey = localStorage.getItem('jes_course_session')
 
@@ -232,7 +234,8 @@ export default function CourseDetailPage() {
   const tier       = course?.tier || {}
   const hasAccess  = course?.has_access === true
   const hasSession = !!sessionKey
-  const price      = course?.price ? `GHS ${course.price}` : null
+  const usdEstimate = formatUsdEstimate(course?.price, usdRate)
+  const price      = course?.price ? `GHS ${course.price}${usdEstimate ? ` (${usdEstimate})` : ''}` : null
 
   return (
     <PageShell>
