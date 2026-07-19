@@ -36,9 +36,10 @@ export default function JescoNavbar({ overDark = false }) {
     : location.pathname.startsWith('/studio') ? 'studio'
     : ''
 
-  // Courses are a global digital product, priced the same everywhere — the
-  // region/currency switcher only applies to the physical shop.
-  const isCoursesRoute = location.pathname.startsWith('/studio/courses')
+  // The region/currency switcher only shows while actively browsing products —
+  // not on /cart, so a shopper can't flip currency mid-checkout and watch
+  // their own total jump between two unrelated numbers.
+  const showRegionSwitcher = location.pathname.startsWith('/products/')
 
   function handleShopClick(e) {
     e.preventDefault()
@@ -159,8 +160,8 @@ export default function JescoNavbar({ overDark = false }) {
         {/* Right: region + cart + CTA + hamburger */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexShrink: 0 }}>
 
-          {/* Region / currency switcher — desktop only, mirrors nav-links visibility. Hidden on course pages, which are priced the same everywhere. */}
-          {!isCoursesRoute && (
+          {/* Region / currency switcher — desktop only, mirrors nav-links visibility. Only shown on shop pages, where a price actually depends on it. */}
+          {showRegionSwitcher && (
             <div className="nav-links" style={{ display: 'flex' }}>
               <RegionSwitcher light={light} />
             </div>
@@ -325,7 +326,7 @@ export default function JescoNavbar({ overDark = false }) {
               Book a Session
             </Link>
           </li>
-          {!isCoursesRoute && (
+          {showRegionSwitcher && (
             <li>
               <RegionSwitcher />
             </li>
