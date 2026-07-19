@@ -7,6 +7,7 @@ import JescoFooter from '../components/JescoFooter'
 import { Reveal, SectionHead, ArrowIcon } from '../components/Reveal'
 import { useCart } from '../context/CartContext'
 import { useRegion } from '../context/RegionContext'
+import { formatPrice } from '../utils/price'
 
 const META = {
   makeup:      { label: 'Makeup Sets',        sub: 'Pigment-rich. Studio-grade. Built for the woman who never blends in.',    eyebrow: 'The Collection' },
@@ -26,6 +27,7 @@ export default function ProductLinePage() {
   const [loading, setLoading] = useState(true)
   const { addToCart }         = useCart()
   const [added, setAdded]     = useState({})
+  const { region }            = useRegion()
 
   const meta = META[category] || { label: 'Products', sub: '', eyebrow: 'The Collection' }
 
@@ -90,6 +92,15 @@ export default function ProductLinePage() {
             title={<span className="ital metal-text">{meta.label}</span>}
             sub={meta.sub}
           />
+
+          <Reveal delay={0.1}>
+            <p style={{ fontFamily: 'var(--sans)', fontSize: '0.78rem', fontWeight: 300, color: 'var(--taupe-mut)', marginTop: '1.4rem' }}>
+              {region === 'usa'
+                ? 'Prices shown in USD.'
+                : 'Prices shown in GHS.'}{' '}
+              Shopping from {region === 'usa' ? 'Ghana' : 'outside Ghana'}? Switch to {region === 'usa' ? 'GHS' : 'USD'} in the menu above →
+            </p>
+          </Reveal>
         </div>
       </section>
 
@@ -147,7 +158,10 @@ function ProductCard({ item, added, onAdd }) {
   const stock = STOCK[item.stock_status] || STOCK.coming_soon
   const canBuy = item.stock_status === 'in_stock'
   const soldOut = item.stock_status === 'out_of_stock'
-  const displayPrice = region === 'usa' && item.price_usd ? item.price_usd : item.price
+  const displayPrice = formatPrice(
+    region === 'usa' && item.price_usd ? item.price_usd : item.price,
+    region === 'usa' ? 'USD' : 'GHS'
+  )
 
   return (
     <div

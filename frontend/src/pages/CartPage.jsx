@@ -6,6 +6,7 @@ import JescoNavbar from '../components/JescoNavbar'
 import JescoFooter from '../components/JescoFooter'
 import { useCart } from '../context/CartContext'
 import { useRegion } from '../context/RegionContext'
+import { formatPrice } from '../utils/price'
 
 const PAYSTACK_KEY = import.meta.env.VITE_PAYSTACK_PUBLIC_KEY || ''
 
@@ -47,7 +48,7 @@ export default function CartPage() {
   const [trackingEmail, setTrackingEmail] = useState('')
 
   const currency  = region === 'usa' ? 'USD' : 'GHS'
-  const itemPrice = (item) => (region === 'usa' && item.price_usd) ? item.price_usd : item.price
+  const itemPrice = (item) => formatPrice((region === 'usa' && item.price_usd) ? item.price_usd : item.price, currency)
 
   const subtotal    = cart.reduce((sum, i) => sum + parsePrice(itemPrice(i)) * i.quantity, 0)
   const deliveryFee = selectedZone ? parseFloat(selectedZone.price) : 0
