@@ -23,7 +23,7 @@
                 </thead>
                 <tbody>
                     {% for row in revenue_table %}
-                    <tr class="border-b border-base-200 dark:border-base-800 last:border-0">
+                    <tr class="border-b border-base-200 dark:border-base-800 last:border-0{% if forloop.counter0 < revenue_table|length|add:"-3" %} revenue-row-older hidden{% endif %}">
                         <td class="p-3">{{ row.month }}</td>
                         <td class="text-right p-3">{{ row.products|floatformat:2 }}</td>
                         <td class="text-right p-3">{{ row.courses|floatformat:2 }}</td>
@@ -34,6 +34,16 @@
                 </tbody>
             </table>
         </div>
+
+        {% if revenue_table|length > 3 %}
+        <button type="button" id="revenue-toggle" onclick="
+            var expand = this.textContent.trim() === 'Show all 12 months';
+            document.querySelectorAll('.revenue-row-older').forEach(function (row) { row.classList.toggle('hidden', !expand); });
+            this.textContent = expand ? 'Show last 3 months' : 'Show all 12 months';
+        " class="mt-3 text-sm font-medium text-primary-600 dark:text-primary-500 hover:underline">
+            Show all 12 months
+        </button>
+        {% endif %}
     </div>
 
     {{ block.super }}
