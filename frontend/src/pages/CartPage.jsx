@@ -29,12 +29,6 @@ const inputStyle = {
   boxSizing:    'border-box',
 }
 
-function parsePrice(str) {
-  if (!str) return 0
-  const n = parseFloat(String(str).replace(/[^\d.]/g, ''))
-  return isNaN(n) ? 0 : n
-}
-
 export default function CartPage() {
   const { cart, removeFromCart, updateQty, clearCart, cartCount } = useCart()
   const { region } = useRegion()
@@ -47,10 +41,11 @@ export default function CartPage() {
   const [trackingRef,   setTrackingRef]   = useState('')
   const [trackingEmail, setTrackingEmail] = useState('')
 
-  const currency  = region === 'usa' ? 'USD' : 'GHS'
-  const itemPrice = (item) => formatPrice((region === 'usa' && item.price_usd) ? item.price_usd : item.price, currency)
+  const currency     = region === 'usa' ? 'USD' : 'GHS'
+  const rawItemPrice = (item) => (region === 'usa' && item.price_usd) ? item.price_usd : item.price
+  const itemPrice     = (item) => formatPrice(rawItemPrice(item), currency)
 
-  const subtotal    = cart.reduce((sum, i) => sum + parsePrice(itemPrice(i)) * i.quantity, 0)
+  const subtotal    = cart.reduce((sum, i) => sum + Number(rawItemPrice(i) || 0) * i.quantity, 0)
   const deliveryFee = selectedZone ? parseFloat(selectedZone.price) : 0
   const total       = subtotal + deliveryFee
 

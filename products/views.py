@@ -3,6 +3,7 @@ import sys
 from urllib.parse import quote
 
 from django.conf import settings
+from django.core.cache import cache
 from django.core.mail import EmailMessage
 from django.db.models import F
 from django.db.models.functions import Greatest
@@ -251,6 +252,41 @@ def _process_product_charge(data):
     subtotal   = amount_ghs - delivery_fee
     currency   = 'GHS' if (not delivery_zone or delivery_zone.country == 'ghana') else 'USD'
     total_display = f'{currency} {amount_ghs:.2f}'
+
+    # The amount charged is set client-side (PaystackPop.setup({amount: ...})),
+    # so it — and the item prices/quantities riding along in metadata — can be
+    # tampered with in devtools before the popup opens. The webhook signature
+    # only proves this payload came from Paystack unaltered, not that it was
+    # ever the right price. Recompute the real expected total from the DB
+    # (never trusting item['price'] from metadata) and enforce it here.
+    is_usa = bool(delivery_zone and delivery_zone.country == 'usa')
+    expected_total = delivery_fee
+    for item in items_meta:
+        try:
+            product = ProductItem.objects.get(pk=item.get('id'))
+        except (ProductItem.DoesNotExist, ValueError, TypeError):
+            continue
+        unit_price = product.price_usd if (is_usa and product.price_usd) else product.price
+        expected_total += float(unit_price or 0) * item.get('quantity', 1)
+
+    if amount_ghs + 1.0 < expected_total:
+        alert_key = f'price_mismatch_alerted_{reference}'
+        admin_email = getattr(settings, 'MAAME_AMA_EMAIL', '')
+        if admin_email and not cache.get(alert_key):
+            cache.set(alert_key, True, timeout=60 * 60 * 24 * 7)
+            items_text = '\n'.join(f'  - {i.get("name","")} x{i.get("quantity",1)}' for i in items_meta)
+            _send_order_email(
+                admin_email,
+                f'Underpaid shop charge flagged — {customer_name or email}',
+                f'A charge from {customer_name or email} ({email}) was flagged and NOT turned into an order.\n\n'
+                f'Reference: {reference}\n'
+                f'Expected: {currency} {expected_total:.2f}\n'
+                f'Actually charged: {currency} {amount_ghs:.2f}\n\n'
+                f'Items:\n{items_text}\n\n'
+                f'This usually means the checkout amount was tampered with client-side. '
+                f'No order was created and no stock was decremented for this transaction.'
+            )
+        return Response({'detail': 'Flagged for review.'})
 
     order = Order.objects.create(
         full_name          = customer_name or email,

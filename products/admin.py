@@ -133,7 +133,7 @@ class OrderAdmin(ImportExportModelAdmin, ModelAdmin):
 
 @admin.register(ProductItem)
 class ProductItemAdmin(ModelAdmin):
-    list_display  = ('thumb', 'name', 'category_badge', 'price', 'price_usd', 'stock_badge', 'quantity', 'order', 'is_active', 'created_at')
+    list_display  = ('thumb', 'name', 'category_badge', 'price_display', 'price_usd_display', 'stock_badge', 'quantity', 'order', 'is_active', 'created_at')
     list_editable = ('quantity', 'order', 'is_active')
     list_filter   = ('category', 'stock_status', 'is_active')
     search_fields = ('name', 'description')
@@ -145,6 +145,16 @@ class ProductItemAdmin(ModelAdmin):
             return format_html('<img src="{}" style="width:52px;height:52px;object-fit:cover;border-radius:6px;" />', obj.image.url)
         return '—'
     thumb.short_description = ''
+
+    def price_display(self, obj):
+        return f'GHS {obj.price:.2f}' if obj.price is not None else '—'
+    price_display.short_description = 'Price'
+    price_display.admin_order_field = 'price'
+
+    def price_usd_display(self, obj):
+        return f'USD {obj.price_usd:.2f}' if obj.price_usd is not None else '—'
+    price_usd_display.short_description = 'Price (USD)'
+    price_usd_display.admin_order_field = 'price_usd'
 
     def category_badge(self, obj):
         colours = {

@@ -1,7 +1,5 @@
-/** Ensures a price string always shows its currency, even if it was typed
- *  in admin without one (e.g. "80" instead of "GHS 80"). */
+/** Formats a numeric price (or numeric string, as DRF returns decimals) with its currency label. */
 export function formatPrice(raw, currencyLabel) {
-  if (!raw) return raw
-  const str = String(raw).trim()
-  return /ghs|usd/i.test(str) ? str : `${currencyLabel} ${str}`
+  if (raw === null || raw === undefined || raw === '') return ''
+  return `${currencyLabel} ${Number(raw).toFixed(2)}`
 }

@@ -56,6 +56,21 @@ def _send_access_link_email(to_email, link):
     msg.send(fail_silently=False)
 
 
+def _send_admin_alert(subject, body):
+    admin_email = getattr(settings, 'MAAME_AMA_EMAIL', '')
+    if not admin_email:
+        return
+    if settings.DEBUG:
+        msg_out = f'\n{"="*60}\n[DEV] Admin alert to {admin_email}\nSubject: {subject}\n{body}\n{"="*60}\n'
+        sys.stderr.write(msg_out)
+        sys.stderr.flush()
+        logger.warning(msg_out)
+        return
+    msg = EmailMessage(subject=subject, body=body, from_email=settings.DEFAULT_FROM_EMAIL, to=[admin_email])
+    msg.encoding = 'ascii'
+    msg.send(fail_silently=True)
+
+
 def _resolve_session(request):
     """Return CourseSession for X-Course-Session header, or None."""
     session_key = request.META.get('HTTP_X_COURSE_SESSION', '').strip()
@@ -347,6 +362,29 @@ def _process_course_charge(data):
     # a 200, which would otherwise re-send the access link email on every retry.
     if CoursePurchase.objects.filter(paystack_reference=reference).exists():
         return Response({'detail': 'Already processed.'})
+
+    # The amount charged is set client-side (PaystackPop.setup({amount: ...})),
+    # so it can be tampered with in devtools before the popup opens. The webhook
+    # signature only proves this figure came from Paystack unaltered — it doesn't
+    # prove it was ever the right figure. Enforce the real price here before
+    # granting access.
+    expected_pesewas = course.price * 100
+    actual_pesewas   = data.get('amount', 0)
+    if actual_pesewas < expected_pesewas:
+        alert_key = f'price_mismatch_alerted_{reference}'
+        if not cache.get(alert_key):
+            cache.set(alert_key, True, timeout=60 * 60 * 24 * 7)
+            _send_admin_alert(
+                f'Underpaid course charge flagged — {course.title}',
+                f'A charge for "{course.title}" was flagged and NOT given access.\n\n'
+                f'Email: {email}\n'
+                f'Reference: {reference}\n'
+                f'Expected: GHS {course.price:.2f}\n'
+                f'Actually charged: GHS {actual_pesewas / 100:.2f}\n\n'
+                f'This usually means the checkout amount was tampered with client-side. '
+                f'No course access was granted for this transaction.'
+            )
+        return Response({'detail': 'Flagged for review.'})
 
     CoursePurchase.objects.update_or_create(
         email=email,

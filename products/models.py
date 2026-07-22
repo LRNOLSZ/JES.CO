@@ -19,10 +19,10 @@ class ProductItem(models.Model):
 
     name         = models.CharField(max_length=200)
     description  = models.TextField()
-    price        = models.CharField(max_length=50, blank=True,
-                     help_text='e.g. GHS 150 or GHS 80 – 120')
-    price_usd    = models.CharField(max_length=50, blank=True,
-                     help_text='e.g. USD 45 or USD 25 – 40. Shown to USA-region visitors instead of the GHS price above. Leave blank to fall back to the GHS price.')
+    price        = models.DecimalField(max_digits=8, decimal_places=2, null=True, blank=True,
+                     help_text='Price in GHS')
+    price_usd    = models.DecimalField(max_digits=8, decimal_places=2, null=True, blank=True,
+                     help_text='Price in USD, shown to USA-region visitors instead of the GHS price above. Leave blank to fall back to the GHS price.')
     image        = ProcessedImageField(
                      upload_to='products/',
                      processors=[ResizeToFit(800, 800)],
