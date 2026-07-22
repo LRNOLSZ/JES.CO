@@ -7,6 +7,7 @@ import JescoFooter from '../components/JescoFooter'
 import { useCart } from '../context/CartContext'
 import { useRegion } from '../context/RegionContext'
 import { formatPrice } from '../utils/price'
+import { useExchangeRate } from '../hooks/useExchangeRate'
 
 const PAYSTACK_KEY = import.meta.env.VITE_PAYSTACK_PUBLIC_KEY || ''
 
@@ -48,6 +49,11 @@ export default function CartPage() {
   const subtotal    = cart.reduce((sum, i) => sum + Number(rawItemPrice(i) || 0) * i.quantity, 0)
   const deliveryFee = selectedZone ? parseFloat(selectedZone.price) : 0
   const total       = subtotal + deliveryFee
+
+  // Paystack (Ghana accounts) can only actually charge in GHS — USD is shown
+  // throughout shopping, but converted to its GHS equivalent at payment time.
+  const rate         = useExchangeRate() // GHS -> USD
+  const ghsChargeAmount = region === 'usa' && rate ? total / rate : total
 
   // Reset the chosen delivery zone if it no longer matches the active region
   useEffect(() => {
@@ -133,6 +139,10 @@ export default function CartPage() {
       setErrorMsg('Please fill in your name, email, phone and select a delivery zone.')
       return
     }
+    if (region === 'usa' && !rate) {
+      setErrorMsg('Still loading today\'s exchange rate — please try again in a moment.')
+      return
+    }
     setStatus('loading')
     const stockError = await checkStock()
     if (stockError) {
@@ -140,12 +150,13 @@ export default function CartPage() {
       setErrorMsg(stockError)
       return
     }
-    const amountSmallest = Math.round(total * 100) // pesewas for GHS, cents for USD
+    // Paystack only ever charges in GHS — pesewas here regardless of region.
+    const amountSmallest = Math.round(ghsChargeAmount * 100)
     const handler = window.PaystackPop.setup({
       key:      PAYSTACK_KEY,
       email:    form.email,
       amount:   amountSmallest,
-      currency: currency,
+      currency: 'GHS',
       metadata: {
         customer_name:    form.full_name,
         phone:            form.phone,
@@ -308,6 +319,11 @@ export default function CartPage() {
                     <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: 'var(--sans)', fontSize: '0.95rem', fontWeight: 600, color: 'var(--champ)', borderTop: '1px solid var(--hair)', paddingTop: '0.6rem' }}>
                       <span>Total</span><span>{currency} {total.toFixed(2)}</span>
                     </div>
+                    {region === 'usa' && (
+                      <p style={{ marginTop: '0.6rem', fontFamily: 'var(--sans)', fontSize: '0.72rem', color: 'var(--taupe-mut)', textAlign: 'right' }}>
+                        {rate ? `Charged as GHS ${ghsChargeAmount.toFixed(2)} — today's rate` : 'Loading today\'s rate…'}
+                      </p>
+                    )}
                   </div>
                 )}
               </motion.div>

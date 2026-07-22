@@ -249,9 +249,10 @@ def _process_product_charge(data):
         except DeliveryZone.DoesNotExist:
             pass
 
-    subtotal   = amount_ghs - delivery_fee
-    currency   = 'GHS' if (not delivery_zone or delivery_zone.country == 'ghana') else 'USD'
-    total_display = f'{currency} {amount_ghs:.2f}'
+    # Paystack (Ghana accounts) can only ever settle in GHS, so the real charge
+    # is always GHS regardless of region — USD is shown while shopping and
+    # converted to its GHS equivalent client-side right before payment.
+    total_display = f'GHS {amount_ghs:.2f}'
 
     # The amount charged is set client-side (PaystackPop.setup({amount: ...})),
     # so it — and the item prices/quantities riding along in metadata — can be
@@ -260,30 +261,53 @@ def _process_product_charge(data):
     # ever the right price. Recompute the real expected total from the DB
     # (never trusting item['price'] from metadata) and enforce it here.
     is_usa = bool(delivery_zone and delivery_zone.country == 'usa')
-    expected_total = delivery_fee
+    expected_total_native = delivery_fee  # USD if is_usa, else already GHS
     for item in items_meta:
         try:
             product = ProductItem.objects.get(pk=item.get('id'))
         except (ProductItem.DoesNotExist, ValueError, TypeError):
             continue
         unit_price = product.price_usd if (is_usa and product.price_usd) else product.price
-        expected_total += float(unit_price or 0) * item.get('quantity', 1)
+        expected_total_native += float(unit_price or 0) * item.get('quantity', 1)
 
-    if amount_ghs + 1.0 < expected_total:
+    rate_unavailable = False
+    if is_usa:
+        from core.views import get_ghs_usd_rate
+        rate = get_ghs_usd_rate()
+        if rate:
+            expected_total_ghs = expected_total_native / rate
+        else:
+            expected_total_ghs = None
+            rate_unavailable = True
+    else:
+        expected_total_ghs = expected_total_native
+
+    # A fixed exchange rate is applied on both ends (frontend at checkout,
+    # backend here) from independently-cached snapshots, so a small legitimate
+    # drift is expected for USA orders — hence a relative, not flat, tolerance.
+    tolerance = max(1.0, (expected_total_ghs or 0) * 0.02)
+    mismatch  = rate_unavailable or (amount_ghs + tolerance < expected_total_ghs)
+
+    if mismatch:
         alert_key = f'price_mismatch_alerted_{reference}'
         admin_email = getattr(settings, 'MAAME_AMA_EMAIL', '')
         if admin_email and not cache.get(alert_key):
             cache.set(alert_key, True, timeout=60 * 60 * 24 * 7)
             items_text = '\n'.join(f'  - {i.get("name","")} x{i.get("quantity",1)}' for i in items_meta)
+            expected_line = (
+                'Could not verify — exchange rate unavailable.'
+                if rate_unavailable else f'GHS {expected_total_ghs:.2f}'
+            )
             _send_order_email(
                 admin_email,
                 f'Underpaid shop charge flagged — {customer_name or email}',
                 f'A charge from {customer_name or email} ({email}) was flagged and NOT turned into an order.\n\n'
                 f'Reference: {reference}\n'
-                f'Expected: {currency} {expected_total:.2f}\n'
-                f'Actually charged: {currency} {amount_ghs:.2f}\n\n'
+                f'Expected: {expected_line}\n'
+                f'Actually charged: GHS {amount_ghs:.2f}\n\n'
                 f'Items:\n{items_text}\n\n'
-                f'This usually means the checkout amount was tampered with client-side. '
+                f'This usually means the checkout amount was tampered with client-side, '
+                f'or (for a USA order) the exchange rate could not be verified. '
                 f'No order was created and no stock was decremented for this transaction.'
             )
         return Response({'detail': 'Flagged for review.'})
@@ -313,6 +337,8 @@ def _process_product_charge(data):
 
     # Customer receipt
     receipt = _build_receipt_body(order)
+    if is_usa and not rate_unavailable:
+        receipt += f'\n\n(Quoted at checkout as approximately ${expected_total_native:.2f} — charged at today\'s rate.)'
     _send_order_email(email, f'Your JES.CO Order #{order.pk} — Confirmed', receipt)
 
     # Admin notification
