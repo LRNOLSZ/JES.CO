@@ -378,7 +378,11 @@ export default function CartPage() {
                         className="btn btn-gold"
                         style={{ justifyContent: 'center', opacity: status === 'loading' ? 0.7 : 1, cursor: status === 'loading' ? 'not-allowed' : 'pointer' }}
                       >
-                        {status === 'loading' ? 'Processing…' : `Pay with Paystack — ${selectedZone ? `${currency} ${total.toFixed(2)}` : 'Select delivery zone'}`}
+                        {status === 'loading' ? 'Processing…' : `Pay with Paystack — ${
+                          !selectedZone ? 'Select delivery zone'
+                          : (region === 'usa' && rate) ? `USD ${total.toFixed(2)} (charged as GHS ${ghsChargeAmount.toFixed(2)})`
+                          : `${currency} ${total.toFixed(2)}`
+                        }`}
                       </button>
                     ) : (
                       <button

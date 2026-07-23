@@ -191,6 +191,11 @@ export default function OrderTrackingPage() {
                   <span>Total Paid</span>
                   <span>{order.total}</span>
                 </div>
+                {order.amount_usd && (
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', fontFamily: 'var(--sans)', fontSize: '0.75rem', color: 'var(--taupe-mut)', marginTop: '0.3rem' }}>
+                    <span>≈ ${parseFloat(order.amount_usd).toFixed(2)} USD</span>
+                  </div>
+                )}
               </div>
 
               <p style={{ fontFamily: 'var(--sans)', fontSize: '0.75rem', color: 'var(--taupe-mut)', marginTop: '1.5rem', textAlign: 'center' }}>

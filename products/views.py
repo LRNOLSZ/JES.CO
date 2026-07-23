@@ -339,6 +339,7 @@ def _process_product_charge(data):
         status             = 'confirmed',
         total              = total_display,
         amount_ghs         = amount_ghs,
+        amount_usd         = round(expected_total_native, 2) if is_usa and not rate_unavailable else None,
         delivery_zone      = delivery_zone,
         delivery_fee       = delivery_fee,
         paystack_reference = reference,

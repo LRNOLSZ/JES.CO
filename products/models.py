@@ -95,6 +95,8 @@ class Order(models.Model):
     total               = models.CharField(max_length=50, help_text='Display total e.g. GHS 350')
     amount_ghs          = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True,
                             help_text='Real numeric amount charged via Paystack. Null for WhatsApp/manual orders.')
+    amount_usd          = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True,
+                            help_text='USD-equivalent total quoted at checkout for USA orders. Null for Ghana/WhatsApp orders.')
     delivery_zone       = models.ForeignKey(DeliveryZone, on_delete=models.SET_NULL, null=True, blank=True, related_name='orders')
     delivery_fee        = models.DecimalField(max_digits=8, decimal_places=2, default=0)
     paystack_reference  = models.CharField(max_length=100, blank=True)

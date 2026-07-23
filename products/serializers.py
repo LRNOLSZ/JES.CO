@@ -40,7 +40,7 @@ class OrderStatusSerializer(serializers.ModelSerializer):
         model  = Order
         fields = [
             'id', 'full_name', 'status', 'status_display',
-            'total', 'delivery_zone', 'delivery_fee',
+            'total', 'amount_usd', 'delivery_zone', 'delivery_fee',
             'items', 'created_at',
         ]
 
