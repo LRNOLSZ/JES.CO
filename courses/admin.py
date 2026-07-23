@@ -8,6 +8,8 @@ from django.urls import reverse
 from django.utils.html import format_html, mark_safe
 from unfold.admin import ModelAdmin
 
+from core.admin import url_preview
+
 from .models import (
     CourseTier, CoursePageSettings, Course,
     CoursePurchase, Student, CourseSession, CourseComment,
@@ -42,9 +44,11 @@ def promote_to_testimonial(modeladmin, request, queryset):
             continue
         Testimonial.objects.create(
             testimonial_type='student',
-            name='(add student name)',
+            name=comment.name or '(add student name)',
             comment=comment.body,
             service=comment.course.title,
+            before_image=comment.before_image,
+            after_image=comment.after_image,
             source_comment=comment,
             is_active=False,
         )
@@ -302,13 +306,24 @@ class CourseSessionAdmin(ModelAdmin):
 
 @admin.register(CourseComment)
 class CourseCommentAdmin(ModelAdmin):
-    list_display  = ('email', 'course', 'short_body', 'is_approved', 'created_at')
+    list_display  = ('email', 'name', 'course', 'short_body', 'is_approved', 'created_at')
     list_editable = ('is_approved',)
     list_filter   = ('course', 'is_approved')
-    search_fields = ('email', 'body')
+    search_fields = ('email', 'name', 'body')
     ordering      = ('-created_at',)
     actions       = [promote_to_testimonial]
+    fields        = (
+        'course', 'email', 'name', 'body',
+        'before_image', 'before_image_preview', 'after_image', 'after_image_preview',
+        'is_approved', 'created_at',
+    )
+    readonly_fields = ('created_at', 'before_image_preview', 'after_image_preview')
 
     def short_body(self, obj):
         return obj.body[:80] + '…' if len(obj.body) > 80 else obj.body
     short_body.short_description = 'Comment'
+
+    def before_image_preview(self, obj): return url_preview(obj.before_image)
+    def after_image_preview(self, obj):  return url_preview(obj.after_image)
+    before_image_preview.short_description = 'Before Preview'
+    after_image_preview.short_description  = 'After Preview'

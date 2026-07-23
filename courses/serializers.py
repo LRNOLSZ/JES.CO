@@ -107,3 +107,9 @@ class CourseCommentSerializer(serializers.ModelSerializer):
     class Meta:
         model  = CourseComment
         fields = ['id', 'email', 'body', 'created_at']
+
+
+class CourseCommentCreateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model  = CourseComment
+        fields = ['name', 'body', 'before_image', 'after_image']

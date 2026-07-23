@@ -1,4 +1,5 @@
 import secrets
+from django.core.exceptions import ValidationError
 from django.db import models
 from django.utils import timezone
 from django.utils.text import slugify
@@ -284,11 +285,29 @@ class VideoHeartbeat(models.Model):
         return f'{self.session_key[:12]}… → {self.course.title}'
 
 
+def validate_image_size_5mb(file):
+    limit = 5 * 1024 * 1024
+    if file.size > limit:
+        raise ValidationError('Image must be 5MB or smaller.')
+
+
 class CourseComment(models.Model):
     """Student comments on a course — require Maame Ama's approval before showing publicly."""
     course      = models.ForeignKey(Course, on_delete=models.CASCADE, related_name='comments')
     email       = models.EmailField()
+    name        = models.CharField(max_length=150, blank=True,
+                    help_text="Student's name — carried over if this comment is promoted to a testimonial.")
     body        = models.TextField()
+    before_image = ProcessedImageField(
+                    upload_to='testimonials/before/', blank=True, null=True,
+                    processors=[ResizeToFit(800, 800)], format='WEBP', options={'quality': 88},
+                    validators=[validate_image_size_5mb],
+                    help_text='Optional — before photo for a full testimonial submission (max 5MB).')
+    after_image  = ProcessedImageField(
+                    upload_to='testimonials/after/', blank=True, null=True,
+                    processors=[ResizeToFit(800, 800)], format='WEBP', options={'quality': 88},
+                    validators=[validate_image_size_5mb],
+                    help_text='Optional — pair with Before Image above (max 5MB).')
     created_at  = models.DateTimeField(auto_now_add=True)
     is_approved = models.BooleanField(default=False,
                     help_text='Tick to make this comment visible on the site.')

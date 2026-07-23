@@ -24,6 +24,7 @@ from .serializers import (
     CourseListSerializer,
     CourseDetailSerializer,
     CourseCommentSerializer,
+    CourseCommentCreateSerializer,
 )
 
 
@@ -303,12 +304,22 @@ def post_comment(request, slug):
     """
     POST /api/courses/<slug>/comments/
     Header: X-Course-Session: <session_key>
-    Body: { "body": "..." }
+    Body: { "body": "...", "name": "...", "before_image": <file>, "after_image": <file> }
+    name/before_image/after_image are optional — used by the "share your story" testimonial
+    submission form on the dashboard; the plain course-page comment box only sends body.
     Requires a valid session + purchase. Comment goes into moderation queue.
     """
     session = _resolve_session(request)
     if not session:
         return Response({'detail': 'Invalid session.'}, status=status.HTTP_401_UNAUTHORIZED)
+
+    rate_key = f'comment_rate_{session.email}'
+    submit_count = cache.get(rate_key, 0)
+    if submit_count >= 5:
+        return Response(
+            {'detail': 'You\'ve reached the submission limit. Please try again later.'},
+            status=status.HTTP_429_TOO_MANY_REQUESTS,
+        )
 
     try:
         course = Course.objects.get(slug=slug, is_active=True)
@@ -318,11 +329,10 @@ def post_comment(request, slug):
     if not CoursePurchase.objects.filter(email=session.email, course=course).exists():
         return Response({'detail': 'You have not purchased this course.'}, status=status.HTTP_403_FORBIDDEN)
 
-    body = request.data.get('body', '').strip()
-    if not body:
-        return Response({'detail': 'Comment cannot be empty.'}, status=status.HTTP_400_BAD_REQUEST)
-
-    comment = CourseComment.objects.create(course=course, email=session.email, body=body)
+    serializer = CourseCommentCreateSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
+    serializer.save(course=course, email=session.email)
+    cache.set(rate_key, submit_count + 1, timeout=60 * 60 * 12)
     return Response(
         {'detail': 'Comment submitted for review. Thank you!'},
         status=status.HTTP_201_CREATED,

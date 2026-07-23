@@ -4,6 +4,7 @@ import { motion } from 'framer-motion'
 import { useCourseSession } from '../context/CourseSessionContext'
 import JescoNavbar from '../components/JescoNavbar'
 import JescoFooter from '../components/JescoFooter'
+import TestimonialSubmitForm from '../components/TestimonialSubmitForm'
 
 const PAYSTACK_KEY = import.meta.env.VITE_PAYSTACK_PUBLIC_KEY || ''
 
@@ -11,6 +12,8 @@ export default function CoursesDashboardPage() {
   const { sessionEmail, purchases, isLoading, clearSession, refreshPurchases } = useCourseSession()
   const navigate = useNavigate()
   const [renewingSlug, setRenewingSlug] = useState(null) // slug of course currently mid-renewal
+  const [storySlug, setStorySlug] = useState(null) // slug of course whose "Share Your Story" form is open
+  const sessionKey = localStorage.getItem('jes_course_session')
 
   useEffect(() => {
     console.log('[Dashboard] guard effect: isLoading=', isLoading, 'sessionEmail=', sessionEmail)
@@ -183,6 +186,23 @@ export default function CoursesDashboardPage() {
                           >
                             Watch Now →
                           </Link>
+                        )}
+
+                        {storySlug === course.slug ? (
+                          <TestimonialSubmitForm
+                            slug={course.slug}
+                            sessionKey={sessionKey}
+                            onDone={() => setStorySlug(null)}
+                          />
+                        ) : (
+                          <button
+                            onClick={() => setStorySlug(course.slug)}
+                            style={{ width: '100%', marginTop: '0.6rem', background: 'none', border: '1px solid var(--hair)', color: 'var(--taupe-mut)', fontFamily: 'var(--sans)', fontSize: '0.6rem', letterSpacing: '0.14em', textTransform: 'uppercase', padding: '0.6rem 1rem', borderRadius: '9999px', cursor: 'pointer', transition: 'all 0.3s' }}
+                            onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--champ)'; e.currentTarget.style.color = 'var(--champ)' }}
+                            onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--hair)'; e.currentTarget.style.color = 'var(--taupe-mut)' }}
+                          >
+                            Share Your Story
+                          </button>
                         )}
                       </div>
                     </div>
