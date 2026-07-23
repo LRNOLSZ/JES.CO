@@ -45,7 +45,7 @@ function TestimonialGroup({ title, items }) {
         {items.map((t, i) => (
           <motion.div key={t.id} initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.5, delay: i * 0.05 }}>
             {t.before_image_url && t.after_image_url
-              ? <BeforeAfterCard title={t.client_name} category={t.service || title} beforeImage={t.before_image_url} afterImage={t.after_image_url} />
+              ? <BeforeAfterCard title={t.client_name} category={t.service || title} beforeImage={t.before_image_url} afterImage={t.after_image_url} quote={t.quote} />
               : <QuoteCard t={t} />
             }
           </motion.div>

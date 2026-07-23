@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import axios from 'axios'
 import { Reveal, SectionHead, ArrowIcon } from './Reveal'
 
-export function BeforeAfterCard({ title, category, beforeImage, afterImage }) {
+export function BeforeAfterCard({ title, category, beforeImage, afterImage, quote }) {
   const ref   = useRef(null)
   const [pos,  setPos]  = useState(52)
   const [drag, setDrag] = useState(false)
@@ -78,6 +78,9 @@ export function BeforeAfterCard({ title, category, beforeImage, afterImage }) {
       <div>
         <p style={{ fontFamily: 'var(--sans)', fontSize: '0.6rem', letterSpacing: '0.24em', textTransform: 'uppercase', color: 'var(--champ)' }}>{category}</p>
         <p className="serif ital" style={{ fontSize: '1.05rem', color: 'var(--bone)', marginTop: '0.25rem' }}>{title}</p>
+        {quote && (
+          <p className="serif ital" style={{ fontSize: '0.88rem', color: 'var(--taupe)', lineHeight: 1.6, marginTop: '0.5rem' }}>{quote}</p>
+        )}
       </div>
     </div>
   )
