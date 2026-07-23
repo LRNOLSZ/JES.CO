@@ -1,10 +1,13 @@
 from decimal import Decimal
 from django.db import models
 
-# Universal single price — same for every visitor regardless of region. This is a
-# consultation service, not a shippable good, so there's no per-region cost to
-# split (same reasoning already used for course pricing). Adjust freely.
-SKIN_ANALYSIS_PRICE_GHS = Decimal('200.00')
+# Universal single price, quoted in USD as the standard reference amount — shown
+# to every visitor regardless of region. Paystack (Ghana account) can only ever
+# settle in GHS, so the actual charge is converted to GHS at today's rate right
+# before payment, same mechanism as the shop checkout (see products/views.py /
+# CartPage.jsx) — the GHS amount charged will vary slightly day to day, the USD
+# price does not.
+SKIN_ANALYSIS_PRICE_USD = Decimal('100.00')
 
 
 class SkinAnalysisSubmission(models.Model):
@@ -81,7 +84,7 @@ class SkinAnalysisSubmission(models.Model):
     foundation_finish = models.CharField(max_length=20, choices=FOUNDATION_FINISH_CHOICES)
     occasion          = models.CharField(max_length=20, choices=OCCASION_CHOICES)
     budget            = models.CharField(max_length=20, choices=BUDGET_CHOICES)
-    additional_notes  = models.TextField(blank=True)
+    additional_notes  = models.TextField(blank=True, max_length=1000)
 
     is_paid           = models.BooleanField(default=False)
     paystack_reference = models.CharField(max_length=100, blank=True)

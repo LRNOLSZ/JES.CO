@@ -4,6 +4,7 @@ import axios from 'axios'
 import JescoNavbar from '../components/JescoNavbar'
 import JescoFooter from '../components/JescoFooter'
 import QuizStep from '../components/QuizStep'
+import { useExchangeRate } from '../hooks/useExchangeRate'
 
 const PAYSTACK_KEY = import.meta.env.VITE_PAYSTACK_PUBLIC_KEY || ''
 
@@ -115,10 +116,15 @@ export default function SkinAnalysisPage() {
   const [fullName, setFullName] = useState('')
   const [email,    setEmail]    = useState('')
   const [errorMsg, setErrorMsg] = useState('')
-  const [price,    setPrice]    = useState(null)
+  const [price,    setPrice]    = useState(null) // USD, quoted to every visitor
+
+  // Paystack (Ghana account) can only ever charge in GHS — $100 is shown
+  // throughout, but converted to its GHS equivalent right before payment.
+  const rate = useExchangeRate() // USD per 1 GHS
+  const ghsChargeAmount = price && rate ? price / rate : null
 
   useEffect(() => {
-    axios.get('/api/skin-analysis/price/').then(r => setPrice(parseFloat(r.data.price_ghs))).catch(() => {})
+    axios.get('/api/skin-analysis/price/').then(r => setPrice(parseFloat(r.data.price_usd))).catch(() => {})
   }, [])
 
   useEffect(() => {
@@ -157,6 +163,10 @@ export default function SkinAnalysisPage() {
       setErrorMsg('Payment not available yet. Please try again later.')
       return
     }
+    if (!ghsChargeAmount) {
+      setErrorMsg("Still loading today's exchange rate — please try again in a moment.")
+      return
+    }
     setErrorMsg('')
     setPhase('submitting')
     try {
@@ -166,10 +176,11 @@ export default function SkinAnalysisPage() {
         ...answers,
         allergies_detail: answers.allergies === 'yes' ? allergiesDetail : '',
       })
+      // Paystack only ever charges in GHS — pesewas here, even though $100 is quoted.
       const handler = window.PaystackPop.setup({
         key:      PAYSTACK_KEY,
         email:    email.trim().toLowerCase(),
-        amount:   Math.round((price || 0) * 100),
+        amount:   Math.round(ghsChargeAmount * 100),
         currency: 'GHS',
         metadata: { skin_analysis_submission_id: data.id },
         callback: () => setPhase('success'),
@@ -222,9 +233,12 @@ export default function SkinAnalysisPage() {
               <h2 className="serif" style={{ fontSize: 'clamp(1.6rem,4vw,2.2rem)', color: 'var(--bone)', marginBottom: '0.75rem' }}>
                 Your Personalized <span className="ital metal-text">Analysis</span>
               </h2>
-              <p style={{ fontFamily: 'var(--sans)', fontSize: '0.85rem', fontWeight: 300, color: 'var(--taupe)', lineHeight: 1.7, marginBottom: '2rem' }}>
-                Maame Ama personally reviews every answer. Pay {price ? `GHS ${price.toFixed(2)}` : '…'} to have your
+              <p style={{ fontFamily: 'var(--sans)', fontSize: '0.85rem', fontWeight: 300, color: 'var(--taupe)', lineHeight: 1.7, marginBottom: '0.5rem' }}>
+                Maame Ama personally reviews every answer. Pay {price ? `$${price.toFixed(2)}` : '…'} to have your
                 answers sent to her — she'll follow up by email with your custom recommendation.
+              </p>
+              <p style={{ fontFamily: 'var(--sans)', fontSize: '0.72rem', color: 'var(--taupe-mut)', marginBottom: '2rem' }}>
+                {ghsChargeAmount ? `Charged as GHS ${ghsChargeAmount.toFixed(2)} — today's rate` : "Loading today's rate…"}
               </p>
               <form onSubmit={handlePay} style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem', textAlign: 'left' }}>
                 <input
@@ -250,7 +264,7 @@ export default function SkinAnalysisPage() {
                   className="btn btn-gold"
                   style={{ justifyContent: 'center', opacity: phase === 'submitting' ? 0.7 : 1 }}
                 >
-                  {phase === 'submitting' ? 'Processing…' : `Pay ${price ? `GHS ${price.toFixed(2)}` : ''} & Send to Maame Ama →`}
+                  {phase === 'submitting' ? 'Processing…' : `Pay ${price ? `$${price.toFixed(2)}${ghsChargeAmount ? ` (charged as GHS ${ghsChargeAmount.toFixed(2)})` : ''}` : ''} →`}
                 </button>
                 <button
                   type="button"

@@ -8,7 +8,7 @@ from rest_framework import status
 
 from jesrestudio_backend.email_backends import send_branded_email
 
-from .models import SkinAnalysisSubmission, SKIN_ANALYSIS_PRICE_GHS
+from .models import SkinAnalysisSubmission, SKIN_ANALYSIS_PRICE_USD
 from .serializers import SkinAnalysisSubmissionSerializer
 
 
@@ -16,7 +16,7 @@ from .serializers import SkinAnalysisSubmissionSerializer
 @permission_classes([AllowAny])
 def price(request):
     """GET /api/skin-analysis/price/ — single source of truth so the frontend never hardcodes it."""
-    return Response({'price_ghs': str(SKIN_ANALYSIS_PRICE_GHS)})
+    return Response({'price_usd': str(SKIN_ANALYSIS_PRICE_USD)})
 
 
 @api_view(['POST'])
@@ -27,10 +27,20 @@ def submit_analysis(request):
     Stages the 10 quiz answers unpaid — nothing is sent to Maame Ama yet.
     The frontend takes the returned id and opens Paystack; the webhook
     (_process_skin_analysis_charge) is what actually notifies her, on payment.
+    Rate limited: 5 submissions per hour per IP — this endpoint has no auth
+    gate (no session/purchase to check, unlike course comments), so IP is the
+    only identity available at this point.
     """
+    ip = request.META.get('HTTP_X_FORWARDED_FOR', request.META.get('REMOTE_ADDR', '')).split(',')[0].strip()
+    rate_key = f'skin_analysis_submit_rate_{ip}'
+    submit_count = cache.get(rate_key, 0)
+    if submit_count >= 5:
+        return Response({'detail': 'Too many requests. Please try again later.'}, status=status.HTTP_429_TOO_MANY_REQUESTS)
+
     serializer = SkinAnalysisSubmissionSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
     submission = serializer.save()
+    cache.set(rate_key, submit_count + 1, timeout=60 * 60)
     return Response({'id': submission.id}, status=status.HTTP_201_CREATED)
 
 
@@ -56,21 +66,39 @@ def _process_skin_analysis_charge(data):
     # The amount charged is set client-side, so it can be tampered with in
     # devtools before the popup opens. Enforce the real price here — same
     # pattern as course/shop checkout — before ever notifying Maame Ama.
-    expected_pesewas = int(SKIN_ANALYSIS_PRICE_GHS * 100)
-    if amount_pesewas < expected_pesewas:
+    # $100 is the standard quoted price, but Paystack (Ghana account) can only
+    # settle in GHS, so the expected charge is that USD price converted to GHS
+    # at today's rate — same mechanism as the shop's USA checkout path.
+    from core.views import get_ghs_usd_rate
+    rate = get_ghs_usd_rate()
+    rate_unavailable = not rate
+    expected_ghs = (float(SKIN_ANALYSIS_PRICE_USD) / rate) if rate else None
+
+    # A fixed rate is applied independently on both ends (frontend at checkout,
+    # backend here) from separately-cached snapshots, so a small legitimate
+    # drift is expected — same relative tolerance used for shop USA orders.
+    tolerance = max(1.0, (expected_ghs or 0) * 0.02)
+    mismatch  = rate_unavailable or (amount_pesewas / 100 + tolerance < expected_ghs)
+
+    if mismatch:
         alert_key = f'price_mismatch_alerted_{reference}'
         admin_email = getattr(settings, 'MAAME_AMA_EMAIL', '')
         if admin_email and not cache.get(alert_key):
             cache.set(alert_key, True, timeout=60 * 60 * 24 * 7)
+            expected_line = (
+                'Could not verify — exchange rate unavailable.'
+                if rate_unavailable else f'GHS {expected_ghs:.2f}'
+            )
             send_branded_email(
                 admin_email,
                 title='Underpaid Skin Analysis Charge Flagged',
                 message=(
                     f'A skin analysis payment from {submission.email} was flagged and NOT sent to you.<br><br>'
-                    f'This usually means the checkout amount was tampered with client-side.'
+                    f'This usually means the checkout amount was tampered with client-side, '
+                    f'or the exchange rate could not be verified.'
                 ),
                 details=[
-                    ('Expected', f'GHS {SKIN_ANALYSIS_PRICE_GHS:.2f}'),
+                    ('Expected', expected_line),
                     ('Actual', f'GHS {amount_pesewas / 100:.2f}'),
                     ('Reference', reference),
                 ],
@@ -90,7 +118,8 @@ def _process_skin_analysis_charge(data):
             admin_email,
             title='New Skin Analysis Consultation',
             message=(
-                f'{submission.full_name or submission.email} has paid for a skin analysis consultation. '
+                f'{submission.full_name or submission.email} has paid for a skin analysis consultation '
+                f'(${SKIN_ANALYSIS_PRICE_USD:.2f}, charged as GHS {submission.amount_paid:.2f} at today\'s rate). '
                 f'Review their answers below and reply to them personally at {submission.email}.'
             ),
             details=[
