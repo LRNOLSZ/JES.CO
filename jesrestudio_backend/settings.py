@@ -38,6 +38,7 @@ INSTALLED_APPS = [
     'products',
     'courses',
     'bookings',
+    'skin_analysis',
     'imagekit',
 
     # Import/Export

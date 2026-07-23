@@ -4,10 +4,11 @@ import { useCart } from '../context/CartContext'
 import RegionSwitcher from './RegionSwitcher'
 
 const LINKS = [
-  { key: 'home',    label: 'Home',    to: '/' },
-  { key: 'shop',    label: 'Shop',    to: null, scrollTo: 'lines' },
-  { key: 'studio',  label: 'Studio',  to: '/studio' },
-  { key: 'courses', label: 'Courses', to: '/studio/courses' },
+  { key: 'home',          label: 'Home',          to: '/' },
+  { key: 'shop',          label: 'Shop',          to: null, scrollTo: 'lines' },
+  { key: 'studio',        label: 'Studio',        to: '/studio' },
+  { key: 'courses',       label: 'Courses',       to: '/studio/courses' },
+  { key: 'skin-analysis', label: 'Skin Analysis', to: '/studio/skin-analysis' },
 ]
 
 export default function JescoNavbar({ overDark = false }) {
@@ -33,6 +34,7 @@ export default function JescoNavbar({ overDark = false }) {
 
   const activeKey = location.pathname === '/' ? 'home'
     : location.pathname.startsWith('/studio/courses') ? 'courses'
+    : location.pathname.startsWith('/studio/skin-analysis') ? 'skin-analysis'
     : location.pathname.startsWith('/studio') ? 'studio'
     : ''
 

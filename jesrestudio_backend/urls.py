@@ -9,6 +9,7 @@ urlpatterns = [
     path('tweneboa/', admin.site.urls),
     path('api/accounts/',        include('accounts.urls')),
     path('api/bookings/',        include('bookings.urls')),
+    path('api/skin-analysis/',   include('skin_analysis.urls')),
     path('api/gallery/',         include('gallery.urls')),
     path('api/products/',        include('products.urls')),
     path('api/delivery-zones/',  DeliveryZoneListView.as_view(), name='delivery-zones'),

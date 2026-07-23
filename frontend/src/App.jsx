@@ -25,6 +25,7 @@ import CoursesDashboardPage    from './pages/CoursesDashboardPage'
 import CartPage                from './pages/CartPage'
 import OrderTrackingPage       from './pages/OrderTrackingPage'
 import TestimonialsPage        from './pages/TestimonialsPage'
+import SkinAnalysisPage        from './pages/SkinAnalysisPage'
 import AnnouncementPopup       from './components/AnnouncementPopup'
 
 const STUDIO_WORDS = ['Bridal Glam', 'Editorial', 'Corrective Skin', 'Transformation', 'Training', 'Photoshoot']
@@ -76,6 +77,7 @@ export default function App() {
       <Route path="/studio"              element={<StudioHomePage />} />
       <Route path="/studio/gallery"       element={<GalleryPage />} />
       <Route path="/studio/testimonials"  element={<TestimonialsPage />} />
+      <Route path="/studio/skin-analysis" element={<SkinAnalysisPage />} />
       <Route path="/studio/courses"       element={<CoursesPage />} />
       <Route path="/studio/courses/:slug" element={<CourseDetailPage />} />
       <Route path="/products/:category"              element={<ProductLinePage />} />

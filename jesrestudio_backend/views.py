@@ -11,6 +11,7 @@ from rest_framework import status as drf_status
 
 from courses.views import _process_course_charge
 from products.views import _process_product_charge
+from skin_analysis.views import _process_skin_analysis_charge
 
 logger = logging.getLogger(__name__)
 
@@ -42,6 +43,8 @@ def paystack_webhook(request):
 
     if meta.get('course_slug'):
         return _process_course_charge(data)
+    if meta.get('skin_analysis_submission_id'):
+        return _process_skin_analysis_charge(data)
     if 'items' in meta or 'delivery_zone_id' in meta:
         return _process_product_charge(data)
 
