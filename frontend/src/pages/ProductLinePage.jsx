@@ -21,6 +21,9 @@ const STOCK = {
   coming_soon: { color: '#92400e', label: 'Coming Soon'  },
 }
 
+const LOW_STOCK_THRESHOLD = 5
+const LOW_STOCK_COLOR = '#c2410c'
+
 export default function ProductLinePage() {
   const { category }          = useParams()
   const [items, setItems]     = useState([])
@@ -155,7 +158,10 @@ export default function ProductLinePage() {
 function ProductCard({ item, added, onAdd }) {
   const [hovered, setHovered] = useState(false)
   const { region } = useRegion()
-  const stock = STOCK[item.stock_status] || STOCK.coming_soon
+  const isLowStock = item.stock_status === 'in_stock' && item.quantity > 0 && item.quantity <= LOW_STOCK_THRESHOLD
+  const stock = isLowStock
+    ? { color: LOW_STOCK_COLOR, label: `Only ${item.quantity} left` }
+    : (STOCK[item.stock_status] || STOCK.coming_soon)
   const canBuy = item.stock_status === 'in_stock'
   const soldOut = item.stock_status === 'out_of_stock'
   const displayPrice = formatPrice(

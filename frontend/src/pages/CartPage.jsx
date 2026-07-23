@@ -41,6 +41,7 @@ export default function CartPage() {
   const [errorMsg,     setErrorMsg]     = useState('')
   const [trackingRef,   setTrackingRef]   = useState('')
   const [trackingEmail, setTrackingEmail] = useState('')
+  const [stockById,     setStockById]     = useState({})
 
   const currency     = region === 'usa' ? 'USD' : 'GHS'
   const rawItemPrice = (item) => (region === 'usa' && item.price_usd) ? item.price_usd : item.price
@@ -75,6 +76,15 @@ export default function CartPage() {
   // Load delivery zones
   useEffect(() => {
     axios.get('/api/delivery-zones/').then(r => setZones(r.data)).catch(() => {})
+  }, [])
+
+  // Reflect current stock in the cart list — a real block only happens at
+  // checkout via checkStock(), this is just so a sold-out item doesn't sit
+  // in the cart looking purchasable while someone's filling out the form.
+  useEffect(() => {
+    axios.get('/api/products/')
+      .then(r => setStockById(Object.fromEntries(r.data.map(p => [p.id, p]))))
+      .catch(() => {})
   }, [])
 
   const handleChange = e => setForm(prev => ({ ...prev, [e.target.name]: e.target.value }))
@@ -262,23 +272,30 @@ export default function CartPage() {
               <motion.div {...fadeUp(0.1)}>
                 <p style={{ fontFamily: 'var(--sans)', fontSize: '0.62rem', letterSpacing: '0.38em', textTransform: 'uppercase', color: 'var(--champ)', marginBottom: '1.25rem' }}>Items</p>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginBottom: '1.5rem' }}>
-                  {cart.map(item => (
-                    <div key={item.id} style={{ display: 'flex', gap: '1rem', alignItems: 'center', padding: '1rem', borderRadius: '12px', border: '1px solid var(--hair)', background: 'color-mix(in srgb, var(--bone) 3%, transparent)' }}>
+                  {cart.map(item => {
+                    const currentStock = stockById[item.id]
+                    const soldOut = currentStock && currentStock.stock_status !== 'in_stock'
+                    return (
+                    <div key={item.id} style={{ display: 'flex', gap: '1rem', alignItems: 'center', padding: '1rem', borderRadius: '12px', border: '1px solid var(--hair)', background: 'color-mix(in srgb, var(--bone) 3%, transparent)', opacity: soldOut ? 0.5 : 1, filter: soldOut ? 'grayscale(0.7)' : 'none' }}>
                       {item.image_url && (
                         <img src={item.image_url} alt={item.name} style={{ width: '60px', height: '60px', objectFit: 'cover', borderRadius: '8px', flexShrink: 0, border: '1px solid var(--hair)' }} />
                       )}
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <p className="serif" style={{ fontSize: '0.95rem', color: 'var(--bone)', marginBottom: '0.2rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.name}</p>
                         <p style={{ fontFamily: 'var(--sans)', fontSize: '0.78rem', color: 'var(--champ)' }}>{itemPrice(item)}</p>
+                        {soldOut && (
+                          <p style={{ fontFamily: 'var(--sans)', fontSize: '0.68rem', letterSpacing: '0.1em', textTransform: 'uppercase', color: '#9b1c1c', marginTop: '0.2rem' }}>Sold Out</p>
+                        )}
                       </div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexShrink: 0 }}>
                         <button onClick={() => updateQty(item.id, item.quantity - 1)} style={{ width: '24px', height: '24px', borderRadius: '50%', border: '1px solid var(--hair)', background: 'transparent', color: 'var(--bone)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.9rem' }}>−</button>
                         <span style={{ fontFamily: 'var(--sans)', fontSize: '0.85rem', color: 'var(--bone)', minWidth: '20px', textAlign: 'center' }}>{item.quantity}</span>
-                        <button onClick={() => updateQty(item.id, item.quantity + 1)} style={{ width: '24px', height: '24px', borderRadius: '50%', border: '1px solid var(--hair)', background: 'transparent', color: 'var(--bone)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.9rem' }}>+</button>
+                        <button onClick={() => updateQty(item.id, item.quantity + 1)} disabled={soldOut} style={{ width: '24px', height: '24px', borderRadius: '50%', border: '1px solid var(--hair)', background: 'transparent', color: 'var(--bone)', cursor: soldOut ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.9rem', opacity: soldOut ? 0.4 : 1 }}>+</button>
                         <button onClick={() => removeFromCart(item.id)} style={{ background: 'none', border: 'none', color: 'rgba(200,80,80,0.5)', cursor: 'pointer', fontSize: '1rem', marginLeft: '0.25rem' }}>✕</button>
                       </div>
                     </div>
-                  ))}
+                    )
+                  })}
                 </div>
 
                 {/* Delivery zones — only the active region's zones show, so pricing is never mixed on-screen */}

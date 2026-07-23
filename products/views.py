@@ -42,23 +42,31 @@ def _tracking_url(order):
 
 
 def _decrement_stock(items_meta):
-    """Atomically reduces ProductItem.quantity for a confirmed sale. Clamps at 0, never goes negative."""
+    """Atomically reduces ProductItem.quantity for a confirmed sale. Clamps at 0, never goes negative.
+    Returns a list of (name, requested, available) for any item that couldn't be fully covered —
+    the sale still happens (payment is already captured by the time this runs), this is just
+    reported to the admin so a real shortfall doesn't go unnoticed."""
+    shortages = []
     for item in items_meta:
         product_id = item.get('id')
         qty = item.get('quantity', 1)
         if not product_id:
             continue
+        try:
+            product = ProductItem.objects.get(pk=product_id)
+        except ProductItem.DoesNotExist:
+            continue
+        if product.quantity < qty:
+            shortages.append((product.name, qty, product.quantity))
         updated = ProductItem.objects.filter(pk=product_id).update(
             quantity=Greatest(F('quantity') - qty, 0)
         )
         if not updated:
             continue
-        try:
-            product = ProductItem.objects.get(pk=product_id)
-        except ProductItem.DoesNotExist:
-            continue
+        product.refresh_from_db(fields=['quantity'])
         if product.quantity <= 0 and product.stock_status != 'coming_soon':
             ProductItem.objects.filter(pk=product_id).update(stock_status='out_of_stock')
+    return shortages
 
 
 def _build_receipt_message(order):
@@ -343,7 +351,7 @@ def _process_product_charge(data):
             price      = item.get('price', ''),
             quantity   = item.get('quantity', 1),
         )
-    _decrement_stock(items_meta)
+    shortages = _decrement_stock(items_meta)
 
     # Customer receipt
     delivery_display = (
@@ -372,6 +380,13 @@ def _process_product_charge(data):
     # Admin notification
     admin_email = getattr(settings, 'MAAME_AMA_EMAIL', '')
     if admin_email:
+        shortage_footnote = ''
+        if shortages:
+            shortage_list = '; '.join(f'{name} (wanted {req}, had {avail})' for name, req, avail in shortages)
+            shortage_footnote = (
+                f'⚠ Stock shortage — insufficient inventory for: {shortage_list}. '
+                f'Contact the customer about a delay/backorder.'
+            )
         send_branded_email(
             admin_email,
             title='New Order Received',
@@ -381,6 +396,7 @@ def _process_product_charge(data):
                 ('Total', total_display),
                 ('Reference', reference),
             ],
+            footnote=shortage_footnote,
             cta_url=_admin_url(f'products/order/{order.pk}/change/'),
             cta_label='View Order',
         )
