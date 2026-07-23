@@ -1,10 +1,8 @@
 import logging
-import sys
 from urllib.parse import quote
 
 from django.conf import settings
 from django.core.cache import cache
-from django.core.mail import EmailMessage
 from django.db.models import F
 from django.db.models.functions import Greatest
 from django.utils import timezone
@@ -13,6 +11,8 @@ from rest_framework import status as drf_status
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny
+
+from jesrestudio_backend.email_backends import send_branded_email
 
 from .models import DeliveryZone, ProductItem, Order, OrderItem
 from .serializers import (
@@ -31,17 +31,8 @@ def _build_whatsapp_url(text):
     return f'https://wa.me/{number}?text={quote(text)}'
 
 
-def _send_order_email(to_email, subject, body):
-    if settings.DEBUG:
-        msg = f'\n{"="*60}\n[DEV] Email to {to_email}\nSubject: {subject}\n{body}\n{"="*60}\n'
-        sys.stderr.write(msg)
-        sys.stderr.flush()
-        logger.warning(msg)
-        return
-    msg = EmailMessage(subject=subject, body=body,
-                       from_email=settings.DEFAULT_FROM_EMAIL, to=[to_email])
-    msg.encoding = 'ascii'
-    msg.send(fail_silently=True)
+def _admin_url(path=''):
+    return f'{settings.BACKEND_URL}/tweneboa/{path}'
 
 
 def _tracking_url(order):
@@ -70,24 +61,16 @@ def _decrement_stock(items_meta):
             ProductItem.objects.filter(pk=product_id).update(stock_status='out_of_stock')
 
 
-def _build_receipt_body(order):
-    lines = [f'  {i.name} x{i.quantity}  —  {i.price}' for i in order.items.all()]
-    zone_line = ''
+def _build_receipt_message(order):
+    lines = [f'{i.name} x{i.quantity} — {i.price}' for i in order.items.all()]
     if order.delivery_zone:
         currency = 'GHS' if order.delivery_zone.country == 'ghana' else 'USD'
-        zone_line = f'\n  Delivery — {order.delivery_zone.location_name}  —  {currency} {order.delivery_fee}'
-    tracking_url = _tracking_url(order)
-    items_block = '\n'.join(lines)
-    divider     = '─' * 44
+        lines.append(f'Delivery — {order.delivery_zone.location_name} — {currency} {order.delivery_fee}')
+    items_block = '<br>'.join(lines)
     return (
-        f'Hi {order.full_name},\n\n'
-        f'Your payment was received. Here is your order summary:\n\n'
-        f'{items_block}{zone_line}\n'
-        f'{divider}\n'
-        f'  TOTAL PAID  {order.total}\n\n'
-        f'Track your order: {tracking_url}\n\n'
-        f'We will notify you as your order moves through each stage.\n\n'
-        f'-- The JES.CO Team'
+        f'Your payment was received. Here is your order summary:<br><br>'
+        f'{items_block}<br><br>'
+        f'We will notify you as your order moves through each stage.'
     )
 
 
@@ -184,7 +167,28 @@ class OrderCreateView(APIView):
         # Admin notification
         admin_email = getattr(settings, 'MAAME_AMA_EMAIL', '')
         if admin_email:
-            _send_order_email(admin_email, f'New WhatsApp Order Request — {data["full_name"]}', wa_text)
+            items_html = '<br>'.join(
+                f'{i["name"]} x{i["quantity"]} @ {i["price"]}' for i in data.get('items', [])
+            )
+            delivery_html = ''
+            if delivery_zone:
+                currency = 'GHS' if delivery_zone.country == 'ghana' else 'USD'
+                delivery_html = f'<br>Delivery — {delivery_zone.location_name}: {currency} {data.get("delivery_fee", 0)}'
+            send_branded_email(
+                admin_email,
+                title='New WhatsApp Order Request',
+                message=(
+                    f'Customer: {data["full_name"]} ({data["email"]}, {data["phone"]})<br>'
+                    f'Address: {data.get("address") or "N/A"}<br>'
+                    f'Notes: {data.get("notes") or "N/A"}<br><br>'
+                    f'Items:<br>{items_html}{delivery_html}<br><br>'
+                    f'Once payment is received, complete this order via Paystack checkout '
+                    f'on the customer\'s behalf so they get their automatic receipt and tracking link.'
+                ),
+                details=[('Total', data['total'])],
+                cta_url=_admin_url(),
+                cta_label='Open Admin',
+            )
 
         return Response({
             'detail': 'Request sent.',
@@ -293,22 +297,28 @@ def _process_product_charge(data):
         admin_email = getattr(settings, 'MAAME_AMA_EMAIL', '')
         if admin_email and not cache.get(alert_key):
             cache.set(alert_key, True, timeout=60 * 60 * 24 * 7)
-            items_text = '\n'.join(f'  - {i.get("name","")} x{i.get("quantity",1)}' for i in items_meta)
+            items_text = '<br>'.join(f'{i.get("name","")} x{i.get("quantity",1)}' for i in items_meta)
             expected_line = (
                 'Could not verify — exchange rate unavailable.'
                 if rate_unavailable else f'GHS {expected_total_ghs:.2f}'
             )
-            _send_order_email(
+            send_branded_email(
                 admin_email,
-                f'Underpaid shop charge flagged — {customer_name or email}',
-                f'A charge from {customer_name or email} ({email}) was flagged and NOT turned into an order.\n\n'
-                f'Reference: {reference}\n'
-                f'Expected: {expected_line}\n'
-                f'Actually charged: GHS {amount_ghs:.2f}\n\n'
-                f'Items:\n{items_text}\n\n'
-                f'This usually means the checkout amount was tampered with client-side, '
-                f'or (for a USA order) the exchange rate could not be verified. '
-                f'No order was created and no stock was decremented for this transaction.'
+                title='Underpaid Shop Charge Flagged',
+                message=(
+                    f'A charge from {customer_name or email} ({email}) was flagged and NOT turned into an order.<br><br>'
+                    f'Items:<br>{items_text}<br><br>'
+                    f'This usually means the checkout amount was tampered with client-side, '
+                    f'or (for a USA order) the exchange rate could not be verified. '
+                    f'No order was created and no stock was decremented for this transaction.'
+                ),
+                details=[
+                    ('Reference', reference),
+                    ('Expected', expected_line),
+                    ('Actual', f'GHS {amount_ghs:.2f}'),
+                ],
+                cta_url=_admin_url('products/order/'),
+                cta_label='View Orders',
             )
         return Response({'detail': 'Flagged for review.'})
 
@@ -336,15 +346,43 @@ def _process_product_charge(data):
     _decrement_stock(items_meta)
 
     # Customer receipt
-    receipt = _build_receipt_body(order)
-    if is_usa and not rate_unavailable:
-        receipt += f'\n\n(Quoted at checkout as approximately ${expected_total_native:.2f} — charged at today\'s rate.)'
-    _send_order_email(email, f'Your JES.CO Order #{order.pk} — Confirmed', receipt)
+    delivery_display = (
+        f'{"GHS" if order.delivery_zone.country == "ghana" else "USD"} {order.delivery_fee}'
+        if order.delivery_zone else '—'
+    )
+    footnote = (
+        f'Quoted at checkout as approximately ${expected_total_native:.2f} — charged at today\'s rate.'
+        if is_usa and not rate_unavailable else ''
+    )
+    send_branded_email(
+        email,
+        title='Order Confirmed',
+        first_name=order.full_name,
+        message=_build_receipt_message(order),
+        details=[
+            ('Order #', f'#{order.pk}'),
+            ('Total', order.total),
+            ('Delivery', delivery_display),
+        ],
+        footnote=footnote,
+        cta_url=_tracking_url(order),
+        cta_label='Track Your Order',
+    )
 
     # Admin notification
     admin_email = getattr(settings, 'MAAME_AMA_EMAIL', '')
     if admin_email:
-        admin_body = f'New paid order #{order.pk} from {customer_name} ({email}).\n\nReference: {reference}\nTotal: {total_display}'
-        _send_order_email(admin_email, f'New Order #{order.pk} — {customer_name}', admin_body)
+        send_branded_email(
+            admin_email,
+            title='New Order Received',
+            message=f'New paid order #{order.pk} from {customer_name} ({email}).',
+            details=[
+                ('Order #', f'#{order.pk}'),
+                ('Total', total_display),
+                ('Reference', reference),
+            ],
+            cta_url=_admin_url(f'products/order/{order.pk}/change/'),
+            cta_label='View Order',
+        )
 
     return Response({'detail': 'Order created.'})

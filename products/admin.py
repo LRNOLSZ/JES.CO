@@ -5,8 +5,10 @@ from import_export.admin import ImportExportModelAdmin
 from unfold.admin import ModelAdmin
 from unfold.contrib.import_export.forms import ExportForm, ImportForm
 
+from jesrestudio_backend.email_backends import send_branded_email
+
 from .models import DeliveryZone, Order, OrderItem, ProductItem
-from .views import _send_order_email, _tracking_url
+from .views import _tracking_url
 
 
 # ── Delivery Zones ─────────────────────────────────────────────────────────────
@@ -56,6 +58,14 @@ STATUS_COLORS = {
     'shipped':    ('#60269E', 'Shipped'),
     'delivered':  ('#16a34a', 'Delivered'),
     'cancelled':  ('#dc2626', 'Cancelled'),
+}
+
+STATUS_EMAIL_TITLES = {
+    'confirmed':  'Your Order is Confirmed',
+    'processing': 'Your Order is Being Prepared',
+    'shipped':    'Your Order is Shipped',
+    'delivered':  'Your Order Has Been Delivered',
+    'cancelled':  'Your Order Has Been Cancelled',
 }
 
 STATUS_EMAIL_MESSAGES = {
@@ -119,14 +129,18 @@ class OrderAdmin(ImportExportModelAdmin, ModelAdmin):
         old_status = form.initial.get('status') if change else None
         super().save_model(request, obj, form, change)
         if change and old_status and old_status != obj.status and obj.status in STATUS_EMAIL_MESSAGES:
-            body = (
-                f'Hi {obj.full_name},\n\n'
-                f'{STATUS_EMAIL_MESSAGES[obj.status]}\n\n'
-                f'Order total: {obj.total}\n\n'
-                f'Track your order: {_tracking_url(obj)}\n\n'
-                f'-- The JES.CO Team'
+            send_branded_email(
+                obj.email,
+                title=STATUS_EMAIL_TITLES[obj.status],
+                first_name=obj.full_name,
+                message=STATUS_EMAIL_MESSAGES[obj.status],
+                details=[
+                    ('Order #', f'#{obj.pk}'),
+                    ('Total', obj.total),
+                ],
+                cta_url=_tracking_url(obj),
+                cta_label='Track Your Order',
             )
-            _send_order_email(obj.email, f'Your JES.CO Order #{obj.pk} — {obj.get_status_display()}', body)
 
 
 # ── Products ───────────────────────────────────────────────────────────────────

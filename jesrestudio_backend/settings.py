@@ -199,18 +199,10 @@ REST_FRAMEWORK = {
     ],
 }
 
-# --- Email (Brevo, via HTTP API not SMTP — Railway blocks outbound SMTP by default,
+# --- Email (Brevo, via HTTP API — Railway blocks outbound SMTP by default,
 # confirmed via a real TimeoutError connecting to smtp-relay.brevo.com:587 in prod.
-# See jesrestudio_backend/email_backends.py) ---
-EMAIL_BACKEND      = 'jesrestudio_backend.email_backends.BrevoAPIBackend'
-# SMTP settings below are no longer read by the active backend — kept only as a
-# documented rollback path if ever needed.
-EMAIL_HOST         = config('EMAIL_HOST', default='smtp-relay.brevo.com')
-EMAIL_PORT         = config('EMAIL_PORT', default=587, cast=int)
-EMAIL_USE_TLS      = config('EMAIL_USE_TLS', default=True, cast=bool)
-EMAIL_USE_SSL      = config('EMAIL_USE_SSL', default=False, cast=bool)
-EMAIL_HOST_USER    = config('EMAIL_HOST_USER', default='')
-EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD', default='')
+# All email sends go through send_branded_email() in
+# jesrestudio_backend/email_backends.py, not Django's mail framework.) ---
 DEFAULT_FROM_EMAIL = '"JES.CO" <jescomanagement@gmail.com>'
 
 # --- Notifications ---
@@ -225,6 +217,9 @@ PAYSTACK_SECRET_KEY = config('PAYSTACK_SECRET_KEY', default='')
 # --- Magic Link ---
 MAGIC_LINK_EXPIRY_MINUTES = 15
 FRONTEND_URL = config('FRONTEND_URL', default='http://localhost:5173')
+
+# Used to build "View in Admin" links in admin-alert emails (send_branded_email).
+BACKEND_URL = config('BACKEND_URL', default='https://web-production-ae068.up.railway.app')
 
 # --- Cache (rate limiting) ---
 CACHES = {

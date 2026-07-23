@@ -1,10 +1,10 @@
 import logging
 import secrets
-import sys
 from django.conf import settings
 from django.core.cache import cache
-from django.core.mail import EmailMessage
 from django.utils import timezone
+
+from jesrestudio_backend.email_backends import send_branded_email
 
 logger = logging.getLogger(__name__)
 
@@ -30,45 +30,32 @@ from .serializers import (
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
 def _send_access_link_email(to_email, link):
-    if settings.DEBUG:
-        msg_out = f'\n{"="*60}\n[DEV] Course access link for {to_email}:\n{link}\n{"="*60}\n'
-        sys.stderr.write(msg_out)
-        sys.stderr.flush()
-        logger.warning(msg_out)
-        return  # skip email sending in dev — link is printed above
-
-    body = (
-        f"Hello,\n\n"
-        f"Click the link below to access your JES.CO courses.\n"
-        f"This link expires in 24 hours and can only be used once.\n\n"
-        f"{link}\n\n"
-        f"After clicking, you'll see all courses purchased with this email.\n\n"
-        f"If you did not request this, you can safely ignore this email.\n\n"
-        f"-- The JES.CO Team"
+    send_branded_email(
+        to_email,
+        title='Your Course Access Link',
+        message=(
+            "Click the button below to access your JES.CO courses.<br>"
+            "This link expires in 24 hours and can only be used once.<br><br>"
+            "After clicking, you'll see all courses purchased with this email. "
+            "If you did not request this, you can safely ignore this email."
+        ),
+        cta_url=link,
+        cta_label='Access My Courses',
     )
-    msg = EmailMessage(
-        subject='Your JES.CO Course Access Link',
-        body=body,
-        from_email=settings.DEFAULT_FROM_EMAIL,
-        to=[to_email],
-    )
-    msg.encoding = 'ascii'
-    msg.send(fail_silently=False)
 
 
-def _send_admin_alert(subject, body):
+def _send_admin_alert(title, message, details=None):
     admin_email = getattr(settings, 'MAAME_AMA_EMAIL', '')
     if not admin_email:
         return
-    if settings.DEBUG:
-        msg_out = f'\n{"="*60}\n[DEV] Admin alert to {admin_email}\nSubject: {subject}\n{body}\n{"="*60}\n'
-        sys.stderr.write(msg_out)
-        sys.stderr.flush()
-        logger.warning(msg_out)
-        return
-    msg = EmailMessage(subject=subject, body=body, from_email=settings.DEFAULT_FROM_EMAIL, to=[admin_email])
-    msg.encoding = 'ascii'
-    msg.send(fail_silently=True)
+    send_branded_email(
+        admin_email,
+        title=title,
+        message=message,
+        details=details,
+        cta_url=f'{settings.BACKEND_URL}/tweneboa/',
+        cta_label='View in Admin',
+    )
 
 
 def _resolve_session(request):
@@ -375,14 +362,17 @@ def _process_course_charge(data):
         if not cache.get(alert_key):
             cache.set(alert_key, True, timeout=60 * 60 * 24 * 7)
             _send_admin_alert(
-                f'Underpaid course charge flagged — {course.title}',
-                f'A charge for "{course.title}" was flagged and NOT given access.\n\n'
-                f'Email: {email}\n'
-                f'Reference: {reference}\n'
-                f'Expected: GHS {course.price:.2f}\n'
-                f'Actually charged: GHS {actual_pesewas / 100:.2f}\n\n'
+                'Underpaid Course Charge Flagged',
+                f'A charge for "{course.title}" was flagged and NOT given access.<br><br>'
+                f'Email: {email}<br>'
+                f'Reference: {reference}<br><br>'
                 f'This usually means the checkout amount was tampered with client-side. '
-                f'No course access was granted for this transaction.'
+                f'No course access was granted for this transaction.',
+                details=[
+                    ('Course', course.title),
+                    ('Expected', f'GHS {course.price:.2f}'),
+                    ('Actual', f'GHS {actual_pesewas / 100:.2f}'),
+                ],
             )
         return Response({'detail': 'Flagged for review.'})
 

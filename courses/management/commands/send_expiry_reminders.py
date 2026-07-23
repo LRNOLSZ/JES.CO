@@ -1,25 +1,12 @@
 import logging
-import sys
 
 from django.conf import settings
-from django.core.mail import EmailMessage
 from django.core.management.base import BaseCommand
 
 from courses.models import CoursePurchase, CourseAccessToken
+from jesrestudio_backend.email_backends import send_branded_email
 
 logger = logging.getLogger(__name__)
-
-
-def _send_reminder_email(to_email, subject, body):
-    if settings.DEBUG:
-        msg_out = f'\n{"="*60}\n[DEV] Reminder email for {to_email}:\n{subject}\n{body}\n{"="*60}\n'
-        sys.stderr.write(msg_out)
-        sys.stderr.flush()
-        logger.warning(msg_out)
-        return
-    msg = EmailMessage(subject=subject, body=body, from_email=settings.DEFAULT_FROM_EMAIL, to=[to_email])
-    msg.encoding = 'ascii'
-    msg.send(fail_silently=False)
 
 
 class Command(BaseCommand):
@@ -46,13 +33,14 @@ class Command(BaseCommand):
                 if purchase.is_access_expired:
                     if purchase.expiry_notice_sent:
                         continue
-                    subject = f'Your access to "{purchase.course.title}" has expired'
-                    body = (
-                        f"Hello,\n\nYour access to \"{purchase.course.title}\" on JES.CO has expired.\n\n"
-                        f"You can renew any time from your dashboard:\n{link_for(purchase.email)}\n\n"
-                        f"-- The JES.CO Team"
+                    send_branded_email(
+                        purchase.email,
+                        title='Access Expired',
+                        message=f'Your access to "{purchase.course.title}" on JES.CO has expired. You can renew any time from your dashboard.',
+                        details=[('Course', purchase.course.title), ('Days Remaining', '0')],
+                        cta_url=link_for(purchase.email),
+                        cta_label='Renew Access',
                     )
-                    _send_reminder_email(purchase.email, subject, body)
                     purchase.reminder_14_sent = True
                     purchase.reminder_5_sent = True
                     purchase.expiry_notice_sent = True
@@ -68,13 +56,14 @@ class Command(BaseCommand):
                     if purchase.reminder_5_sent:
                         continue
                     plural = '' if days == 1 else 's'
-                    subject = f'{days} day{plural} left on "{purchase.course.title}"'
-                    body = (
-                        f"Hello,\n\nYour access to \"{purchase.course.title}\" on JES.CO expires in "
-                        f"{days} day{plural}.\n\nView your dashboard or renew here:\n{link_for(purchase.email)}\n\n"
-                        f"-- The JES.CO Team"
+                    send_branded_email(
+                        purchase.email,
+                        title=f'{days} Day{plural} Left on "{purchase.course.title}"',
+                        message=f'Your access to "{purchase.course.title}" on JES.CO expires in {days} day{plural}. View your dashboard or renew below.',
+                        details=[('Course', purchase.course.title), ('Days Remaining', str(days))],
+                        cta_url=link_for(purchase.email),
+                        cta_label='Renew Access',
                     )
-                    _send_reminder_email(purchase.email, subject, body)
                     purchase.reminder_14_sent = True
                     purchase.reminder_5_sent = True
                     purchase.save(update_fields=['reminder_14_sent', 'reminder_5_sent'])
@@ -83,13 +72,14 @@ class Command(BaseCommand):
                 elif days <= 14:
                     if purchase.reminder_14_sent:
                         continue
-                    subject = f'{days} days left on "{purchase.course.title}"'
-                    body = (
-                        f"Hello,\n\nYour access to \"{purchase.course.title}\" on JES.CO expires in "
-                        f"{days} days.\n\nView your dashboard here:\n{link_for(purchase.email)}\n\n"
-                        f"-- The JES.CO Team"
+                    send_branded_email(
+                        purchase.email,
+                        title=f'{days} Days Left on "{purchase.course.title}"',
+                        message=f'Your access to "{purchase.course.title}" on JES.CO expires in {days} days. View your dashboard below.',
+                        details=[('Course', purchase.course.title), ('Days Remaining', str(days))],
+                        cta_url=link_for(purchase.email),
+                        cta_label='Renew Access',
                     )
-                    _send_reminder_email(purchase.email, subject, body)
                     purchase.reminder_14_sent = True
                     purchase.save(update_fields=['reminder_14_sent'])
                     sent_count += 1
