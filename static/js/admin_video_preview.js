@@ -20,7 +20,22 @@
 
       // Chrome, Firefox, Edge — use hls.js (loaded before this script)
       if (window.Hls && window.Hls.isSupported()) {
-        var hls = new window.Hls();
+        // Bunny's signed URLs put ?token=...&expires=... on the manifest we hand
+        // hls.js, but every nested file the manifest references (quality sub-
+        // playlists, then .ts segments) is requested separately and doesn't carry
+        // that query string forward — so only the first request is authenticated
+        // and the rest 403 once Bunny's token enforcement is on. Re-attach it to
+        // every request hls.js makes (same fix as VideoPlayer.jsx).
+        var authQuery = src.indexOf('?') !== -1 ? src.split('?')[1] : '';
+        function withAuth(url) {
+          if (!authQuery || url.indexOf('token=') !== -1) return url;
+          return url.indexOf('?') !== -1 ? url + '&' + authQuery : url + '?' + authQuery;
+        }
+
+        var hls = new window.Hls({
+          xhrSetup: function (xhr, url) { xhr.open('GET', withAuth(url), true); },
+          fetchSetup: function (context, initParams) { return new Request(withAuth(context.url), initParams); },
+        });
         hls.loadSource(src);
         hls.attachMedia(video);
       } else {
