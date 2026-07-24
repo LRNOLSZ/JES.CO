@@ -77,7 +77,7 @@ class CourseAdminForm(forms.ModelForm):
                 self.fields[field_name].widget.attrs['data-has-existing'] = '1'
 
 
-def video_preview(field, size=160):
+def video_preview(field, size=480):
     """Render a playable <video> tag from a video FileField, or a dash if empty.
 
     Bunny Stream serves HLS (.m3u8), which only plays natively in Safari — so the
