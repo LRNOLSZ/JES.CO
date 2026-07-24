@@ -9,8 +9,11 @@
       var src = video.getAttribute('data-hls-src');
       if (!src) return;
 
-      // Safari supports HLS natively
-      if (video.canPlayType('application/vnd.apple.mpegurl')) {
+      // Safari supports HLS natively — canPlayType returns "maybe" for many
+      // non-Safari browsers too, and "maybe" is a non-empty string so it was
+      // being treated as truthy/yes. Only "probably" is a confident native-
+      // support answer; require that exact value (same fix as VideoPlayer.jsx).
+      if (video.canPlayType('application/vnd.apple.mpegurl') === 'probably') {
         video.src = src;
         return;
       }

@@ -276,7 +276,7 @@ export default function JescoNavbar({ overDark = false }) {
       {/* Mobile sheet */}
       <div style={{
         overflow:    'hidden',
-        maxHeight:   open ? '320px' : '0',
+        maxHeight:   open ? '480px' : '0',
         transition:  'max-height 0.4s var(--ease)',
         background:  'color-mix(in srgb, var(--ink) 96%, transparent)',
         borderTop:   open ? '1px solid var(--hair)' : 'none',
