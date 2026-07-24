@@ -163,14 +163,14 @@ export default function CourseCard({ course, onTrailerClick }) {
           )}
 
           {/* Price */}
-          {tier.price_display && (
+          {course.price > 0 && (
             <span style={{
               fontFamily:  "'DM Sans', sans-serif",
               fontSize:    '0.8rem',
               fontWeight:  600,
               color:       badgeColor,
             }}>
-              {tier.price_display}
+              GHS {course.price}
             </span>
           )}
         </div>

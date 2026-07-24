@@ -23,8 +23,6 @@ class CourseTier(models.Model):
     slug          = models.SlugField(max_length=50, unique=True, blank=True)
     badge_color   = models.CharField(max_length=20, default='#D4AF37',
                       help_text='Hex colour for the tier badge, e.g. #D4AF37')
-    price_display = models.CharField(max_length=50, blank=True,
-                      help_text='Display price shown on cards, e.g. GHS 250')
     order         = models.PositiveIntegerField(default=0,
                       help_text='Lower number appears first')
     is_active     = models.BooleanField(default=True)

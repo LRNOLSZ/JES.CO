@@ -106,8 +106,8 @@ function CourseCard({ course, onTrailerClick }) {
               <ClockIcon /> {course.duration_display}
             </span>
           )}
-          {course.tier?.price_display && (
-            <span style={{ fontFamily: 'var(--sans)', fontSize: '0.85rem', fontWeight: 600, color: 'var(--champ)' }}>{course.tier.price_display}</span>
+          {course.price > 0 && (
+            <span style={{ fontFamily: 'var(--sans)', fontSize: '0.85rem', fontWeight: 600, color: 'var(--champ)' }}>GHS {course.price}</span>
           )}
         </div>
 

@@ -36,7 +36,7 @@ def _get_session_email(request):
 class CourseTierSerializer(serializers.ModelSerializer):
     class Meta:
         model  = CourseTier
-        fields = ['id', 'name', 'slug', 'badge_color', 'price_display', 'order']
+        fields = ['id', 'name', 'slug', 'badge_color', 'order']
 
 
 class CoursePageSettingsSerializer(serializers.ModelSerializer):

@@ -97,10 +97,10 @@ def video_preview(field, size=480):
 
 @admin.register(CourseTier)
 class CourseTierAdmin(ModelAdmin):
-    list_display  = ('name', 'price_display', 'badge_color', 'order', 'is_active')
-    list_editable = ('price_display', 'order', 'is_active')
+    list_display  = ('name', 'badge_color', 'order', 'is_active')
+    list_editable = ('order', 'is_active')
     ordering      = ('order', 'name')
-    fields        = ('name', 'slug', 'badge_color', 'price_display', 'order', 'is_active')
+    fields        = ('name', 'slug', 'badge_color', 'order', 'is_active')
     prepopulated_fields = {'slug': ('name',)}
 
 
