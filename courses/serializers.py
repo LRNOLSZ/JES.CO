@@ -81,7 +81,8 @@ class CourseDetailSerializer(serializers.ModelSerializer):
         email = _get_session_email(self.context.get('request'))
         if not email:
             return False
-        return obj.purchases.filter(email=email).exists()
+        purchase = obj.purchases.filter(email=email).first()
+        return bool(purchase) and not purchase.is_access_expired
 
     def get_course_video_url(self, obj):
         if not self.get_has_access(obj):

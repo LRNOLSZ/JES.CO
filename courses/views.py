@@ -5,6 +5,7 @@ from django.core.cache import cache
 from django.utils import timezone
 
 from jesrestudio_backend.email_backends import send_branded_email
+from core.views import get_client_ip
 
 logger = logging.getLogger(__name__)
 
@@ -119,7 +120,7 @@ def request_access_link(request):
     Sends magic link only if email has at least one purchase.
     Rate limited: 10 requests per minute per IP.
     """
-    ip = request.META.get('HTTP_X_FORWARDED_FOR', request.META.get('REMOTE_ADDR', '')).split(',')[0].strip()
+    ip = get_client_ip(request)
     cache_key = f'magic_link_rate_{ip}'
     request_count = cache.get(cache_key, 0)
     if request_count >= 10:
@@ -151,7 +152,7 @@ def check_purchase(request, slug):
     Lets the unlock form warn a buyer if they already own this course.
     Rate limited: 10 requests per minute per IP (mirrors request_access_link).
     """
-    ip = request.META.get('HTTP_X_FORWARDED_FOR', request.META.get('REMOTE_ADDR', '')).split(',')[0].strip()
+    ip = get_client_ip(request)
     cache_key = f'purchase_check_rate_{ip}'
     request_count = cache.get(cache_key, 0)
     if request_count >= 10:
@@ -326,7 +327,8 @@ def post_comment(request, slug):
     except Course.DoesNotExist:
         return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
 
-    if not CoursePurchase.objects.filter(email=session.email, course=course).exists():
+    purchase = CoursePurchase.objects.filter(email=session.email, course=course).first()
+    if not purchase or purchase.is_access_expired:
         return Response({'detail': 'You have not purchased this course.'}, status=status.HTTP_403_FORBIDDEN)
 
     serializer = CourseCommentCreateSerializer(data=request.data)

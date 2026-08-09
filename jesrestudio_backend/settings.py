@@ -37,7 +37,6 @@ INSTALLED_APPS = [
     'core',
     'products',
     'courses',
-    'bookings',
     'skin_analysis',
     'imagekit',
 
@@ -165,6 +164,15 @@ SECURE_SSL_REDIRECT   = not DEBUG
 SESSION_COOKIE_SECURE = not DEBUG
 CSRF_COOKIE_SECURE    = not DEBUG
 
+# Tells browsers to never attempt plain HTTP on this domain again after the
+# first successful HTTPS visit — closes the small window the
+# SECURE_SSL_REDIRECT-based approach leaves open (that redirect is itself
+# one plain-HTTP round-trip). Starting conservative (1 day) since jes.co
+# isn't purchased yet — ratchet up toward the standard one-year value, and
+# consider includeSubDomains/preload, once the real domain and its
+# subdomain layout are finalized.
+SECURE_HSTS_SECONDS = 86400 if not DEBUG else 0
+
 # --- Admin session timeout ---
 # Auto-logs the admin out after 15 minutes of inactivity — protects Maame Ama if she
 # forgets to sign out on a borrowed/shared device. SESSION_SAVE_EVERY_REQUEST resets the
@@ -198,6 +206,27 @@ REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.IsAuthenticated',
     ],
+    # Global safety net, not a replacement for the hand-rolled per-view
+    # limits already in courses/views.py, skin_analysis/views.py, and
+    # products/views.py (those are smarter — keyed by email/session, not
+    # just IP). This is the floor under everything else, including any
+    # endpoint that doesn't have its own limiter — which, by default,
+    # means every NEW endpoint too.
+    #
+    # AFFECTED BY GLOBAL THROTTLE: any view without its own
+    # `throttle_classes` uses these generic rates automatically. If you're
+    # adding a new endpoint — especially anything sensitive (auth,
+    # payments, PII lookups) — decide whether the generic anon rate below
+    # is actually tight enough, or whether it needs a custom throttle like
+    # the existing hand-rolled ones.
+    'DEFAULT_THROTTLE_CLASSES': [
+        'rest_framework.throttling.AnonRateThrottle',
+        'rest_framework.throttling.UserRateThrottle',
+    ],
+    'DEFAULT_THROTTLE_RATES': {
+        'anon': '100/min',
+        'user': '300/min',
+    },
 }
 
 # --- Email (Brevo, via HTTP API — Railway blocks outbound SMTP by default,

@@ -1,5 +1,6 @@
 from django.conf import settings
 from django.core.cache import cache
+from django.utils.html import escape
 
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny
@@ -7,6 +8,7 @@ from rest_framework.response import Response
 from rest_framework import status
 
 from jesrestudio_backend.email_backends import send_branded_email
+from core.views import get_client_ip
 
 from .models import SkinAnalysisSubmission, SKIN_ANALYSIS_PRICE_USD
 from .serializers import SkinAnalysisSubmissionSerializer
@@ -31,7 +33,7 @@ def submit_analysis(request):
     gate (no session/purchase to check, unlike course comments), so IP is the
     only identity available at this point.
     """
-    ip = request.META.get('HTTP_X_FORWARDED_FOR', request.META.get('REMOTE_ADDR', '')).split(',')[0].strip()
+    ip = get_client_ip(request)
     rate_key = f'skin_analysis_submit_rate_{ip}'
     submit_count = cache.get(rate_key, 0)
     if submit_count >= 5:
@@ -118,7 +120,7 @@ def _process_skin_analysis_charge(data):
             admin_email,
             title='New Skin Analysis Consultation',
             message=(
-                f'{submission.full_name or submission.email} has paid for a skin analysis consultation '
+                f'{escape(submission.full_name) or submission.email} has paid for a skin analysis consultation '
                 f'(${SKIN_ANALYSIS_PRICE_USD:.2f}, charged as GHS {submission.amount_paid:.2f} at today\'s rate). '
                 f'Review their answers below and reply to them personally at {submission.email}.'
             ),
@@ -130,12 +132,12 @@ def _process_skin_analysis_charge(data):
             footnote=(
                 f'Concern: {submission.get_skin_concern_display()} · '
                 f'Allergies: {submission.get_allergies_display()}'
-                + (f' ({submission.allergies_detail})' if submission.allergies_detail else '') + ' · '
+                + (f' ({escape(submission.allergies_detail)})' if submission.allergies_detail else '') + ' · '
                 f'Routine: {submission.get_makeup_routine_display()} · '
                 f'Finish: {submission.get_foundation_finish_display()} · '
                 f'Occasion: {submission.get_occasion_display()} · '
                 f'Budget: {submission.get_budget_display()}'
-                + (f' · Notes: {submission.additional_notes}' if submission.additional_notes else '')
+                + (f' · Notes: {escape(submission.additional_notes)}' if submission.additional_notes else '')
             ),
             cta_url=f'{settings.BACKEND_URL}/tweneboa/skin_analysis/skinanalysissubmission/{submission.pk}/change/',
             cta_label='View Full Submission',

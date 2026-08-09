@@ -1,10 +1,15 @@
 import base64
 import hashlib
+import logging
 import time
 
 import requests
 from decouple import config
+from django.conf import settings
+from django.core.checks import Warning, register
 from django.core.files.storage import Storage
+
+logger = logging.getLogger(__name__)
 
 _BUNNY_API_KEY        = config('BUNNY_API_KEY',        default='')
 _BUNNY_LIBRARY_ID     = config('BUNNY_LIBRARY_ID',      default='')
@@ -24,6 +29,22 @@ BUNNY_SIGNING_CONFIGURED = bool(_BUNNY_TOKEN_AUTH_KEY)
 # 8-hour signed-URL window — matches this project's existing CourseSession expiry
 # elsewhere (a comfortable full-viewing-session length), not an arbitrary number.
 BUNNY_SIGNED_URL_TTL_SECONDS = 8 * 60 * 60
+
+_unsigned_fallback_logged = False
+
+
+@register()
+def check_bunny_signing(app_configs, **kwargs):
+    """Catches a silent regression: if BUNNY_TOKEN_AUTH_KEY ever gets dropped
+    in production, video URLs fail open to permanent unsigned links with no
+    other warning anywhere — surface that loudly at every startup/deploy."""
+    if not settings.DEBUG and BUNNY_CONFIGURED and not BUNNY_SIGNING_CONFIGURED:
+        return [Warning(
+            'BUNNY_TOKEN_AUTH_KEY is not set — course video URLs are permanent '
+            'and unsigned, bypassing the course paywall entirely.',
+            id='jesrestudio_backend.W001',
+        )]
+    return []
 
 
 def _bunny_directory_token(directory_path, expires):
@@ -74,6 +95,13 @@ if BUNNY_CONFIGURED:
 
         def url(self, name):
             if not BUNNY_SIGNING_CONFIGURED:
+                global _unsigned_fallback_logged
+                if not _unsigned_fallback_logged:
+                    logger.warning(
+                        'BUNNY_TOKEN_AUTH_KEY not set — serving a permanent unsigned '
+                        'video URL. Course paywall is not enforced on video playback.'
+                    )
+                    _unsigned_fallback_logged = True
                 return f'{self.cdn_url}/{name}/playlist.m3u8'
 
             expires = int(time.time()) + BUNNY_SIGNED_URL_TTL_SECONDS

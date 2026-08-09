@@ -18,6 +18,16 @@ RATE_LAST_KNOWN_KEY      = 'ghs_usd_rate_last_known'   # never expires — fallb
 RATE_CACHE_TIMEOUT       = 60 * 60 * 24                # refresh once a day
 
 
+def get_client_ip(request):
+    """Real client IP for rate-limiting. Railway's edge proxy appends the
+    real client IP as the last X-Forwarded-For entry rather than replacing
+    it, so anything before that is attacker-supplied — take the last one."""
+    xff = request.META.get('HTTP_X_FORWARDED_FOR', '')
+    if xff:
+        return xff.split(',')[-1].strip()
+    return request.META.get('REMOTE_ADDR', '')
+
+
 def get_ghs_usd_rate():
     """Returns how many USD one GHS is worth, cached for a day. Display-only —
     never used to compute an actual Paystack charge, so a stale/missing rate

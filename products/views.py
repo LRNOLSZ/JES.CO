@@ -13,6 +13,7 @@ from rest_framework.response import Response
 from rest_framework.permissions import AllowAny
 
 from jesrestudio_backend.email_backends import send_branded_email
+from core.views import get_client_ip
 
 from .models import DeliveryZone, ProductItem, Order, OrderItem
 from .serializers import (
@@ -209,6 +210,13 @@ class OrderTrackingView(APIView):
     permission_classes = [AllowAny]
 
     def get(self, request):
+        ip = get_client_ip(request)
+        cache_key = f'order_track_rate_{ip}'
+        request_count = cache.get(cache_key, 0)
+        if request_count >= 10:
+            return Response({'detail': 'Too many requests.'}, status=drf_status.HTTP_429_TOO_MANY_REQUESTS)
+        cache.set(cache_key, request_count + 1, timeout=60)
+
         ref   = request.query_params.get('ref', '').strip()
         email = request.query_params.get('email', '').strip().lower()
         if not ref or not email:
