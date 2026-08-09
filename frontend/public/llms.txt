@@ -1,0 +1,52 @@
+# JES.CO
+
+> JES.CO is a beauty brand and collective. Jesres Glam Studio is its beauty-service subsidiary, offering professional makeup artistry, video-based makeup courses, and a curated beauty product shop. JES.CO operates in Accra and Kumasi, Ghana, and in Denver, Colorado, USA.
+
+## About
+
+JES.CO is the parent brand; Jesres Glam Studio is its subsidiary arm focused on hands-on beauty services, artistry training, and client bookings. Together they cover product retail, professional makeup services, and makeup education under one brand.
+
+## Services (Jesres Glam Studio)
+
+Professional makeup artistry across the following specialties:
+- Bridal makeup
+- Full glam
+- Editorial / creative makeup
+- Foundation and base work
+- Contouring and sculpting
+- Lip artistry
+- Color theory application
+
+Bookings are handled via direct scheduling; pricing is inquiry-based and varies by client location (Ghana vs. USA).
+
+## Courses
+
+Jesres Glam Studio offers video-based, self-paced makeup courses covering: Foundation & Base, Eye Artistry, Contouring & Sculpting, Bridal Makeup, Full Glam, Editorial / Creative, Lip Artistry, and Color Theory. Course access is granted per-purchase (no subscription), with tiered pricing per course.
+
+## Gallery
+
+The before/after portfolio gallery is organized by category: Hair, Makeup, Nails, Skin / Glow, Lashes, and Brows.
+
+## Skin Analysis Consultation
+
+A paid, personalized skin-analysis consultation: clients answer a short quiz covering skin tone, undertone, skin type, concerns, and preferences, and receive a personal product/routine recommendation from Jesres Glam Studio.
+
+## Shop
+
+A curated beauty product shop with three categories: makeup sets, skincare sets, and curated collections. Ships to Ghana and the USA, with pricing shown in the appropriate local currency (GHS/USD) by region.
+
+## Locations
+
+- **Ghana**: Accra and Kumasi
+- **USA**: Denver, Colorado
+
+## Key Pages
+
+- [Homepage](https://jes-co.vercel.app/) — JES.CO brand overview
+- [Jesres Glam Studio](https://jes-co.vercel.app/studio) — services, gallery, courses, booking
+- [Gallery](https://jes-co.vercel.app/studio/gallery) — before/after portfolio
+- [Courses](https://jes-co.vercel.app/studio/courses) — full course catalog
+- [Skin Analysis](https://jes-co.vercel.app/studio/skin-analysis) — paid consultation quiz
+- [Testimonials](https://jes-co.vercel.app/studio/testimonials) — client reviews and results
+
+<!-- TODO: swap jes-co.vercel.app for the real jes.co domain once purchased -->

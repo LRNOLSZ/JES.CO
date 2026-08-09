@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- TODO: swap jes-co.vercel.app for the real jes.co domain once purchased -->
+<!-- Known limitation: individual course detail pages (/studio/courses/:slug)
+     aren't listed here since they're dynamic/admin-managed and this is a
+     static file. Could be generated dynamically from a backend endpoint
+     later if worth automating. -->
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>https://jes-co.vercel.app/</loc>
+    <lastmod>2026-08-09</lastmod>
+  </url>
+  <url>
+    <loc>https://jes-co.vercel.app/studio</loc>
+    <lastmod>2026-08-09</lastmod>
+  </url>
+  <url>
+    <loc>https://jes-co.vercel.app/studio/gallery</loc>
+    <lastmod>2026-08-09</lastmod>
+  </url>
+  <url>
+    <loc>https://jes-co.vercel.app/studio/testimonials</loc>
+    <lastmod>2026-08-09</lastmod>
+  </url>
+  <url>
+    <loc>https://jes-co.vercel.app/studio/skin-analysis</loc>
+    <lastmod>2026-08-09</lastmod>
+  </url>
+  <url>
+    <loc>https://jes-co.vercel.app/studio/courses</loc>
+    <lastmod>2026-08-09</lastmod>
+  </url>
+  <url>
+    <loc>https://jes-co.vercel.app/products/makeup</loc>
+    <lastmod>2026-08-09</lastmod>
+  </url>
+  <url>
+    <loc>https://jes-co.vercel.app/products/skincare</loc>
+    <lastmod>2026-08-09</lastmod>
+  </url>
+  <url>
+    <loc>https://jes-co.vercel.app/products/collections</loc>
+    <lastmod>2026-08-09</lastmod>
+  </url>
+</urlset>

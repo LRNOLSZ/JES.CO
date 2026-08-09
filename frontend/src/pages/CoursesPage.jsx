@@ -7,6 +7,7 @@ import JescoFooter from '../components/JescoFooter'
 import VideoPlayer from '../components/VideoPlayer'
 import { Reveal, SectionHead, ArrowIcon } from '../components/Reveal'
 import Modal from '../components/Modal'
+import SEO from '../components/SEO'
 
 const CATEGORIES = [
   { key: 'all',          label: 'All' },
@@ -246,6 +247,10 @@ export default function CoursesPage() {
 
   return (
     <>
+      <SEO
+        title="Makeup Courses — Jesres Glam Studio | JES.CO"
+        description="Video-based makeup courses covering bridal, full glam, editorial, contouring, and color theory — learn at your own pace."
+      />
       <JescoNavbar />
 
       {/* Page hero */}

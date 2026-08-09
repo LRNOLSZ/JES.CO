@@ -1,16 +1,43 @@
-# React + Vite
+# JES.CO / Jesres Glam Studio — Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+React (Vite) single-page app for the JES.CO brand site and Jesres Glam Studio (bookings, courses, gallery, shop, skin analysis).
 
-Currently, two official plugins are available:
+See the [root README](../README.md) for full project context, backend setup, and architecture. This file covers the frontend only.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## Tech Stack
 
-## React Compiler
+React 19 + Vite 8 + Tailwind CSS 4 + Framer Motion + React Router 7 + hls.js (course video playback) + react-helmet-async (per-page meta tags)
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## Setup
 
-## Expanding the ESLint configuration
+```bash
+npm install
+npm run dev
+```
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+Requires a `.env` with:
+
+```
+VITE_API_URL   # Django backend URL
+```
+
+## Commands
+
+```bash
+npm run dev       # Start dev server
+npm run build     # Production build
+npm run lint      # Run ESLint
+npm run preview   # Preview a production build locally
+```
+
+## Structure
+
+```
+src/
+├── api/          API client layer
+├── components/   Shared UI components
+├── context/      React context providers
+├── hooks/        Custom hooks
+├── pages/        Route-level pages
+└── utils/        Helpers
+```

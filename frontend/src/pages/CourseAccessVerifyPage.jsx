@@ -4,6 +4,7 @@ import axios from 'axios'
 import JescoNavbar from '../components/JescoNavbar'
 import JescoFooter from '../components/JescoFooter'
 import { useCourseSession } from '../context/CourseSessionContext'
+import SEO from '../components/SEO'
 
 export default function CourseAccessVerifyPage() {
   const navigate = useNavigate()
@@ -65,6 +66,7 @@ export default function CourseAccessVerifyPage() {
 
   return (
     <>
+      <SEO title="Verifying Access — JES.CO" />
       <JescoNavbar />
       <main style={{ background: 'var(--ink)', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '6rem 1.5rem 4rem' }}>
         <div style={{ textAlign: 'center', maxWidth: '400px', display: 'flex', flexDirection: 'column', gap: '1.25rem', alignItems: 'center' }}>

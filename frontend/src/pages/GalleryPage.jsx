@@ -5,6 +5,7 @@ import axios from 'axios'
 import JescoNavbar from '../components/JescoNavbar'
 import JescoFooter from '../components/JescoFooter'
 import { Reveal } from '../components/Reveal'
+import SEO from '../components/SEO'
 
 const ALL = 'all'
 
@@ -104,6 +105,10 @@ export default function GalleryPage() {
 
   return (
     <div style={{ width: '100%', minHeight: '100vh', display: 'flex', flexDirection: 'column', background: 'var(--ink)' }}>
+      <SEO
+        title="Portfolio Gallery — Jesres Glam Studio | JES.CO"
+        description="Before-and-after makeup transformations by Jesres Glam Studio — bridal, editorial, and full glam looks."
+      />
       <JescoNavbar />
 
       <main style={{ flex: 1, paddingTop: '7rem', paddingBottom: 'clamp(4rem,8vw,7rem)' }}>

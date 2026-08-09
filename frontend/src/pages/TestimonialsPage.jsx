@@ -6,6 +6,7 @@ import JescoNavbar from '../components/JescoNavbar'
 import JescoFooter from '../components/JescoFooter'
 import { BeforeAfterCard } from '../components/BeforeAfterSlider'
 import { StarRow } from '../components/TestimonialsSection'
+import SEO from '../components/SEO'
 
 function QuoteCard({ t }) {
   return (
@@ -71,6 +72,10 @@ export default function TestimonialsPage() {
 
   return (
     <div style={{ width: '100%', minHeight: '100vh', display: 'flex', flexDirection: 'column', background: 'var(--ink)' }}>
+      <SEO
+        title="Client Testimonials — Jesres Glam Studio | JES.CO"
+        description="Real client reviews and results from Jesres Glam Studio's makeup services and courses."
+      />
       <JescoNavbar />
 
       <main style={{ flex: 1, paddingTop: '7rem', paddingBottom: 'clamp(4rem,8vw,7rem)' }}>

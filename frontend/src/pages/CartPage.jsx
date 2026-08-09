@@ -8,6 +8,7 @@ import { useCart } from '../context/CartContext'
 import { useRegion } from '../context/RegionContext'
 import { formatPrice } from '../utils/price'
 import { useExchangeRate } from '../hooks/useExchangeRate'
+import SEO from '../components/SEO'
 
 const PAYSTACK_KEY = import.meta.env.VITE_PAYSTACK_PUBLIC_KEY || ''
 
@@ -237,6 +238,7 @@ export default function CartPage() {
 
   return (
     <div style={{ width: '100%', minHeight: '100vh', background: 'var(--ink)', color: 'var(--bone)' }}>
+      <SEO title="Your Cart — JES.CO Shop" />
       <JescoNavbar />
 
       <section style={{ padding: 'clamp(7rem,14vw,10rem) 0 clamp(4rem,8vw,7rem)' }}>

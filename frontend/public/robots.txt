@@ -1,0 +1,65 @@
+# JES.CO / Jesres Glam Studio
+# General crawlers — allow everything except private/functional pages that
+# have no search or AI-answer value (personal data, session state, or a
+# magic-link token page rather than actual content).
+User-agent: *
+Allow: /
+Disallow: /studio/courses/dashboard
+Disallow: /cart
+Disallow: /track-order
+Disallow: /studio/courses/access/verify
+
+# AI crawlers — named explicitly and deliberately allowed, rather than
+# relying on the wildcard above. Some sites unintentionally block these by
+# default; being deliberate here is the whole point.
+User-agent: GPTBot
+Allow: /
+Disallow: /studio/courses/dashboard
+Disallow: /cart
+Disallow: /track-order
+Disallow: /studio/courses/access/verify
+
+User-agent: ClaudeBot
+Allow: /
+Disallow: /studio/courses/dashboard
+Disallow: /cart
+Disallow: /track-order
+Disallow: /studio/courses/access/verify
+
+User-agent: anthropic-ai
+Allow: /
+Disallow: /studio/courses/dashboard
+Disallow: /cart
+Disallow: /track-order
+Disallow: /studio/courses/access/verify
+
+User-agent: Google-Extended
+Allow: /
+Disallow: /studio/courses/dashboard
+Disallow: /cart
+Disallow: /track-order
+Disallow: /studio/courses/access/verify
+
+User-agent: PerplexityBot
+Allow: /
+Disallow: /studio/courses/dashboard
+Disallow: /cart
+Disallow: /track-order
+Disallow: /studio/courses/access/verify
+
+User-agent: CCBot
+Allow: /
+Disallow: /studio/courses/dashboard
+Disallow: /cart
+Disallow: /track-order
+Disallow: /studio/courses/access/verify
+
+User-agent: OAI-SearchBot
+Allow: /
+Disallow: /studio/courses/dashboard
+Disallow: /cart
+Disallow: /track-order
+Disallow: /studio/courses/access/verify
+
+# TODO: swap jes-co.vercel.app for the real jes.co domain once purchased
+Sitemap: https://jes-co.vercel.app/sitemap.xml

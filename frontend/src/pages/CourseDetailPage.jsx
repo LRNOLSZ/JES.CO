@@ -6,6 +6,7 @@ import JescoNavbar from '../components/JescoNavbar'
 import JescoFooter from '../components/JescoFooter'
 import VideoPlayer from '../components/VideoPlayer'
 import { useExchangeRate, formatUsdEstimate } from '../hooks/useExchangeRate'
+import SEO from '../components/SEO'
 
 const PAYSTACK_KEY = import.meta.env.VITE_PAYSTACK_PUBLIC_KEY || ''
 
@@ -214,6 +215,7 @@ export default function CourseDetailPage() {
 
   if (loading) return (
     <PageShell>
+      <SEO title="Loading Course — Jesres Glam Studio Courses | JES.CO" />
       <div style={{ minHeight: '80vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <div style={{ width: '2rem', height: '2rem', borderRadius: '50%', border: '2px solid var(--hair)', borderTopColor: 'var(--champ)', animation: 'spin 0.8s linear infinite' }} />
       </div>
@@ -222,6 +224,7 @@ export default function CourseDetailPage() {
 
   if (notFound) return (
     <PageShell>
+      <SEO title="Course Not Found — Jesres Glam Studio | JES.CO" />
       <div style={{ minHeight: '80vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '1.5rem' }}>
         <p className="serif" style={{ fontSize: '1.5rem', color: 'var(--taupe)' }}>Course not found</p>
         <Link to="/studio/courses" style={{ color: 'var(--champ)', fontFamily: 'var(--sans)', fontSize: '0.75rem', letterSpacing: '0.2em', textTransform: 'uppercase', textDecoration: 'none' }}>
@@ -236,9 +239,36 @@ export default function CourseDetailPage() {
   const hasSession = !!sessionKey
   const usdEstimate = formatUsdEstimate(course?.price, usdRate)
   const price      = course?.price ? `GHS ${course.price}${usdEstimate ? ` (${usdEstimate})` : ''}` : null
+  const metaDescription = course?.description
+    ? (course.description.length > 155 ? `${course.description.slice(0, 155).trim()}…` : course.description)
+    : undefined
+
+  // TODO: swap jes-co.vercel.app for the real jes.co domain once purchased
+  const courseJsonLd = course ? {
+    '@context': 'https://schema.org',
+    '@type': 'Course',
+    name: course.title,
+    description: course.description,
+    provider: {
+      '@type': 'Organization',
+      name: 'Jesres Glam Studio',
+      sameAs: 'https://jes-co.vercel.app/studio',
+    },
+    offers: {
+      '@type': 'Offer',
+      price: course.price,
+      priceCurrency: 'GHS',
+      url: `https://jes-co.vercel.app/studio/courses/${slug}`,
+    },
+  } : undefined
 
   return (
     <PageShell>
+      <SEO
+        title={`${course?.title || 'Course'} — Jesres Glam Studio Courses | JES.CO`}
+        description={metaDescription}
+        jsonLd={courseJsonLd}
+      />
       {/* Breadcrumb */}
       <div className="wrap" style={{ paddingTop: '6rem' }}>
         <Link to="/studio/courses" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', fontFamily: 'var(--sans)', fontSize: '0.7rem', letterSpacing: '0.15em', textTransform: 'uppercase', color: 'var(--taupe-mut)', textDecoration: 'none', transition: 'color 0.3s' }}

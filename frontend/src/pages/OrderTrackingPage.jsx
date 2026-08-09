@@ -4,6 +4,7 @@ import { motion } from 'framer-motion'
 import axios from 'axios'
 import JescoNavbar from '../components/JescoNavbar'
 import JescoFooter from '../components/JescoFooter'
+import SEO from '../components/SEO'
 
 const STATUS_META = {
   pending:    { color: '#6b7280', label: 'Pending',    desc: 'Your order has been received and is awaiting confirmation.' },
@@ -62,6 +63,7 @@ export default function OrderTrackingPage() {
 
   return (
     <>
+      <SEO title="Track Your Order — JES.CO" />
       <JescoNavbar />
       <main style={{ background: 'var(--ink)', minHeight: '100vh', paddingTop: '6rem', paddingBottom: 'clamp(4rem,8vw,6rem)' }}>
         <div className="wrap" style={{ maxWidth: '580px' }}>

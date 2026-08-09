@@ -5,6 +5,7 @@ import { useCourseSession } from '../context/CourseSessionContext'
 import JescoNavbar from '../components/JescoNavbar'
 import JescoFooter from '../components/JescoFooter'
 import TestimonialSubmitForm from '../components/TestimonialSubmitForm'
+import SEO from '../components/SEO'
 
 const PAYSTACK_KEY = import.meta.env.VITE_PAYSTACK_PUBLIC_KEY || ''
 
@@ -74,6 +75,7 @@ export default function CoursesDashboardPage() {
 
   return (
     <>
+      <SEO title="My Courses — JES.CO" />
       <JescoNavbar />
       <main style={{ background: 'var(--ink)', minHeight: '100vh', paddingTop: '6rem', paddingBottom: 'clamp(4rem,8vw,6rem)' }}>
         <div className="wrap">

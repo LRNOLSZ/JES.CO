@@ -7,9 +7,12 @@
     <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
     <link rel="shortcut icon" href="/favicon.ico" />
     <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/site.webmanifest" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>JES.CO — The Beauty Collective</title>
-    <meta name="description" content="JES.CO — a beauty brand and collective. Explore Jesres Glam Studio, our courses, and our product lines." />
+    <!-- <title> and meta description are no longer set here — every route now
+         renders its own via the <SEO> component (react-helmet-async), so a
+         static tag here would just create a duplicate. See ARCHITECTURE.md /
+         frontend/src/components/SEO.jsx. -->
 
     <!-- Open Graph / WhatsApp / Facebook link preview -->
     <meta property="og:type" content="website" />

@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import axios from 'axios'
 import JescoNavbar from '../components/JescoNavbar'
 import JescoFooter from '../components/JescoFooter'
+import SEO from '../components/SEO'
 
 export default function CourseAccessPage() {
   const [email,     setEmail]     = useState('')
@@ -28,6 +29,10 @@ export default function CourseAccessPage() {
 
   return (
     <>
+      <SEO
+        title="Access Your Courses — JES.CO"
+        description="Enter your email to access your purchased Jesres Glam Studio courses."
+      />
       <JescoNavbar />
       <main style={{ background: 'var(--ink)', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '6rem 1.5rem 4rem' }}>
         <div style={{ width: '100%', maxWidth: '440px', display: 'flex', flexDirection: 'column', gap: '2rem' }}>

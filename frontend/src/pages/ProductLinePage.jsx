@@ -8,6 +8,7 @@ import { Reveal, SectionHead, ArrowIcon } from '../components/Reveal'
 import { useCart } from '../context/CartContext'
 import { useRegion } from '../context/RegionContext'
 import { formatPrice } from '../utils/price'
+import SEO from '../components/SEO'
 
 const META = {
   makeup:      { label: 'Makeup Sets',        sub: 'Pigment-rich. Studio-grade. Built for the woman who never blends in.',    eyebrow: 'The Collection' },
@@ -34,6 +35,35 @@ export default function ProductLinePage() {
 
   const meta = META[category] || { label: 'Products', sub: '', eyebrow: 'The Collection' }
 
+  const AVAILABILITY = {
+    in_stock:     'https://schema.org/InStock',
+    out_of_stock: 'https://schema.org/OutOfStock',
+    coming_soon:  'https://schema.org/PreOrder',
+  }
+
+  // TODO: swap jes-co.vercel.app for the real jes.co domain once purchased
+  const itemListJsonLd = items.length ? {
+    '@context': 'https://schema.org',
+    '@type': 'ItemList',
+    name: meta.label,
+    itemListElement: items.map((item, i) => ({
+      '@type': 'ListItem',
+      position: i + 1,
+      item: {
+        '@type': 'Product',
+        name: item.name,
+        description: item.description,
+        image: item.image_url || undefined,
+        offers: {
+          '@type': 'Offer',
+          price: item.price,
+          priceCurrency: 'GHS',
+          availability: AVAILABILITY[item.stock_status] || 'https://schema.org/InStock',
+        },
+      },
+    })),
+  } : undefined
+
   const handleAdd = (item) => {
     addToCart(item)
     setAdded(prev => ({ ...prev, [item.id]: true }))
@@ -49,6 +79,7 @@ export default function ProductLinePage() {
 
   return (
     <div style={{ width: '100%', minHeight: '100vh', background: 'var(--ink)', color: 'var(--bone)' }}>
+      <SEO title={`${meta.label} — JES.CO Shop`} description={meta.sub} jsonLd={itemListJsonLd} />
       <JescoNavbar />
 
       {/* ── Page header ── */}

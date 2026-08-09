@@ -5,6 +5,7 @@ import JescoNavbar from '../components/JescoNavbar'
 import JescoFooter from '../components/JescoFooter'
 import QuizStep from '../components/QuizStep'
 import { useExchangeRate } from '../hooks/useExchangeRate'
+import SEO from '../components/SEO'
 
 const PAYSTACK_KEY = import.meta.env.VITE_PAYSTACK_PUBLIC_KEY || ''
 
@@ -195,6 +196,10 @@ export default function SkinAnalysisPage() {
 
   return (
     <div style={{ width: '100%', minHeight: '100vh', background: 'var(--ink)', color: 'var(--bone)' }}>
+      <SEO
+        title="Skin Analysis Consultation — Jesres Glam Studio | JES.CO"
+        description="Get a personalized skincare and makeup product recommendation from Jesres Glam Studio's paid skin analysis consultation."
+      />
       <JescoNavbar />
 
       <main style={{ paddingTop: 'clamp(7rem,14vw,9rem)', paddingBottom: 'clamp(4rem,8vw,7rem)' }}>

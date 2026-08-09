@@ -6,6 +6,7 @@ import JescoFooter from '../components/JescoFooter'
 import { Reveal, ArrowIcon, SectionHead } from '../components/Reveal'
 import { usePageImages } from '../hooks/usePageImages'
 import BrandVideoSection from '../components/BrandVideoSection'
+import SEO from '../components/SEO'
 
 /* ═══════════════════════════════════════════
    DATA
@@ -402,10 +403,26 @@ function BrandValues() {
 /* ═══════════════════════════════════════════
    PAGE
 ═══════════════════════════════════════════ */
+// TODO: swap jes-co.vercel.app for the real jes.co domain once purchased
+// (same TODO already applied to robots.txt, sitemap.xml, llms.txt, index.html OG tags)
+const JES_CO_ORGANIZATION_JSONLD = {
+  '@context': 'https://schema.org',
+  '@type': 'Organization',
+  name: 'JES.CO',
+  url: 'https://jes-co.vercel.app/',
+  logo: 'https://jes-co.vercel.app/og-image.png',
+  description: 'JES.CO — a beauty brand and collective. Explore Jesres Glam Studio, our courses, and our product lines.',
+}
+
 export default function JescoHomePage() {
   const images = usePageImages()
   return (
     <div style={{ width: '100%', minHeight: '100vh', background: 'var(--ink)', color: 'var(--bone)' }}>
+      <SEO
+        title="JES.CO — The Beauty Collective"
+        description="JES.CO — a beauty brand and collective. Explore Jesres Glam Studio, our courses, and our product lines."
+        jsonLd={JES_CO_ORGANIZATION_JSONLD}
+      />
       <JescoNavbar overDark />
       <HomeHero heroUrl={images.home_hero_url} />
       <HomeMarquee />

@@ -1,0 +1,25 @@
+{
+  "name": "JES.CO — The Beauty Collective",
+  "short_name": "JES.CO",
+  "start_url": "/",
+  "display": "browser",
+  "theme_color": "#60269E",
+  "background_color": "#FFFFFF",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "type": "image/svg+xml",
+      "sizes": "any"
+    },
+    {
+      "src": "/favicon-32x32.png",
+      "type": "image/png",
+      "sizes": "32x32"
+    },
+    {
+      "src": "/apple-touch-icon.png",
+      "type": "image/png",
+      "sizes": "180x180"
+    }
+  ]
+}

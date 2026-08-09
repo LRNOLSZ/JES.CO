@@ -1,6 +1,7 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
+import { HelmetProvider } from 'react-helmet-async'
 import axios from 'axios'
 import { CourseSessionProvider } from './context/CourseSessionContext'
 import { CartProvider } from './context/CartContext'
@@ -15,14 +16,16 @@ axios.defaults.baseURL = import.meta.env.VITE_API_URL || 'http://localhost:8000'
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
-    <BrowserRouter>
-      <CourseSessionProvider>
-        <RegionProvider>
-          <CartProvider>
-            <App />
-          </CartProvider>
-        </RegionProvider>
-      </CourseSessionProvider>
-    </BrowserRouter>
+    <HelmetProvider>
+      <BrowserRouter>
+        <CourseSessionProvider>
+          <RegionProvider>
+            <CartProvider>
+              <App />
+            </CartProvider>
+          </RegionProvider>
+        </CourseSessionProvider>
+      </BrowserRouter>
+    </HelmetProvider>
   </StrictMode>,
 )

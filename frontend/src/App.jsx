@@ -27,6 +27,7 @@ import OrderTrackingPage       from './pages/OrderTrackingPage'
 import TestimonialsPage        from './pages/TestimonialsPage'
 import SkinAnalysisPage        from './pages/SkinAnalysisPage'
 import AnnouncementPopup       from './components/AnnouncementPopup'
+import SEO                     from './components/SEO'
 
 const STUDIO_WORDS = ['Bridal Glam', 'Editorial', 'Corrective Skin', 'Transformation', 'Training', 'Photoshoot']
 
@@ -46,9 +47,32 @@ function StudioMarquee() {
   )
 }
 
+// TODO: swap jes-co.vercel.app for the real jes.co domain once purchased.
+// No `address`/`telephone` — no real street address exists yet and
+// WHATSAPP_NUMBER is still a dev placeholder (see CLAUDE.md Post-Launch
+// Reminders); shipping either as real structured data would be inaccurate.
+const JESRES_GLAM_STUDIO_JSONLD = {
+  '@context': 'https://schema.org',
+  '@type': 'BeautySalon',
+  name: 'Jesres Glam Studio',
+  url: 'https://jes-co.vercel.app/studio',
+  image: 'https://jes-co.vercel.app/og-image.png',
+  description: 'Professional makeup artistry, courses, and bookings from Jesres Glam Studio — bridal, editorial, and full glam makeup.',
+  areaServed: [
+    { '@type': 'City', name: 'Accra', containedInPlace: { '@type': 'Country', name: 'Ghana' } },
+    { '@type': 'City', name: 'Kumasi', containedInPlace: { '@type': 'Country', name: 'Ghana' } },
+    { '@type': 'City', name: 'Denver', containedInPlace: { '@type': 'State', name: 'Colorado' } },
+  ],
+}
+
 function StudioHomePage() {
   return (
     <>
+      <SEO
+        title="Jesres Glam Studio — Bridal, Editorial & Full Glam Makeup | JES.CO"
+        description="Professional makeup artistry, courses, and bookings from Jesres Glam Studio — bridal, editorial, and full glam makeup in Accra, Kumasi, and Denver."
+        jsonLd={JESRES_GLAM_STUDIO_JSONLD}
+      />
       <JescoNavbar />
       <main style={{ width: '100%' }}>
         <StudioHero />
