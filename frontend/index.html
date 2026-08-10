@@ -9,10 +9,16 @@
     <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
     <link rel="manifest" href="/site.webmanifest" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <!-- <title> and meta description are no longer set here — every route now
-         renders its own via the <SEO> component (react-helmet-async), so a
-         static tag here would just create a duplicate. See ARCHITECTURE.md /
-         frontend/src/components/SEO.jsx. -->
+    <!-- Static fallback — every route also renders its own via <SEO>
+         (react-helmet-async, frontend/src/components/SEO.jsx), which
+         overrides these for any browser/crawler that runs JavaScript.
+         This static pair exists specifically for crawlers that DON'T run
+         JS and only ever see the raw HTML — without it they'd get no
+         title/description at all, not just a generic one. (Regression
+         found 2026-08-10, see CLAUDE.md changelog + discoverability_seo
+         memory — don't remove this again without pre-rendering in place.) -->
+    <title>JES.CO — The Beauty Collective</title>
+    <meta name="description" content="JES.CO — a beauty brand and collective. Explore Jesres Glam Studio, our courses, and our product lines." />
 
     <!-- Open Graph / WhatsApp / Facebook link preview -->
     <meta property="og:type" content="website" />

@@ -14,6 +14,16 @@ import App from './App.jsx'
 // this must point at the real backend via VITE_API_URL (set in Vercel env vars).
 axios.defaults.baseURL = import.meta.env.VITE_API_URL || 'http://localhost:8000'
 
+// index.html has a static <title>/<meta name="description"> fallback, for
+// crawlers that never run this JS at all. Anything that DOES run this file
+// gets react-helmet-async's per-route version instead — but Helmet only
+// manages tags it renders itself, it won't remove the static ones. Strip
+// them here, before Helmet ever mounts, so JS-capable visitors never end up
+// with two <title>/description tags (which happened once already — see
+// CLAUDE.md changelog / discoverability_seo memory, 2026-08-10).
+document.querySelector('title')?.remove()
+document.querySelector('meta[name="description"]')?.remove()
+
 createRoot(document.getElementById('root')).render(
   <StrictMode>
     <HelmetProvider>
