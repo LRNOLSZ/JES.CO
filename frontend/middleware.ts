@@ -35,7 +35,7 @@ export default async function middleware(request: Request) {
     return // fall through to normal static/rewrite handling, unchanged
   }
 
-  const prerenderUrl = `https://service.prerender.io${url.pathname}${url.search}`
+  const prerenderUrl = `https://service.prerender.io/${url.origin}${url.pathname}${url.search}`
   const rendered = await fetch(prerenderUrl, {
     headers: { 'X-Prerender-Token': process.env.PRERENDER_TOKEN || '' },
   })
