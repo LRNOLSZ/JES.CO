@@ -116,6 +116,4 @@ VITE_API_URL   # Django backend URL
 - **Booking** — multi-step booking form with email notifications
 - **Admin panel** — Django Unfold, brute-force protected (`django-axes`), idle session timeout
 
-## Documentation
 
-- [`CLAUDE.md`](CLAUDE.md) — full architecture notes, decision changelog, deployment lessons, and the pending security audit punch list
