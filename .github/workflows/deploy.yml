@@ -17,9 +17,6 @@ on:
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: frontend
     steps:
       - uses: actions/checkout@v4
 
@@ -28,9 +25,11 @@ jobs:
           node-version: 22
 
       - name: Install dependencies
+        working-directory: frontend
         run: npm ci
 
       - name: Install Playwright browser + system dependencies
+        working-directory: frontend
         run: npx playwright install --with-deps chromium
 
       - name: Install Vercel CLI
