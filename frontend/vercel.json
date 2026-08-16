@@ -1,5 +1,8 @@
 {
   "rewrites": [
     { "source": "/(.*)", "destination": "/app-shell.html" }
-  ]
+  ],
+  "git": {
+    "deploymentEnabled": false
+  }
 }

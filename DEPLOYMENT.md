@@ -72,6 +72,15 @@ Every variable the backend actually reads via `config(...)` (`python-decouple`),
 | `VITE_API_URL` | Points the frontend's axios instance at the Railway backend — without it, axios falls back to `http://localhost:8000` |
 | `VITE_PAYSTACK_PUBLIC_KEY` | Paystack's public key — safe to expose client-side, used to open the inline checkout popup |
 
+**GitHub Actions Secrets** (repo Settings → Secrets and variables → Actions — *not* Railway or Vercel env vars)
+| Secret | Purpose |
+|---|---|
+| `VERCEL_TOKEN` | Auth for the Vercel CLI running inside the GitHub Actions workflow — generated from Vercel Account Settings → Tokens |
+| `VERCEL_ORG_ID` | Identifies which Vercel team/account to deploy to — despite the name, this is the **Team ID** shown in Vercel's Team Settings (not project settings), a naming holdover from when Vercel called teams "Organizations" |
+| `VERCEL_PROJECT_ID` | Identifies which Vercel project to deploy to — shown directly on the project's own Settings → General page |
+
+These three exist because the frontend's build (`.github/workflows/deploy.yml`) runs on GitHub's infrastructure, not Vercel's — see "GitHub Actions — Frontend Build & Deploy" below for why.
+
 ---
 
 ## Railway-Specific Setup
@@ -84,9 +93,20 @@ Every variable the backend actually reads via `config(...)` (`python-decouple`),
 
 ## Vercel-Specific Setup
 
-- **`vercel.json` SPA rewrite is required**: `{ "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }] }`. Without it, refreshing on any route other than `/` (e.g. `/studio`) returns a real `404: NOT_FOUND` from Vercel's server, since React Router only handles routing client-side and a hard refresh asks the server for a literal path that doesn't exist as a file.
+- **`vercel.json` SPA rewrite is required**: `{ "rewrites": [{ "source": "/(.*)", "destination": "/app-shell.html" }] }`. Without it, refreshing on any route other than `/` (e.g. `/studio`) returns a real `404: NOT_FOUND` from Vercel's server, since React Router only handles routing client-side and a hard refresh asks the server for a literal path that doesn't exist as a file. (Destination is `/app-shell.html`, not `/index.html` — see the pre-rendering note below for why.)
 - **Production Branch must track `master`, not `main`.** Vercel's Settings → Environments → Production has its own branch-tracking setting, separate from GitHub's default branch — set it explicitly, or every push only creates Preview deployments while the live domain keeps serving an old build.
 - **`VITE_API_URL` must be set** or the frontend silently falls back to `http://localhost:8000` in production (19 files originally called bare `axios.get('/api/...')`, relying on Vite's dev-only proxy — fixed by setting `axios.defaults.baseURL` once in `main.jsx`).
+- **`vercel.json` has `"git": {"deploymentEnabled": false}`.** Vercel's own automatic build-on-git-push is deliberately turned off — see the next section for why.
+
+## GitHub Actions — Frontend Build & Deploy
+
+The frontend is **not** built by Vercel itself anymore. `.github/workflows/deploy.yml` builds it on GitHub's infrastructure instead, then hands Vercel the finished files to publish (`vercel build` + `vercel deploy --prebuilt`).
+
+**Why**: the build includes a step (`frontend/scripts/prerender.mjs`) that opens a real headless browser (Playwright) to pre-render every page as static HTML — see CLAUDE.md's "Discoverability" section (Tier 3) and the `discoverability_seo` memory for the full reasoning. Vercel's own build container doesn't allow installing the system-level libraries a real browser needs (confirmed via a real failed deploy: `error while loading shared libraries: libnspr4.so`), and there's no way to add them there. GitHub Actions' standard runners don't have that restriction.
+
+**Still triggers on the same thing as before** — a push to `master`. Nothing about deploys becoming less visible or less under your control; it just now runs on GitHub's machines instead of failing on Vercel's.
+
+Requires the three `VERCEL_*` GitHub Actions secrets documented above. If those are ever missing or wrong, the workflow fails at the `vercel pull`/`vercel build`/`vercel deploy` step with an auth error — check the repo's **Actions** tab for the run log.
 
 ---
 
