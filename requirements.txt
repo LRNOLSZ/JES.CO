@@ -6,7 +6,7 @@ charset-normalizer==3.4.7
 cloudinary==1.44.2
 diff-match-patch==20241021
 dj-database-url==3.1.2
-Django==6.0
+Django==6.0.8
 django-appconf==1.2.0
 django-axes==8.3.1
 django-cleanup==9.0.0
@@ -22,15 +22,15 @@ idna==3.18
 jmespath==1.1.0
 packaging==26.2
 pilkit==3.0
-pillow==12.1.1
+pillow==12.3.0
 psycopg2-binary==2.9.11
 python-dateutil==2.9.0.post0
 python-decouple==3.8
 requests==2.34.2
 s3transfer==0.18.0
 six==1.17.0
-sqlparse==0.5.4
-tablib==3.9.0
+sqlparse==0.6.0
+tablib==3.10.0
 tzdata==2025.2
 urllib3==2.7.0
 whitenoise==6.12.0

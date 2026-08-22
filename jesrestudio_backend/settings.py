@@ -73,7 +73,10 @@ AUTHENTICATION_BACKENDS = [
 AXES_FAILURE_LIMIT = 10          # lock after 10 failed attempts
 AXES_COOLOFF_TIME = 1            # auto-unlock after 1 hour
 AXES_RESET_ON_SUCCESS = True     # reset counter on successful login
-AXES_LOCKOUT_PARAMETERS = ['ip_address']
+# Behind Railway's proxy, axes' default IP detection can't tell real visitors
+# apart — reuse the same trustworthy IP logic already used for rate limiting.
+AXES_CLIENT_IP_CALLABLE = 'core.views.get_client_ip'
+AXES_LOCKOUT_PARAMETERS = [['ip_address', 'username']]
 
 ROOT_URLCONF = 'jesrestudio_backend.urls'
 

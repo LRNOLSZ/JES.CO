@@ -1,4 +1,5 @@
 import logging
+from decimal import Decimal
 from urllib.parse import quote
 
 from django.conf import settings
@@ -6,6 +7,7 @@ from django.core.cache import cache
 from django.db.models import F
 from django.db.models.functions import Greatest
 from django.utils import timezone
+from django.utils.html import escape
 
 from rest_framework import status as drf_status
 from rest_framework.views import APIView
@@ -177,7 +179,7 @@ class OrderCreateView(APIView):
         admin_email = getattr(settings, 'MAAME_AMA_EMAIL', '')
         if admin_email:
             items_html = '<br>'.join(
-                f'{i["name"]} x{i["quantity"]} @ {i["price"]}' for i in data.get('items', [])
+                f'{escape(i["name"])} x{i["quantity"]} @ {escape(str(i["price"]))}' for i in data.get('items', [])
             )
             delivery_html = ''
             if delivery_zone:
@@ -187,9 +189,9 @@ class OrderCreateView(APIView):
                 admin_email,
                 title='New WhatsApp Order Request',
                 message=(
-                    f'Customer: {data["full_name"]} ({data["email"]}, {data["phone"]})<br>'
-                    f'Address: {data.get("address") or "N/A"}<br>'
-                    f'Notes: {data.get("notes") or "N/A"}<br><br>'
+                    f'Customer: {escape(data["full_name"])} ({escape(data["email"])}, {escape(data["phone"])})<br>'
+                    f'Address: {escape(data.get("address") or "N/A")}<br>'
+                    f'Notes: {escape(data.get("notes") or "N/A")}<br><br>'
                     f'Items:<br>{items_html}{delivery_html}<br><br>'
                     f'Once payment is received, complete this order via Paystack checkout '
                     f'on the customer\'s behalf so they get their automatic receipt and tracking link.'
@@ -252,7 +254,7 @@ def _process_product_charge(data):
     if Order.objects.filter(paystack_reference=reference).exists():
         return Response({'detail': 'Already processed.'})
 
-    amount_ghs   = amount_pesewas / 100
+    amount_ghs   = Decimal(amount_pesewas) / 100
     zone_id      = meta.get('delivery_zone_id')
     customer_name = meta.get('customer_name', '')
     phone        = meta.get('phone', '')
@@ -261,11 +263,11 @@ def _process_product_charge(data):
     items_meta   = meta.get('items', [])
 
     delivery_zone = None
-    delivery_fee  = 0
+    delivery_fee  = Decimal('0')
     if zone_id:
         try:
             delivery_zone = DeliveryZone.objects.get(pk=zone_id)
-            delivery_fee  = float(delivery_zone.price)
+            delivery_fee  = delivery_zone.price  # already a DecimalField — no cast needed
         except DeliveryZone.DoesNotExist:
             pass
 
@@ -280,22 +282,48 @@ def _process_product_charge(data):
     # only proves this payload came from Paystack unaltered, not that it was
     # ever the right price. Recompute the real expected total from the DB
     # (never trusting item['price'] from metadata) and enforce it here.
+    MAX_ITEM_QTY = 50
+
     is_usa = bool(delivery_zone and delivery_zone.country == 'usa')
-    expected_total_native = delivery_fee  # USD if is_usa, else already GHS
+
+    # Every item is re-derived from the database — id, quantity, name and
+    # price are never trusted from the client-supplied metadata beyond being
+    # a lookup key. A single bad item invalidates the whole cart (same as a
+    # price mismatch below) rather than silently dropping or partially
+    # fulfilling it — this closes both the negative-quantity underpayment
+    # exploit and the ghost/inactive-product injection exploit.
+    validated_items = []
+    invalid_reason = None
     for item in items_meta:
         try:
-            product = ProductItem.objects.get(pk=item.get('id'))
-        except (ProductItem.DoesNotExist, ValueError, TypeError):
-            continue
+            pid = int(item.get('id'))
+            qty = int(item.get('quantity', 1))
+        except (TypeError, ValueError):
+            invalid_reason = f'Malformed item in cart: {item!r}'
+            break
+        if qty < 1 or qty > MAX_ITEM_QTY:
+            invalid_reason = f'Invalid quantity ({qty}) for product {pid}'
+            break
+        product = ProductItem.objects.filter(pk=pid, is_active=True).first()
+        if not product:
+            invalid_reason = f'Unknown or inactive product ({pid})'
+            break
         unit_price = product.price_usd if (is_usa and product.price_usd) else product.price
-        expected_total_native += float(unit_price or 0) * item.get('quantity', 1)
+        if unit_price is None:
+            invalid_reason = f'Product {pid} has no price set'
+            break
+        validated_items.append((product, qty, unit_price))
+
+    expected_total_native = delivery_fee + sum((u * q for _, q, u in validated_items), Decimal('0'))
 
     rate_unavailable = False
-    if is_usa:
+    if invalid_reason:
+        expected_total_ghs = None
+    elif is_usa:
         from core.views import get_ghs_usd_rate
         rate = get_ghs_usd_rate()
         if rate:
-            expected_total_ghs = expected_total_native / rate
+            expected_total_ghs = expected_total_native / Decimal(str(rate))
         else:
             expected_total_ghs = None
             rate_unavailable = True
@@ -305,24 +333,26 @@ def _process_product_charge(data):
     # A fixed exchange rate is applied on both ends (frontend at checkout,
     # backend here) from independently-cached snapshots, so a small legitimate
     # drift is expected for USA orders — hence a relative, not flat, tolerance.
-    tolerance = max(1.0, (expected_total_ghs or 0) * 0.02)
-    mismatch  = rate_unavailable or (amount_ghs + tolerance < expected_total_ghs)
+    tolerance = max(Decimal('1.0'), (expected_total_ghs or Decimal('0')) * Decimal('0.02'))
+    mismatch  = bool(invalid_reason) or rate_unavailable or (amount_ghs + tolerance < expected_total_ghs)
 
     if mismatch:
         alert_key = f'price_mismatch_alerted_{reference}'
         admin_email = getattr(settings, 'MAAME_AMA_EMAIL', '')
         if admin_email and not cache.get(alert_key):
             cache.set(alert_key, True, timeout=60 * 60 * 24 * 7)
-            items_text = '<br>'.join(f'{i.get("name","")} x{i.get("quantity",1)}' for i in items_meta)
-            expected_line = (
-                'Could not verify — exchange rate unavailable.'
-                if rate_unavailable else f'GHS {expected_total_ghs:.2f}'
-            )
+            items_text = '<br>'.join(f'{escape(str(i.get("name","")))} x{i.get("quantity",1)}' for i in items_meta)
+            if invalid_reason:
+                expected_line = f'Rejected — {invalid_reason}'
+            elif rate_unavailable:
+                expected_line = 'Could not verify — exchange rate unavailable.'
+            else:
+                expected_line = f'GHS {expected_total_ghs:.2f}'
             send_branded_email(
                 admin_email,
                 title='Underpaid Shop Charge Flagged',
                 message=(
-                    f'A charge from {customer_name or email} ({email}) was flagged and NOT turned into an order.<br><br>'
+                    f'A charge from {escape(customer_name or email)} ({escape(email)}) was flagged and NOT turned into an order.<br><br>'
                     f'Items:<br>{items_text}<br><br>'
                     f'This usually means the checkout amount was tampered with client-side, '
                     f'or (for a USA order) the exchange rate could not be verified. '
@@ -352,15 +382,15 @@ def _process_product_charge(data):
         delivery_fee       = delivery_fee,
         paystack_reference = reference,
     )
-    for item in items_meta:
+    for product, qty, unit_price in validated_items:
         OrderItem.objects.create(
             order      = order,
-            product_id = item.get('id', 0),
-            name       = item.get('name', ''),
-            price      = item.get('price', ''),
-            quantity   = item.get('quantity', 1),
+            product_id = product.pk,
+            name       = product.name,
+            price      = str(unit_price),
+            quantity   = qty,
         )
-    shortages = _decrement_stock(items_meta)
+    shortages = _decrement_stock([{'id': p.pk, 'quantity': q} for p, q, _ in validated_items])
 
     # Customer receipt
     delivery_display = (
@@ -399,7 +429,7 @@ def _process_product_charge(data):
         send_branded_email(
             admin_email,
             title='New Order Received',
-            message=f'New paid order #{order.pk} from {customer_name} ({email}).',
+            message=f'New paid order #{order.pk} from {escape(customer_name)} ({escape(email)}).',
             details=[
                 ('Order #', f'#{order.pk}'),
                 ('Total', total_display),

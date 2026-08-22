@@ -277,9 +277,14 @@ def video_heartbeat(request, slug):
         return Response({'allowed': False, 'reason': 'access_expired'})
 
     cutoff = timezone.now() - timezone.timedelta(seconds=60)
+    # VideoHeartbeat has no email column, only session_key — cross-reference through
+    # CourseSession (max 2 per email) so this only ever counts the requesting
+    # student's own devices, never other students' concurrent viewers.
+    own_session_keys = CourseSession.objects.filter(email=session.email).values_list('session_key', flat=True)
     active_count = VideoHeartbeat.objects.filter(
         course=course,
         last_ping__gte=cutoff,
+        session_key__in=own_session_keys,
     ).exclude(session_key=session.session_key).count()
 
     if active_count >= 2:
