@@ -15,7 +15,7 @@ django-cors-headers==4.9.0
 django-imagekit==6.1.0
 django-import-export==4.4.0
 django-storages==1.14.6
-django-unfold==0.86.1
+django-unfold==0.104.1
 djangorestframework==3.16.1
 gunicorn==26.0.0
 idna==3.18
