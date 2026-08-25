@@ -2,9 +2,11 @@ from django.contrib import admin
 from django.db.models import Count
 from django.utils.html import format_html
 from import_export.admin import ImportExportModelAdmin
-from unfold.admin import ModelAdmin
+from unfold.admin import ModelAdmin, TabularInline
 from unfold.contrib.import_export.forms import ExportForm, ImportForm
+from unfold.decorators import display
 
+from core.admin import url_preview
 from jesrestudio_backend.email_backends import send_branded_email
 
 from .models import DeliveryZone, Order, OrderItem, ProductItem
@@ -20,20 +22,15 @@ class DeliveryZoneAdmin(ModelAdmin):
     list_filter   = ('country', 'is_active')
     ordering      = ('country', 'order', 'location_name')
     fieldsets = (
-        ('Ghana Delivery', {
+        ('Delivery Zone Details', {
             'fields': ('country', 'location_name', 'price', 'is_active', 'order'),
             'description': 'Set country to "Ghana" for Ghana zones, "USA" for USA zones.',
         }),
     )
 
+    @display(description='Country', label={'ghana': 'primary', 'usa': 'info'})
     def country_badge(self, obj):
-        color = '#60269E' if obj.country == 'ghana' else '#1a56db'
-        label = obj.get_country_display()
-        return format_html(
-            '<span style="background:{};color:#fff;padding:2px 10px;border-radius:999px;font-size:0.7rem;">{}</span>',
-            color, label,
-        )
-    country_badge.short_description = 'Country'
+        return obj.country, obj.get_country_display()
 
     def price_display(self, obj):
         currency = 'GHS' if obj.country == 'ghana' else 'USD'
@@ -44,18 +41,24 @@ class DeliveryZoneAdmin(ModelAdmin):
 
 # ── Orders ─────────────────────────────────────────────────────────────────────
 
-class OrderItemInline(admin.TabularInline):
+class OrderItemInline(TabularInline):
     model         = OrderItem
     extra         = 0
+    tab           = True
     fields        = ('name', 'price', 'quantity')
     readonly_fields = ('name', 'price', 'quantity')
 
 
 STATUS_COLORS = {
+    # Still used by changelist_view() below for the status-counts summary bar
+    # (a separate custom template, out of scope for this badge-pill pass — see
+    # the admin_dashboard_aesthetic_overhaul memory). status_badge() itself no
+    # longer reads this dict; it uses Unfold's native @display(label=...)
+    # instead. Kept in sync with the corrected brand palette regardless.
     'pending':    ('#6b7280', 'Pending'),
     'confirmed':  ('#1a56db', 'Confirmed'),
     'processing': ('#d97706', 'Processing'),
-    'shipped':    ('#60269E', 'Shipped'),
+    'shipped':    ('#A8864A', 'Shipped'),
     'delivered':  ('#16a34a', 'Delivered'),
     'cancelled':  ('#dc2626', 'Cancelled'),
 }
@@ -90,23 +93,25 @@ class OrderAdmin(ImportExportModelAdmin, ModelAdmin):
     readonly_fields = ('created_at', 'paystack_reference', 'status_badge')
     inlines         = [OrderItemInline]
     list_before_template = 'admin/products/order/status_counts.html'
+    compressed_fields = True
 
     fieldsets = (
         ('Customer', {
             'fields': ('full_name', 'email', 'phone', 'address', 'notes'),
+            'classes': ('tab',),
         }),
         ('Order', {
             'fields': ('status', 'total', 'delivery_zone', 'delivery_fee', 'paystack_reference', 'created_at'),
+            'classes': ('tab',),
         }),
     )
 
+    @display(description='Status', label={
+        'confirmed': 'info', 'processing': 'warning', 'shipped': 'primary',
+        'delivered': 'success', 'cancelled': 'danger',
+    })
     def status_badge(self, obj):
-        color, label = STATUS_COLORS.get(obj.status, ('#6b7280', obj.status))
-        return format_html(
-            '<span style="background:{};color:#fff;padding:2px 10px;border-radius:999px;font-size:0.7rem;font-weight:600;">{}</span>',
-            color, label,
-        )
-    status_badge.short_description = 'Status'
+        return obj.status, obj.get_status_display()
 
     def changelist_view(self, request, extra_context=None):
         counts_by_status = dict(
@@ -152,7 +157,22 @@ class ProductItemAdmin(ModelAdmin):
     list_filter   = ('category', 'stock_status', 'is_active')
     search_fields = ('name', 'description')
     ordering      = ('category', 'order', '-created_at')
-    fields        = ('category', 'name', 'description', 'price', 'price_usd', 'image', 'stock_status', 'quantity', 'order', 'is_active')
+    readonly_fields = ('image_preview',)
+    fieldsets = (
+        ('Basic Info', {
+            'fields': ('category', 'name', 'description', 'image', 'image_preview'),
+        }),
+        ('Pricing', {
+            'fields': ('price', 'price_usd'),
+        }),
+        ('Inventory & Visibility', {
+            'fields': ('stock_status', 'quantity', 'order', 'is_active'),
+        }),
+    )
+
+    def image_preview(self, obj):
+        return url_preview(obj.image)
+    image_preview.short_description = 'Current'
 
     def thumb(self, obj):
         if obj.image:
@@ -170,28 +190,14 @@ class ProductItemAdmin(ModelAdmin):
     price_usd_display.short_description = 'Price (USD)'
     price_usd_display.admin_order_field = 'price_usd'
 
+    @display(description='Category', label={
+        'makeup': 'primary', 'skincare': 'success', 'collections': 'warning',
+    })
     def category_badge(self, obj):
-        colours = {
-            'makeup':      '#60269E',
-            'skincare':    '#1c6b4a',
-            'collections': '#8a5a1e',
-        }
-        colour = colours.get(obj.category, '#555')
-        return format_html(
-            '<span style="background:{};color:#fff;padding:2px 10px;border-radius:999px;font-size:0.7rem;">{}</span>',
-            colour, obj.get_category_display()
-        )
-    category_badge.short_description = 'Category'
+        return obj.category, obj.get_category_display()
 
+    @display(description='Stock', label={
+        'in_stock': 'success', 'out_of_stock': 'danger', 'coming_soon': 'warning',
+    })
     def stock_badge(self, obj):
-        colours = {
-            'in_stock':    ('#16a34a', 'In Stock'),
-            'out_of_stock':('#dc2626', 'Out of Stock'),
-            'coming_soon': ('#d97706', 'Coming Soon'),
-        }
-        colour, label = colours.get(obj.stock_status, ('#555', obj.stock_status))
-        return format_html(
-            '<span style="background:{};color:#fff;padding:2px 10px;border-radius:999px;font-size:0.7rem;">{}</span>',
-            colour, label
-        )
-    stock_badge.short_description = 'Stock'
+        return obj.stock_status, obj.get_stock_status_display()

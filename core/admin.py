@@ -3,13 +3,14 @@ from datetime import date
 
 from django import forms
 from django.contrib import admin
-from django.db.models import Sum
+from django.db.models import Q, Sum
 from django.db.models.functions import TruncMonth
 from django.shortcuts import redirect
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.html import format_html, mark_safe
 from unfold.admin import ModelAdmin
+from unfold.decorators import display
 
 from .models import IntroVideo as _IntroVideo
 
@@ -33,11 +34,58 @@ from .models import BookingRevenue, Announcement
 
 
 def url_preview(field, size=80):
-    """Render a small thumbnail from an ImageField or URL string, or a dash if empty."""
+    """Render a small thumbnail from an ImageField or URL string, or a dash if empty.
+    Wrapped in a bordered rounded "media card" so it reads as a distinct element on
+    the page instead of a bare floating image — same treatment as video_preview()."""
     url = field.url if field and hasattr(field, 'url') else field
     if url:
-        return mark_safe(f'<img src="{url}" style="height:{size}px;width:auto;border-radius:6px;object-fit:cover;" />')
+        return mark_safe(
+            f'<div class="inline-block p-1 bg-base-50 dark:bg-base-900 border border-base-200 '
+            f'dark:border-base-800 rounded-default overflow-hidden">'
+            f'<img src="{url}" style="height:{size}px;width:auto;border-radius:4px;object-fit:cover;" />'
+            f'</div>'
+        )
     return '—'
+
+
+def action_button(url, label):
+    """Themed link-button using real Unfold/Tailwind classes (matching its own button
+    styling) instead of hand-rolled hex — reused by any admin.py view that renders a
+    clickable admin action (e.g. CoursePurchaseAdmin/StudentAdmin's 'add course' links)."""
+    return format_html(
+        '<a href="{}" class="bg-primary-600 hover:bg-primary-700 text-white text-xs font-medium '
+        'px-4 py-2 rounded-default inline-block no-underline">{}</a>',
+        url, label,
+    )
+
+
+def initials_avatar(text):
+    """Small circle showing the first letter of `text`, matching Unfold's own
+    avatar.html chrome (same real Tailwind classes it uses, not hand-computed
+    color values) — reused across every person-centric list view."""
+    initial = (text or '?')[0].upper()
+    return format_html(
+        '<div class="bg-base-200 dark:bg-base-700 h-8 w-8 min-w-8 rounded-default flex items-center '
+        'justify-center font-semibold text-xs text-font-important-light dark:text-font-important-dark">{}</div>',
+        initial,
+    )
+
+
+def person_display(primary_text, subtitle=None):
+    """Avatar + primary text (+ optional smaller subtitle line) — the dash2-style
+    identity-column cell used across CoursePurchase/Student/CourseComment/
+    CourseSession/SkinAnalysisSubmission/User list views."""
+    avatar = initials_avatar(primary_text)
+    if subtitle:
+        return format_html(
+            '<div class="flex items-center gap-2">{}<div><div class="font-medium">{}</div>'
+            '<div class="text-xs text-font-subtle-light dark:text-font-subtle-dark">{}</div></div></div>',
+            avatar, primary_text, subtitle,
+        )
+    return format_html(
+        '<div class="flex items-center gap-2">{}<div class="font-medium">{}</div></div>',
+        avatar, primary_text,
+    )
 
 
 def video_preview(field, size=160):
@@ -50,8 +98,11 @@ def video_preview(field, size=160):
     url = field.url if field and hasattr(field, 'url') else field
     if url:
         return mark_safe(
+            f'<div class="inline-block p-1 bg-base-50 dark:bg-base-900 border border-base-200 '
+            f'dark:border-base-800 rounded-default overflow-hidden">'
             f'<video data-hls-src="{url}" controls '
-            f'style="height:{size}px;width:auto;border-radius:6px;background:#000;"></video>'
+            f'style="height:{size}px;width:auto;border-radius:4px;background:#000;"></video>'
+            f'</div>'
         )
     return '—'
 
@@ -60,9 +111,11 @@ def video_preview(field, size=160):
 
 @admin.register(PageImages)
 class PageImagesAdmin(ModelAdmin):
+    compressed_fields = True
     fieldsets = (
         ('Home Page', {
             'fields': ('home_hero', 'home_hero_preview', 'home_studio_feature', 'home_studio_feature_preview'),
+            'classes': ('tab',),
         }),
         ('Studio Page', {
             'fields': (
@@ -71,6 +124,7 @@ class PageImagesAdmin(ModelAdmin):
                 'studio_booking',         'studio_booking_preview',
                 'studio_testimonials_bg', 'studio_testimonials_bg_preview',
             ),
+            'classes': ('tab',),
         }),
     )
     readonly_fields = (
@@ -150,10 +204,17 @@ class TestimonialAdmin(ModelAdmin):
     list_editable = ('order', 'is_active')
     list_filter   = ('testimonial_type', 'is_active')
     ordering      = ('order', '-created_at')
-    fields        = (
-        'testimonial_type', 'name', 'location', 'comment', 'profile_picture',
-        'before_image', 'before_image_preview', 'after_image', 'after_image_preview',
-        'rating', 'service', 'source_comment', 'order', 'is_active',
+    compressed_fields = True
+    fieldsets = (
+        ('Testimonial', {
+            'fields': ('testimonial_type', 'name', 'location', 'comment', 'profile_picture'),
+        }),
+        ('Before & After Photos', {
+            'fields': ('before_image', 'before_image_preview', 'after_image', 'after_image_preview'),
+        }),
+        ('Rating & Publishing', {
+            'fields': ('rating', 'service', 'source_comment', 'order', 'is_active'),
+        }),
     )
     readonly_fields = ('before_image_preview', 'after_image_preview')
 
@@ -198,10 +259,13 @@ class BookingRevenueAdmin(ModelAdmin):
 
 # ── Announcements ──────────────────────────────────────────────────────────────
 
-ANNOUNCEMENT_STATUS_COLORS = {
-    'ongoing':  ('#16a34a', 'Happening Now'),
-    'upcoming': ('#D4AF37', 'Upcoming'),
-    'past':     ('#6b7280', 'Past'),
+# obj.status is a Python property (core/models.py), not a choices field, so there's
+# no get_status_display() to reuse — just the display text here, color mapping is
+# now handled by the @display(label=...) decorator below instead of hardcoded hex.
+ANNOUNCEMENT_STATUS_LABELS = {
+    'ongoing':  'Happening Now',
+    'upcoming': 'Upcoming',
+    'past':     'Past',
 }
 
 
@@ -211,15 +275,18 @@ class AnnouncementAdmin(ModelAdmin):
     list_editable = ('order', 'is_active')
     list_filter   = ('is_active',)
     ordering      = ('-start_date',)
-    fields        = ('title', 'description', 'image', 'start_date', 'end_date', 'order', 'is_active')
+    fieldsets = (
+        ('Content', {
+            'fields': ('title', 'description', 'image'),
+        }),
+        ('Scheduling & Visibility', {
+            'fields': ('start_date', 'end_date', 'order', 'is_active'),
+        }),
+    )
 
+    @display(description='Status', label={'ongoing': 'success', 'upcoming': 'primary'})
     def status_badge(self, obj):
-        color, label = ANNOUNCEMENT_STATUS_COLORS.get(obj.status, ('#6b7280', obj.status))
-        return format_html(
-            '<span style="background:{};color:#fff;padding:2px 10px;border-radius:999px;font-size:0.7rem;font-weight:600;">{}</span>',
-            color, label,
-        )
-    status_badge.short_description = 'Status'
+        return obj.status, ANNOUNCEMENT_STATUS_LABELS.get(obj.status, obj.status)
 
 
 # ── Finance dashboard ──────────────────────────────────────────────────────────
@@ -247,8 +314,20 @@ def _monthly_totals(queryset, date_field, value_field, months):
     return [by_month.get(m.strftime('%Y-%m'), 0) for m in months]
 
 
+def _trend_label(current, previous):
+    """Month-over-month % change, prepared as a ready-to-render label (text + badge variant)
+    so the template only has to drop it into the label component, no conditionals there."""
+    if not previous:
+        return None
+    pct = round((current - previous) / previous * 100, 1)
+    sign = '+' if pct >= 0 else ''
+    return {'text': f'{sign}{pct}%', 'variant': 'success' if pct >= 0 else 'danger'}
+
+
 def dashboard_callback(request, context):
-    """Feeds the Django admin index page a monthly revenue chart + details table."""
+    """Feeds the Django admin index page a monthly revenue chart + details table, plus a
+    KPI stat row (Stage 1 of the admin aesthetic overhaul — see the
+    admin_dashboard_aesthetic_overhaul memory)."""
     from products.models import Order
     from courses.models import CoursePurchase
 
@@ -259,12 +338,14 @@ def dashboard_callback(request, context):
     course_data  = _monthly_totals(CoursePurchase.objects.filter(price_paid__isnull=False), 'purchased_at', 'price_paid', months)
     booking_data = _monthly_totals(BookingRevenue.objects.all(), 'date', 'amount', months)
 
+    # New palette's gold/base-derived hex values, replacing the old purple/gold/blue trio —
+    # keep in sync with COLORS.primary in settings.py if that scale ever changes.
     chart_data = {
         'labels': labels,
         'datasets': [
-            {'label': 'Products', 'data': product_data, 'backgroundColor': '#60269E'},
-            {'label': 'Courses',  'data': course_data,  'backgroundColor': '#D4AF37'},
-            {'label': 'Bookings', 'data': booking_data, 'backgroundColor': '#1a56db'},
+            {'label': 'Products', 'data': product_data, 'backgroundColor': '#A8864A'},
+            {'label': 'Courses',  'data': course_data,  'backgroundColor': '#6E4B8E'},
+            {'label': 'Bookings', 'data': booking_data, 'backgroundColor': '#8E713E'},
         ],
     }
 
@@ -278,10 +359,42 @@ def dashboard_callback(request, context):
         }
         for i in range(len(labels))
     ]
+    revenue_total = sum(row['total'] for row in revenue_table)
+
+    # Revenue breakdown doughnut — same 12-month totals, just summed per-category instead of
+    # per-month, so it reads as "share of revenue" alongside the existing bar chart.
+    breakdown_totals = {
+        'Products': sum(product_data),
+        'Courses':  sum(course_data),
+        'Bookings': sum(booking_data),
+    }
+    breakdown_chart_data = {
+        'labels': list(breakdown_totals.keys()),
+        'datasets': [{
+            'data': list(breakdown_totals.values()),
+            'backgroundColor': ['#A8864A', '#6E4B8E', '#8E713E'],
+        }],
+    }
+
+    # KPI row — this-month vs last-month, derived from the per-month arrays already computed
+    # above (no extra queries needed for the revenue/orders figures).
+    revenue_this_month = revenue_table[-1]['total'] if revenue_table else 0
+    revenue_prev_month  = revenue_table[-2]['total'] if len(revenue_table) > 1 else 0
+    orders_this_month  = Order.objects.filter(created_at__year=months[-1].year, created_at__month=months[-1].month).count()
+    orders_prev_month  = Order.objects.filter(created_at__year=months[-2].year, created_at__month=months[-2].month).count()
+    active_students = CoursePurchase.objects.filter(
+        Q(expires_at__isnull=True) | Q(expires_at__gt=timezone.now())
+    ).values('email').distinct().count()
 
     context.update({
-        'revenue_chart_data': json.dumps(chart_data),
-        'revenue_table':      revenue_table,
-        'revenue_total':      sum(row['total'] for row in revenue_table),
+        'revenue_chart_data':    json.dumps(chart_data),
+        'breakdown_chart_data':  json.dumps(breakdown_chart_data),
+        'revenue_table':         revenue_table,
+        'revenue_total':         revenue_total,
+        'revenue_this_month':    revenue_this_month,
+        'revenue_trend':         _trend_label(revenue_this_month, revenue_prev_month),
+        'orders_this_month':     orders_this_month,
+        'orders_trend':          _trend_label(orders_this_month, orders_prev_month),
+        'active_students':       active_students,
     })
     return context

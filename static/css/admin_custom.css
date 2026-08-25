@@ -1,15 +1,19 @@
 /* ============================================================
    JES.CO — Admin Theme Accents
-   Gold touches only — #D4AF37 on top of Unfold's default theme
+   Gold touches on top of Unfold's default theme. Values corrected
+   2026-08-25 to match the real frontend palette (--champ #A8864A)
+   instead of the old, stale #D4AF37/#60269E brand values — see
+   the admin_dashboard_aesthetic_overhaul memory / CLAUDE.md's
+   brand correction note.
    ============================================================ */
 
 :root {
-    --gold:        #D4AF37;
-    --gold-light:  #e8cc6b;
-    --gold-dark:   #a88a1c;
-    --gold-glow:   rgba(212, 175, 55, 0.20);
-    --gold-border: rgba(212, 175, 55, 0.35);
-    --purple:      #60269E;
+    --gold:        #A8864A;
+    --gold-light:  #C9A86A;
+    --gold-dark:   #876A36;
+    --gold-glow:   rgba(168, 134, 74, 0.20);
+    --gold-border: rgba(168, 134, 74, 0.35);
+    --purple:      #6E4B8E;
 }
 
 /* ============================================================

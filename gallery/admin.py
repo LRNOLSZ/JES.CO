@@ -2,6 +2,7 @@ from django.contrib import admin
 from django.utils import timezone
 from django.utils.html import format_html
 from unfold.admin import ModelAdmin
+from unfold.decorators import display
 
 from .models import GalleryItem
 
@@ -15,7 +16,7 @@ class GalleryItemAdmin(ModelAdmin):
     ordering = ('order', '-created_at')
 
     fieldsets = (
-        (None, {
+        ('Details', {
             'fields': ('title', 'description', 'category'),
         }),
         ('Images', {
@@ -30,19 +31,10 @@ class GalleryItemAdmin(ModelAdmin):
         }),
     )
 
-    @admin.display(description='Status')
+    @display(description='Status', label={'scheduled': 'warning', 'live': 'success'})
     def publish_status(self, obj):
-        status = obj.status
-        styles = {
-            'draft':     ('background:#6b7280;color:#fff', 'Draft'),
-            'scheduled': ('background:#d97706;color:#fff', 'Scheduled'),
-            'live':      ('background:#16a34a;color:#fff', 'Live'),
-        }
-        style, label = styles[status]
-        return format_html(
-            '<span style="{}; padding:2px 10px; border-radius:12px; font-size:12px; font-weight:600;">{}</span>',
-            style, label,
-        )
+        labels = {'draft': 'Draft', 'scheduled': 'Scheduled', 'live': 'Live'}
+        return obj.status, labels[obj.status]
 
     @admin.display(description='Before')
     def before_thumb(self, obj):

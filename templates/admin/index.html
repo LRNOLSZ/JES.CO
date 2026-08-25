@@ -3,12 +3,60 @@
 {% load unfold %}
 
 {% block content %}
+    {% comment %}
+    KPI stat row — Stage 1 of the admin aesthetic overhaul, see the
+    admin_dashboard_aesthetic_overhaul memory. Trend labels (revenue_trend/orders_trend) are
+    pre-built dicts from dashboard_callback ({'text': '+8.2%', 'variant': 'success'|'danger'}
+    or None) — no conditional arithmetic here, just render what was computed.
+    {% endcomment %}
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+        {% component "unfold/components/card.html" with title="Revenue (12mo)" %}
+            <div class="flex flex-col items-center text-center gap-2">
+                <span class="material-symbols-outlined text-3xl text-primary-600 dark:text-primary-400">payments</span>
+                <span class="text-4xl font-bold text-font-important-light dark:text-font-important-dark">GHS {{ revenue_total|floatformat:2 }}</span>
+                {% if revenue_trend %}
+                    {% component "unfold/helpers/label.html" with variant=revenue_trend.variant text=revenue_trend.text %}{% endcomponent %}
+                {% endif %}
+                <p class="text-sm text-font-subtle-light dark:text-font-subtle-dark">This month: GHS {{ revenue_this_month|floatformat:2 }}</p>
+            </div>
+        {% endcomponent %}
+
+        {% component "unfold/components/card.html" with title="Orders This Month" %}
+            <div class="flex flex-col items-center text-center gap-2">
+                <span class="material-symbols-outlined text-3xl text-primary-600 dark:text-primary-400">shopping_cart</span>
+                <span class="text-4xl font-bold text-font-important-light dark:text-font-important-dark">{{ orders_this_month }}</span>
+                {% if orders_trend %}
+                    {% component "unfold/helpers/label.html" with variant=orders_trend.variant text=orders_trend.text %}{% endcomponent %}
+                {% endif %}
+                <p class="text-sm text-font-subtle-light dark:text-font-subtle-dark">vs. previous month</p>
+            </div>
+        {% endcomponent %}
+
+        {% component "unfold/components/card.html" with title="Active Students" %}
+            <div class="flex flex-col items-center text-center gap-2">
+                <span class="material-symbols-outlined text-3xl text-primary-600 dark:text-primary-400">school</span>
+                <span class="text-4xl font-bold text-font-important-light dark:text-font-important-dark">{{ active_students }}</span>
+                <p class="text-sm text-font-subtle-light dark:text-font-subtle-dark">Non-expired course access</p>
+            </div>
+        {% endcomponent %}
+    </div>
+
     <div class="mb-8">
         <h2 class="text-font-important-light dark:text-font-important-dark text-lg font-semibold mb-4">
             Revenue — Last 12 Months (Total: GHS {{ revenue_total|floatformat:2 }})
         </h2>
 
-        {% component "unfold/components/chart/bar.html" with data=revenue_chart_data class="mb-6" %}{% endcomponent %}
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
+            {% component "unfold/components/chart/bar.html" with data=revenue_chart_data class="lg:col-span-2" %}{% endcomponent %}
+            <div class="flex flex-col items-center">
+                <div class="relative w-full" style="max-width: 260px;">
+                    <canvas class="chart" data-type="doughnut" data-value="{{ breakdown_chart_data }}"></canvas>
+                </div>
+                <p class="text-xs text-font-subtle-light dark:text-font-subtle-dark mt-2">
+                    Breakdown — same last 12 months as the chart on the left
+                </p>
+            </div>
+        </div>
 
         <div class="overflow-x-auto border border-base-200 dark:border-base-800 rounded-default">
             <table class="w-full text-sm">

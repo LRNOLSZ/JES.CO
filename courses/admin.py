@@ -5,10 +5,10 @@ from django.contrib import admin
 from django.db.models import Count, Min
 from django.http import HttpResponse
 from django.urls import reverse
-from django.utils.html import format_html, mark_safe
 from unfold.admin import ModelAdmin
+from unfold.decorators import display
 
-from core.admin import url_preview
+from core.admin import action_button, person_display, url_preview, video_preview
 
 from .models import (
     CourseTier, CoursePageSettings, Course,
@@ -77,22 +77,6 @@ class CourseAdminForm(forms.ModelForm):
                 self.fields[field_name].widget.attrs['data-has-existing'] = '1'
 
 
-def video_preview(field, size=480):
-    """Render a playable <video> tag from a video FileField, or a dash if empty.
-
-    Bunny Stream serves HLS (.m3u8), which only plays natively in Safari — so the
-    URL is passed via data-hls-src and loaded by admin_video_preview.js (hls.js
-    for Chrome/Firefox/Edge, native src for Safari), same split as VideoPlayer.jsx.
-    """
-    url = field.url if field and hasattr(field, 'url') else field
-    if url:
-        return mark_safe(
-            f'<video data-hls-src="{url}" controls '
-            f'style="height:{size}px;width:auto;border-radius:6px;background:#000;"></video>'
-        )
-    return '—'
-
-
 # ── Model admins ──────────────────────────────────────────────────────────────
 
 @admin.register(CourseTier)
@@ -133,12 +117,15 @@ class CourseAdmin(ModelAdmin):
     ordering      = ('order', '-created_at')
     prepopulated_fields = {'slug': ('title',)}
     readonly_fields = ('trailer_video_preview', 'course_video_preview')
+    compressed_fields = True
     fieldsets = (
         ('Course Info', {
             'fields': ('title', 'slug', 'description', 'what_youll_learn', 'thumbnail'),
+            'classes': ('tab',),
         }),
         ('Classification & Pricing', {
             'fields': ('category', 'tier', 'price', 'duration_display'),
+            'classes': ('tab',),
         }),
         ('Videos', {
             'fields': (
@@ -146,49 +133,59 @@ class CourseAdmin(ModelAdmin):
                 'course_video', 'course_video_preview',
                 'subtitle_url',
             ),
+            'classes': ('tab',),
         }),
         ('Visibility', {
             'fields': ('is_featured', 'is_active', 'order'),
+            'classes': ('tab',),
         }),
     )
 
     def trailer_video_preview(self, obj):
-        return video_preview(obj.trailer_video)
+        return video_preview(obj.trailer_video, size=480)
     trailer_video_preview.short_description = 'Current'
 
     def course_video_preview(self, obj):
-        return video_preview(obj.course_video)
+        return video_preview(obj.course_video, size=480)
     course_video_preview.short_description = 'Current'
 
 
 @admin.register(CoursePurchase)
 class CoursePurchaseAdmin(ModelAdmin):
-    list_display    = ('email', 'course', 'purchased_at', 'expires_at', 'access_status')
+    list_display    = ('email_display', 'course', 'purchased_at', 'expires_at', 'access_status')
     list_filter     = ('course',)
     search_fields   = ('email', 'course__title', 'paystack_reference')
     ordering        = ('-purchased_at',)
     readonly_fields = ('purchased_at', 'add_course_for_email')
-    fields          = ('email', 'course', 'expires_at', 'reminder_14_sent', 'reminder_5_sent', 'expiry_notice_sent', 'paystack_reference', 'purchased_at', 'add_course_for_email')
+    fieldsets = (
+        ('Purchaser & Course', {
+            'fields': ('email', 'course', 'expires_at', 'paystack_reference', 'purchased_at'),
+        }),
+        ('Reminders & Status', {
+            'fields': ('reminder_14_sent', 'reminder_5_sent', 'expiry_notice_sent', 'add_course_for_email'),
+        }),
+    )
 
+    @display(description='Email', ordering='email')
+    def email_display(self, obj):
+        return person_display(obj.email)
+
+    @display(description='Access', label={
+        'expired': 'danger', 'soon': 'warning', 'ok': 'success', 'lifetime': 'info',
+    })
     def access_status(self, obj):
         if obj.is_access_expired:
-            return format_html('<span style="color:#e05252;font-weight:600;">Expired</span>')
+            return 'expired', 'Expired'
         if obj.days_remaining is not None and obj.days_remaining <= 14:
-            return format_html('<span style="color:#e0a020;font-weight:600;">{} days left</span>', obj.days_remaining)
+            return 'soon', f'{obj.days_remaining} days left'
         if obj.days_remaining is not None:
-            return format_html('<span style="color:#5fbf5f;">{} days left</span>', obj.days_remaining)
-        return format_html('<span style="color:#888;">Lifetime</span>')
-    access_status.short_description = 'Access'
+            return 'ok', f'{obj.days_remaining} days left'
+        return 'lifetime', 'Lifetime'
     actions         = [export_emails_csv, reset_reminder_flags]
 
     def add_course_for_email(self, obj):
         url = reverse('admin:courses_coursepurchase_add') + f'?email={obj.email}'
-        return format_html(
-            '<a href="{}" style="display:inline-block;padding:0.4rem 1rem;'
-            'background:#60269E;color:#fff;border-radius:6px;text-decoration:none;font-size:0.8rem;">'
-            '+ Add another course for {}</a>',
-            url, obj.email
-        )
+        return action_button(url, f'+ Add another course for {obj.email}')
     add_course_for_email.short_description = 'Quick Action'
 
     def get_changeform_initial_data(self, request):
@@ -235,34 +232,39 @@ class StudentAdmin(ModelAdmin):
         purchases = CoursePurchase.objects.filter(email=obj.email).select_related('course').order_by('purchased_at')
         if not purchases.exists():
             return '—'
-        td = 'padding:0.35rem 0.75rem;border-bottom:1px solid #2a2020;'
+        # Theme-aware Tailwind classes instead of hardcoded hex — the previous version
+        # used dark-mode-only colors (#2a2020 borders, #aaa text) that were illegible
+        # in light mode, same class of bug as Stage 1's malformed-CSS fix.
+        td = 'px-3 py-1.5 border-b border-base-200 dark:border-base-800'
+        muted = f'{td} text-font-subtle-light dark:text-font-subtle-dark'
         rows = ''.join(
             f'<tr>'
-            f'<td style="{td}">{escape(p.course.title)}</td>'
-            f'<td style="{td}color:#aaa;">{escape(str(p.course.tier))}</td>'
-            f'<td style="{td}color:#aaa;">{p.purchased_at.strftime("%d %b %Y")}</td>'
-            f'<td style="{td}color:#aaa;">{escape(p.paystack_reference) if p.paystack_reference else "—"}</td>'
+            f'<td class="{td}">{escape(p.course.title)}</td>'
+            f'<td class="{muted}">{escape(str(p.course.tier))}</td>'
+            f'<td class="{muted}">{p.purchased_at.strftime("%d %b %Y")}</td>'
+            f'<td class="{muted}">{escape(p.paystack_reference) if p.paystack_reference else "—"}</td>'
             f'</tr>'
             for p in purchases
         )
-        th = 'padding:0.35rem 0.75rem;text-align:left;color:#D4AF37;font-weight:600;'
+        th = 'px-3 py-1.5 text-left text-primary-600 dark:text-primary-500 font-semibold'
         html = (
-            f'<table style="width:100%;border-collapse:collapse;font-size:0.82rem;">'
+            f'<div class="overflow-x-auto">'
+            f'<table class="w-full text-sm" style="border-collapse:collapse;">'
             f'<thead><tr>'
-            f'<th style="{th}">Course</th>'
-            f'<th style="{th}">Tier</th>'
-            f'<th style="{th}">Purchased</th>'
-            f'<th style="{th}">Reference</th>'
+            f'<th class="{th}">Course</th>'
+            f'<th class="{th}">Tier</th>'
+            f'<th class="{th}">Purchased</th>'
+            f'<th class="{th}">Reference</th>'
             f'</tr></thead><tbody>{rows}</tbody></table>'
+            f'</div>'
         )
         from django.utils.safestring import mark_safe
         return mark_safe(html)
     purchased_courses_list.short_description = 'Purchased Courses'
 
+    @display(description='Email', ordering='email')
     def student_email(self, obj):
-        return obj.email
-    student_email.short_description = 'Email'
-    student_email.admin_order_field = 'email'
+        return person_display(obj.email)
 
     def courses_owned(self, obj):
         count = CoursePurchase.objects.filter(email=obj.email).count()
@@ -276,12 +278,7 @@ class StudentAdmin(ModelAdmin):
 
     def add_course_link(self, obj):
         url = reverse('admin:courses_coursepurchase_add') + f'?email={obj.email}'
-        return format_html(
-            '<a href="{}" style="display:inline-block;padding:0.4rem 1rem;'
-            'background:#60269E;color:#fff;border-radius:6px;text-decoration:none;font-size:0.8rem;">'
-            '+ Add a course for {}</a>',
-            url, obj.email
-        )
+        return action_button(url, f'+ Add a course for {obj.email}')
     add_course_link.short_description = 'Quick Action'
 
     def has_add_permission(self, request):
@@ -295,10 +292,14 @@ class StudentAdmin(ModelAdmin):
 
 @admin.register(CourseSession)
 class CourseSessionAdmin(ModelAdmin):
-    list_display    = ('email', 'device_hint', 'created_at', 'last_seen', 'expires_at')
+    list_display    = ('email_display', 'created_at', 'last_seen', 'expires_at')
     search_fields   = ('email',)
     ordering        = ('-last_seen',)
     readonly_fields = ('created_at', 'last_seen', 'session_key')
+
+    @display(description='Email', ordering='email')
+    def email_display(self, obj):
+        return person_display(obj.email, subtitle=obj.device_hint or None)
 
     def has_add_permission(self, request):
         return False
@@ -306,18 +307,29 @@ class CourseSessionAdmin(ModelAdmin):
 
 @admin.register(CourseComment)
 class CourseCommentAdmin(ModelAdmin):
-    list_display  = ('email', 'name', 'course', 'short_body', 'is_approved', 'created_at')
+    list_display  = ('email_display', 'course', 'short_body', 'is_approved', 'created_at')
     list_editable = ('is_approved',)
     list_filter   = ('course', 'is_approved')
     search_fields = ('email', 'name', 'body')
     ordering      = ('-created_at',)
     actions       = [promote_to_testimonial]
-    fields        = (
-        'course', 'email', 'name', 'body',
-        'before_image', 'before_image_preview', 'after_image', 'after_image_preview',
-        'is_approved', 'created_at',
+    compressed_fields = True
+    fieldsets = (
+        ('Comment', {
+            'fields': ('course', 'email', 'name', 'body'),
+        }),
+        ('Before & After Photos', {
+            'fields': ('before_image', 'before_image_preview', 'after_image', 'after_image_preview'),
+        }),
+        ('Moderation', {
+            'fields': ('is_approved', 'created_at'),
+        }),
     )
     readonly_fields = ('created_at', 'before_image_preview', 'after_image_preview')
+
+    @display(description='Email', ordering='email')
+    def email_display(self, obj):
+        return person_display(obj.email, subtitle=obj.name or None)
 
     def short_body(self, obj):
         return obj.body[:80] + '…' if len(obj.body) > 80 else obj.body
