@@ -6,9 +6,10 @@ from PIL import Image
 
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase, override_settings
+from django.urls import reverse
 
 from .models import Order, ProductItem
-from .views import _process_product_charge
+from .views import _process_product_charge, _tracking_url
 
 
 def _test_image():
@@ -160,3 +161,38 @@ class AdminEmailEscapingTests(TestCase):
         message = admin_call.kwargs['message']
         self.assertNotIn('<a href="https://evil.example">', message)
         self.assertIn('&lt;a href=', message)
+
+
+# F-16 regression tests — the emailed order-tracking link must never carry the
+# customer's email; the tracking endpoint must resolve a real order via an
+# opaque token, and the legacy ref+email lookup must keep working for orders
+# created before this token existed.
+class OrderTrackingTokenTests(TestCase):
+    def setUp(self):
+        self.order = Order.objects.create(
+            full_name='Jane Buyer', email='jane@example.com', phone='0000000000',
+            status='confirmed', total='GHS 100.00', paystack_reference='ref-track-1',
+        )
+
+    def test_tracking_url_has_no_email(self):
+        url = _tracking_url(self.order)
+        self.assertNotIn('jane@example.com', url)
+        self.assertIn(self.order.tracking_token, url)
+
+    def test_token_lookup_returns_order_with_no_email_in_response(self):
+        api_url = reverse('order-track')
+        response = self.client.get(api_url, {'token': self.order.tracking_token})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data['id'], self.order.pk)
+        self.assertNotIn('email', response.data)
+
+    def test_invalid_token_returns_404(self):
+        api_url = reverse('order-track')
+        response = self.client.get(api_url, {'token': 'not-a-real-token'})
+        self.assertEqual(response.status_code, 404)
+
+    def test_legacy_ref_and_email_lookup_still_works(self):
+        api_url = reverse('order-track')
+        response = self.client.get(api_url, {'ref': 'ref-track-1', 'email': 'jane@example.com'})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data['id'], self.order.pk)

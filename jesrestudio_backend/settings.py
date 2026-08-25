@@ -462,6 +462,22 @@ UNFOLD = {
     ],
 }
 
+# --- django-import-export (CSV/XLSX export security) ---
+#
+# GLOBAL SETTING — applies to every ImportExportModelAdmin in the project, not
+# just OrderAdmin. Currently OrderAdmin is the only one, but any future admin
+# using this mixin inherits this protection automatically (a good default to
+# inherit silently, unlike most global settings — there's no real downside to
+# any export getting this escaping).
+#
+# Strips a leading "=" from exported cell values so a customer-controlled
+# free-text field (Order.full_name, .notes, .address) can't become a live
+# Excel formula when the export is opened (CSV/formula injection, F-19). Note:
+# this only covers "=" — the library's built-in escaping does not also handle
+# "+", "-", or "@", which are also recognized formula triggers by some
+# guidance. Still a real, meaningful improvement over no escaping at all.
+IMPORT_EXPORT_ESCAPE_FORMULAE_ON_EXPORT = True
+
 # --- Logging ---
 # Django's built-in default only prints errors to console when DEBUG=True (it tries to
 # email admins instead when DEBUG=False). Railway/most hosts capture stdout as the log

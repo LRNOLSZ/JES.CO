@@ -40,8 +40,7 @@ def _admin_url(path=''):
 
 def _tracking_url(order):
     frontend_url = getattr(settings, 'FRONTEND_URL', 'http://localhost:5173')
-    ref = order.paystack_reference or order.pk
-    return f'{frontend_url}/track-order?ref={quote(str(ref))}&email={quote(order.email)}'
+    return f'{frontend_url}/track-order?token={order.tracking_token}'
 
 
 def _decrement_stock(items_meta):
@@ -208,7 +207,11 @@ class OrderCreateView(APIView):
 
 
 class OrderTrackingView(APIView):
-    """GET /api/orders/track/?ref=PAY_XXX&email=x@x.com"""
+    """
+    GET /api/orders/track/?token=xxx   — preferred, used by the emailed tracking link.
+    GET /api/orders/track/?ref=PAY_XXX&email=x@x.com   — manual lookup / legacy emailed links
+    sent before the token existed.
+    """
     permission_classes = [AllowAny]
 
     def get(self, request):
@@ -218,6 +221,13 @@ class OrderTrackingView(APIView):
         if request_count >= 10:
             return Response({'detail': 'Too many requests.'}, status=drf_status.HTTP_429_TOO_MANY_REQUESTS)
         cache.set(cache_key, request_count + 1, timeout=60)
+
+        token = request.query_params.get('token', '').strip()
+        if token:
+            order = Order.objects.filter(tracking_token=token).select_related('delivery_zone').prefetch_related('items').first()
+            if not order:
+                return Response({'detail': 'No order found.'}, status=drf_status.HTTP_404_NOT_FOUND)
+            return Response(OrderStatusSerializer(order).data)
 
         ref   = request.query_params.get('ref', '').strip()
         email = request.query_params.get('email', '').strip().lower()

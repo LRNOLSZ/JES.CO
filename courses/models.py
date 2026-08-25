@@ -189,6 +189,21 @@ class CoursePurchase(models.Model):
         return max(0, delta.days)
 
 
+class ProcessedPaymentEvent(models.Model):
+    """Permanent record of every Paystack reference already acted on for a course
+    purchase — CoursePurchase.paystack_reference gets overwritten on each renewal,
+    so it can't be trusted alone to catch a delayed/duplicate webhook retry."""
+    reference    = models.CharField(max_length=100, unique=True, db_index=True)
+    processed_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name        = 'Processed Payment Event'
+        verbose_name_plural = 'Processed Payment Events'
+
+    def __str__(self):
+        return self.reference
+
+
 class Student(CoursePurchase):
     """Proxy model for the Students admin view — groups purchases by email."""
     class Meta:
@@ -294,7 +309,9 @@ class CourseComment(models.Model):
     course      = models.ForeignKey(Course, on_delete=models.CASCADE, related_name='comments')
     email       = models.EmailField()
     name        = models.CharField(max_length=150, blank=True,
-                    help_text="Student's name — carried over if this comment is promoted to a testimonial.")
+                    help_text="Public nickname the student chooses when leaving a review — shown "
+                               "publicly if approved and promoted to a testimonial. Never their "
+                               "real name or email.")
     body        = models.TextField()
     before_image = ProcessedImageField(
                     upload_to='testimonials/before/', blank=True, null=True,

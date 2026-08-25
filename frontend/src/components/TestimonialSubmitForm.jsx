@@ -17,7 +17,7 @@ const inputStyle = {
 }
 
 function validateImage(file) {
-  if (!file) return 'Please choose a photo.'
+  if (!file) return null // photos are optional
   if (!file.type.startsWith('image/')) return 'Only image files are allowed.'
   if (file.size > MAX_SIZE) return 'Each photo must be 5MB or smaller.'
   return null
@@ -34,7 +34,7 @@ export default function TestimonialSubmitForm({ slug, sessionKey, onDone }) {
   async function handleSubmit(e) {
     e.preventDefault()
     if (!name.trim() || !body.trim()) {
-      setErrorMsg('Please fill in your name and your story.')
+      setErrorMsg('Please fill in your nickname and your story.')
       return
     }
     const beforeErr = validateImage(beforeFile)
@@ -47,8 +47,8 @@ export default function TestimonialSubmitForm({ slug, sessionKey, onDone }) {
     const formData = new FormData()
     formData.append('name', name.trim())
     formData.append('body', body.trim())
-    formData.append('before_image', beforeFile)
-    formData.append('after_image', afterFile)
+    if (beforeFile) formData.append('before_image', beforeFile)
+    if (afterFile) formData.append('after_image', afterFile)
 
     try {
       await axios.post(`/api/courses/${slug}/comments/`, formData, {
@@ -73,7 +73,7 @@ export default function TestimonialSubmitForm({ slug, sessionKey, onDone }) {
     <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem', marginTop: '0.75rem' }}>
       <input
         type="text"
-        placeholder="Your name"
+        placeholder="Your nickname"
         value={name}
         onChange={e => setName(e.target.value)}
         style={inputStyle}
@@ -87,7 +87,7 @@ export default function TestimonialSubmitForm({ slug, sessionKey, onDone }) {
       />
       <div style={{ display: 'flex', gap: '0.6rem' }}>
         <label style={{ flex: 1, fontFamily: 'var(--sans)', fontSize: '0.68rem', color: 'var(--taupe-mut)' }}>
-          Before photo
+          Before photo (optional)
           <input
             type="file"
             accept="image/*"
@@ -96,7 +96,7 @@ export default function TestimonialSubmitForm({ slug, sessionKey, onDone }) {
           />
         </label>
         <label style={{ flex: 1, fontFamily: 'var(--sans)', fontSize: '0.68rem', color: 'var(--taupe-mut)' }}>
-          After photo
+          After photo (optional)
           <input
             type="file"
             accept="image/*"

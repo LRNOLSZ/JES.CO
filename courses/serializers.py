@@ -72,7 +72,6 @@ class CourseDetailSerializer(serializers.ModelSerializer):
     has_access       = serializers.SerializerMethodField()
     tier             = CourseTierSerializer(read_only=True)
     category_display = serializers.CharField(source='get_category_display', read_only=True)
-    approved_comments = serializers.SerializerMethodField()
 
     def get_trailer_url(self, obj):
         return _video_url(self.context.get('request'), obj.trailer_video)
@@ -89,10 +88,6 @@ class CourseDetailSerializer(serializers.ModelSerializer):
             return None
         return _video_url(self.context.get('request'), obj.course_video)
 
-    def get_approved_comments(self, obj):
-        qs = obj.comments.filter(is_approved=True).order_by('-created_at')[:20]
-        return CourseCommentSerializer(qs, many=True).data
-
     class Meta:
         model  = Course
         fields = [
@@ -100,17 +95,11 @@ class CourseDetailSerializer(serializers.ModelSerializer):
             'thumbnail_url', 'category', 'category_display',
             'tier', 'price', 'trailer_url', 'course_video_url', 'has_access',
             'subtitle_url', 'duration_display', 'is_featured',
-            'approved_comments',
         ]
-
-
-class CourseCommentSerializer(serializers.ModelSerializer):
-    class Meta:
-        model  = CourseComment
-        fields = ['id', 'email', 'body', 'created_at']
 
 
 class CourseCommentCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model  = CourseComment
         fields = ['name', 'body', 'before_image', 'after_image']
+        extra_kwargs = {'name': {'required': True, 'allow_blank': False}}

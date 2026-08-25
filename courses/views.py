@@ -17,14 +17,13 @@ from rest_framework import status
 from .models import (
     CourseTier, CoursePageSettings, Course,
     CoursePurchase, CourseAccessToken, CourseSession,
-    VideoHeartbeat, CourseComment,
+    VideoHeartbeat, CourseComment, ProcessedPaymentEvent,
 )
 from .serializers import (
     CourseTierSerializer,
     CoursePageSettingsSerializer,
     CourseListSerializer,
     CourseDetailSerializer,
-    CourseCommentSerializer,
     CourseCommentCreateSerializer,
 )
 
@@ -131,17 +130,16 @@ def request_access_link(request):
     if not email:
         return Response({'detail': 'Email is required.'}, status=status.HTTP_400_BAD_REQUEST)
 
-    has_purchases = CoursePurchase.objects.filter(email=email).exists()
-    if not has_purchases:
-        return Response({'detail': 'No courses found for this email address.'}, status=status.HTTP_404_NOT_FOUND)
+    # Always return the same response whether or not this email has purchases —
+    # branching the response (e.g. 404 for "no account") would let anyone probe
+    # arbitrary emails to learn who is a customer (F-14, account enumeration).
+    if CoursePurchase.objects.filter(email=email).exists():
+        access_token = CourseAccessToken.create_for_email(email, expiry_hours=24)
+        frontend_url = getattr(settings, 'FRONTEND_URL', 'http://localhost:5173')
+        link = f'{frontend_url}/studio/courses/access/verify?token={access_token.token}'
+        _send_access_link_email(email, link)
 
-    access_token = CourseAccessToken.create_for_email(email, expiry_hours=24)
-    frontend_url = getattr(settings, 'FRONTEND_URL', 'http://localhost:5173')
-    link = f'{frontend_url}/studio/courses/access/verify?token={access_token.token}'
-
-    _send_access_link_email(email, link)
-
-    return Response({'detail': 'Access link sent. Check your inbox.'})
+    return Response({'detail': 'If this email has course access, a link has been sent.'})
 
 
 @api_view(['GET'])
@@ -364,8 +362,35 @@ def _process_course_charge(data):
 
     # Skip if already processed — Paystack retries webhook delivery until it gets
     # a 200, which would otherwise re-send the access link email on every retry.
-    if CoursePurchase.objects.filter(paystack_reference=reference).exists():
+    # Checked against a permanent ledger, not CoursePurchase.paystack_reference —
+    # that field gets overwritten on every renewal, so a delayed retry of an old
+    # reference would otherwise slip through and re-extend access for free (F-11).
+    _, is_new_event = ProcessedPaymentEvent.objects.get_or_create(reference=reference)
+    if not is_new_event:
         return Response({'detail': 'Already processed.'})
+
+    # A course left at its default price=0 (e.g. published before its price was
+    # ever set) would otherwise pass the underpayment check below for any amount —
+    # "actual < 0" can never be true — silently granting access with zero alert.
+    # Catch it explicitly instead of letting it slip through invisibly (F-17).
+    if course.price <= 0:
+        alert_key = f'zero_price_alerted_{course.slug}'
+        if not cache.get(alert_key):
+            cache.set(alert_key, True, timeout=60 * 60 * 24)
+            _send_admin_alert(
+                'Course Purchase Blocked — No Price Set',
+                f'A payment for "{course.title}" was received, but this course has no price '
+                f'configured (GHS 0) — access was NOT granted.<br><br>'
+                f'Email: {email}<br>'
+                f'Reference: {reference}<br><br>'
+                f'Set a real price for this course in the admin, then ask the customer to try again.',
+                details=[
+                    ('Course', course.title),
+                    ('Course Price', 'GHS 0.00 (not set)'),
+                    ('Amount Paid', f'GHS {data.get("amount", 0) / 100:.2f}'),
+                ],
+            )
+        return Response({'detail': 'Flagged for review.'})
 
     # The amount charged is set client-side (PaystackPop.setup({amount: ...})),
     # so it can be tampered with in devtools before the popup opens. The webhook
@@ -398,7 +423,7 @@ def _process_course_charge(data):
         course=course,
         defaults={
             'paystack_reference': reference,
-            'price_paid': course.price,
+            'price_paid': actual_pesewas // 100,
             'expires_at': timezone.now() + timezone.timedelta(days=180),
             'reminder_14_sent': False,
             'reminder_5_sent': False,

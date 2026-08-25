@@ -41,7 +41,6 @@ export default function CartPage() {
   const [status,       setStatus]       = useState('idle')  // idle | loading | success | error
   const [errorMsg,     setErrorMsg]     = useState('')
   const [trackingRef,   setTrackingRef]   = useState('')
-  const [trackingEmail, setTrackingEmail] = useState('')
   const [stockById,     setStockById]     = useState({})
 
   const currency     = region === 'usa' ? 'USD' : 'GHS'
@@ -178,7 +177,6 @@ export default function CartPage() {
       },
       callback: (response) => {
         setTrackingRef(response.reference)
-        setTrackingEmail(form.email)
         clearCart()
         setStatus('success')
       },
@@ -222,7 +220,7 @@ export default function CartPage() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', alignItems: 'center' }}>
             {trackingRef && (
               <Link
-                to={`/track-order?ref=${encodeURIComponent(trackingRef)}&email=${encodeURIComponent(trackingEmail)}`}
+                to={`/track-order?ref=${encodeURIComponent(trackingRef)}`}
                 className="btn btn-gold"
               >
                 Track Your Order

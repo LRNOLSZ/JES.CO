@@ -5,6 +5,7 @@ import axios from 'axios'
 import JescoNavbar from '../components/JescoNavbar'
 import JescoFooter from '../components/JescoFooter'
 import VideoPlayer from '../components/VideoPlayer'
+import TestimonialSubmitForm from '../components/TestimonialSubmitForm'
 import { useExchangeRate, formatUsdEstimate } from '../hooks/useExchangeRate'
 import SEO from '../components/SEO'
 
@@ -44,71 +45,6 @@ function PageShell({ children }) {
   )
 }
 
-function CommentsSection({ slug, sessionKey }) {
-  const [comments, setComments] = useState([])
-  const [body, setBody]         = useState('')
-  const [state, setState]       = useState('idle') // idle | submitting | done | error
-
-  async function handleSubmit(e) {
-    e.preventDefault()
-    if (!body.trim()) return
-    setState('submitting')
-    try {
-      await axios.post(`/api/courses/${slug}/comments/`, { body }, {
-        headers: { 'X-Course-Session': sessionKey },
-      })
-      setState('done')
-      setBody('')
-    } catch {
-      setState('error')
-    }
-  }
-
-  return (
-    <div style={{ marginTop: '3rem', borderTop: '1px solid var(--hair)', paddingTop: '2.5rem', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-      <p style={{ fontFamily: 'var(--sans)', fontSize: '0.62rem', letterSpacing: '0.3em', textTransform: 'uppercase', color: 'var(--champ)', margin: 0 }}>
-        Leave a Comment
-      </p>
-
-      {comments.map(c => (
-        <div key={c.id} style={{ padding: '1rem 1.25rem', background: 'color-mix(in srgb, var(--bone) 4%, transparent)', border: '1px solid var(--hair)', borderRadius: '10px' }}>
-          <p style={{ fontFamily: 'var(--sans)', fontSize: '0.72rem', color: 'var(--taupe-mut)', margin: '0 0 0.4rem' }}>{c.email}</p>
-          <p style={{ fontFamily: 'var(--sans)', fontSize: '0.9rem', fontWeight: 300, color: 'var(--taupe)', lineHeight: 1.7, margin: 0 }}>{c.body}</p>
-        </div>
-      ))}
-
-      {state === 'done' ? (
-        <p style={{ fontFamily: 'var(--sans)', fontSize: '0.87rem', color: '#5fbf5f', margin: 0 }}>
-          ✓ Comment submitted for review. Thank you!
-        </p>
-      ) : (
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-          <textarea
-            value={body}
-            onChange={e => { setBody(e.target.value); setState('idle') }}
-            placeholder="Share your thoughts or feedback on this course…"
-            rows={4}
-            style={{ width: '100%', boxSizing: 'border-box', padding: '0.9rem 1.1rem', background: 'color-mix(in srgb, var(--bone) 5%, transparent)', border: '1px solid var(--hair)', borderRadius: '10px', color: 'var(--bone)', fontFamily: 'var(--sans)', fontSize: '0.9rem', resize: 'vertical', outline: 'none' }}
-          />
-          {state === 'error' && (
-            <p style={{ fontFamily: 'var(--sans)', fontSize: '0.8rem', color: 'rgba(255,120,120,0.9)', margin: 0 }}>
-              Something went wrong. Try again.
-            </p>
-          )}
-          <button
-            type="submit"
-            disabled={state === 'submitting'}
-            className="btn btn-gold"
-            style={{ alignSelf: 'flex-start', opacity: state === 'submitting' ? 0.6 : 1 }}
-          >
-            {state === 'submitting' ? 'Submitting…' : 'Submit Comment'}
-          </button>
-        </form>
-      )}
-    </div>
-  )
-}
-
 export default function CourseDetailPage() {
   const { slug } = useParams()
   const [course,       setCourse]       = useState(null)
@@ -119,6 +55,7 @@ export default function CourseDetailPage() {
   const [unlockEmail, setUnlockEmail] = useState('')
   const [unlockError, setUnlockError] = useState('')
   const [ownsAlready, setOwnsAlready] = useState(null) // null | { is_expired, days_remaining }
+  const [showStoryForm, setShowStoryForm] = useState(false)
   const heartbeatRef = useRef(null)
   const usdRate = useExchangeRate()
 
@@ -317,9 +254,29 @@ export default function CourseDetailPage() {
             </div>
           )}
 
-          {/* Comments — only for purchasers */}
+          {/* Share your story — only for purchasers, feeds the testimonial pipeline */}
           {hasAccess && sessionKey && (
-            <CommentsSection slug={slug} sessionKey={sessionKey} />
+            <div style={{ marginTop: '3rem', borderTop: '1px solid var(--hair)', paddingTop: '2.5rem' }}>
+              <p style={{ fontFamily: 'var(--sans)', fontSize: '0.62rem', letterSpacing: '0.3em', textTransform: 'uppercase', color: 'var(--champ)', margin: '0 0 1rem' }}>
+                Share Your Story
+              </p>
+              {showStoryForm ? (
+                <TestimonialSubmitForm
+                  slug={slug}
+                  sessionKey={sessionKey}
+                  onDone={() => setShowStoryForm(false)}
+                />
+              ) : (
+                <button
+                  onClick={() => setShowStoryForm(true)}
+                  style={{ width: '100%', background: 'none', border: '1px solid var(--hair)', color: 'var(--taupe-mut)', fontFamily: 'var(--sans)', fontSize: '0.6rem', letterSpacing: '0.14em', textTransform: 'uppercase', padding: '0.6rem 1rem', borderRadius: '9999px', cursor: 'pointer', transition: 'all 0.3s' }}
+                  onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--champ)'; e.currentTarget.style.color = 'var(--champ)' }}
+                  onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--hair)'; e.currentTarget.style.color = 'var(--taupe-mut)' }}
+                >
+                  Share Your Story
+                </button>
+              )}
+            </div>
           )}
         </motion.div>
 
@@ -452,21 +409,6 @@ export default function CourseDetailPage() {
               </div>
             )}
           </div>
-
-          {/* Approved public comments */}
-          {(course.approved_comments || []).length > 0 && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-              <p style={{ fontFamily: 'var(--sans)', fontSize: '0.62rem', letterSpacing: '0.3em', textTransform: 'uppercase', color: 'var(--champ)', margin: 0 }}>
-                Student Reviews
-              </p>
-              {course.approved_comments.map(c => (
-                <div key={c.id} style={{ padding: '1rem 1.25rem', background: 'color-mix(in srgb, var(--bone) 3%, transparent)', border: '1px solid var(--hair)', borderRadius: '10px' }}>
-                  <p style={{ fontFamily: 'var(--sans)', fontSize: '0.7rem', color: 'var(--taupe-mut)', margin: '0 0 0.4rem' }}>{c.email}</p>
-                  <p style={{ fontFamily: 'var(--sans)', fontSize: '0.88rem', fontWeight: 300, color: 'var(--taupe)', lineHeight: 1.7, margin: 0 }}>{c.body}</p>
-                </div>
-              ))}
-            </div>
-          )}
 
         </motion.div>
       </div>

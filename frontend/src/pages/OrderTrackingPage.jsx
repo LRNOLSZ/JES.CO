@@ -37,7 +37,24 @@ export default function OrderTrackingPage() {
     }
   }
 
+  async function lookupByToken(token) {
+    setState('loading')
+    try {
+      const { data } = await axios.get(`/api/orders/track/?token=${encodeURIComponent(token)}`)
+      setOrder(data)
+      setState('found')
+    } catch (err) {
+      if (err.response?.status === 404) setState('not_found')
+      else setState('error')
+    }
+  }
+
   useEffect(() => {
+    const tokenParam = searchParams.get('token')
+    if (tokenParam) {
+      lookupByToken(tokenParam)
+      return
+    }
     const refParam   = searchParams.get('ref')
     const emailParam = searchParams.get('email')
     if (refParam) setRef(refParam)

@@ -143,14 +143,10 @@ function AlreadyAStudentSection() {
     try {
       await axios.post('/api/courses/access/request/', { email: email.trim().toLowerCase() })
       setStatus('sent')
-      setMessage('Check your email — your access link is on its way.')
+      setMessage("If this email has course access, we've sent a link. Didn't get anything? Double-check your spelling or browse courses below.")
     } catch (err) {
       const detail = err.response?.data?.detail || ''
-      if (err.response?.status === 404) {
-        setMessage('No courses found for this email. Check your spelling or browse courses below.')
-      } else {
-        setMessage(detail || 'Something went wrong. Please try again.')
-      }
+      setMessage(detail || 'Something went wrong. Please try again.')
       setStatus('error')
     }
   }

@@ -4,7 +4,7 @@ import logging
 
 from django.conf import settings
 
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.decorators import api_view, permission_classes, throttle_classes
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework import status as drf_status
@@ -18,12 +18,18 @@ logger = logging.getLogger(__name__)
 
 @api_view(['POST'])
 @permission_classes([AllowAny])
+@throttle_classes([])
 def paystack_webhook(request):
     """
     POST /api/paystack/webhook/
     Single Paystack webhook URL for the whole project (Paystack only allows one
     per account/mode). Verifies the signature once, then routes to course-purchase
     or shop-order handling based on what's in the event's metadata.
+
+    Exempt from the site-wide anon throttle (F-13): every purchase type shares this
+    one URL, plus Paystack's own webhook retries, so the generic per-minute cap could
+    otherwise reject a legitimate delivery. The HMAC signature check below is the
+    real authentication here, not IP/rate-based — trust that instead.
     """
     secret_key = getattr(settings, 'PAYSTACK_SECRET_KEY', '')
     if not secret_key:
@@ -48,5 +54,5 @@ def paystack_webhook(request):
     if 'items' in meta or 'delivery_zone_id' in meta:
         return _process_product_charge(data)
 
-    logger.warning(f'Paystack webhook: unrecognized metadata shape, ignored. meta={meta}')
+    logger.warning(f'Paystack webhook: unrecognized metadata shape, ignored. meta keys={list(meta.keys())}')
     return Response({'detail': 'Ignored — unrecognized metadata.'})

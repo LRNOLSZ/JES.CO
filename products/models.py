@@ -1,3 +1,5 @@
+import secrets
+
 from django.db import models
 from imagekit.models import ProcessedImageField
 from imagekit.processors import ResizeToFit
@@ -100,6 +102,10 @@ class Order(models.Model):
     delivery_zone       = models.ForeignKey(DeliveryZone, on_delete=models.SET_NULL, null=True, blank=True, related_name='orders')
     delivery_fee        = models.DecimalField(max_digits=8, decimal_places=2, default=0)
     paystack_reference  = models.CharField(max_length=100, blank=True)
+    tracking_token      = models.CharField(max_length=96, unique=True, null=True, blank=True,
+                            help_text='Opaque token for the emailed order-tracking link — keeps '
+                                       'the customer\'s email out of a URL that ends up in browser '
+                                       'history and server logs. Auto-generated on creation.')
     created_at          = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -109,6 +115,11 @@ class Order(models.Model):
 
     def __str__(self):
         return f'Order #{self.pk} — {self.full_name} ({self.status})'
+
+    def save(self, *args, **kwargs):
+        if not self.pk and not self.tracking_token:
+            self.tracking_token = secrets.token_hex(48)
+        super().save(*args, **kwargs)
 
 
 class OrderItem(models.Model):

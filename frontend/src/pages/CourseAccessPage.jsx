@@ -7,7 +7,7 @@ import SEO from '../components/SEO'
 
 export default function CourseAccessPage() {
   const [email,     setEmail]     = useState('')
-  const [state,     setState]     = useState('idle') // idle | loading | sent | error | not_found | rate_limited
+  const [state,     setState]     = useState('idle') // idle | loading | sent | error | rate_limited
   const [errorMsg,  setErrorMsg]  = useState('')
 
   async function handleSubmit(e) {
@@ -21,7 +21,6 @@ export default function CourseAccessPage() {
       const status = err.response?.status
       const detail = err.response?.data?.detail || ''
       if (status === 429) { setState('rate_limited'); return }
-      if (status === 404) { setState('not_found');    return }
       setState('error')
       setErrorMsg(detail || 'Something went wrong. Please try again.')
     }
@@ -56,8 +55,12 @@ export default function CourseAccessPage() {
               <div style={{ fontSize: '2rem' }}>✉️</div>
               <p className="serif" style={{ fontSize: '1.2rem', color: 'var(--bone)', margin: 0 }}>Check your inbox</p>
               <p style={{ fontFamily: 'var(--sans)', fontSize: '0.87rem', fontWeight: 300, color: 'var(--taupe)', lineHeight: 1.7, margin: 0 }}>
-                We've sent an access link to <strong style={{ color: 'var(--bone)' }}>{email}</strong>.
+                If <strong style={{ color: 'var(--bone)' }}>{email}</strong> has course access, we've sent a link to it.
                 Click it within 24 hours to open your course dashboard.
+              </p>
+              <p style={{ fontFamily: 'var(--sans)', fontSize: '0.78rem', fontWeight: 300, color: 'var(--taupe-mut)', lineHeight: 1.6, margin: 0 }}>
+                Didn't get anything? Double-check your spelling or{' '}
+                <Link to="/studio/courses" style={{ color: 'var(--champ)', textDecoration: 'none' }}>browse courses</Link>.
               </p>
               <button
                 onClick={() => { setState('idle'); setEmail('') }}
@@ -78,7 +81,7 @@ export default function CourseAccessPage() {
                   width: '100%', boxSizing: 'border-box',
                   padding: '0.9rem 1.2rem',
                   background: 'color-mix(in srgb, var(--bone) 5%, transparent)',
-                  border: `1px solid ${state === 'not_found' || state === 'error' ? 'rgba(255,80,80,0.5)' : 'var(--hair)'}`,
+                  border: `1px solid ${state === 'error' ? 'rgba(255,80,80,0.5)' : 'var(--hair)'}`,
                   borderRadius: '10px',
                   color: 'var(--bone)',
                   fontFamily: 'var(--sans)',
@@ -87,12 +90,6 @@ export default function CourseAccessPage() {
                 }}
               />
 
-              {state === 'not_found' && (
-                <p style={{ fontFamily: 'var(--sans)', fontSize: '0.82rem', color: 'rgba(255,120,120,0.9)', margin: 0 }}>
-                  No courses found for this email. Check your spelling or{' '}
-                  <Link to="/studio/courses" style={{ color: 'var(--champ)', textDecoration: 'none' }}>browse courses</Link>.
-                </p>
-              )}
               {state === 'rate_limited' && (
                 <p style={{ fontFamily: 'var(--sans)', fontSize: '0.82rem', color: 'rgba(255,180,60,0.9)', margin: 0 }}>
                   Too many requests. Please wait 10 minutes before trying again.
