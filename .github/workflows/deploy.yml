@@ -16,7 +16,21 @@ on:
 
 jobs:
   build-and-deploy:
-    runs-on: ubuntu-latest
+    # PINNED DELIBERATELY — do not change back to `ubuntu-latest`.
+    #
+    # On 2026-11-18 a deploy failed in 14s with:
+    #   "Cannot install dependencies for ubuntu26.04-x64 with Playwright 1.60.0!
+    #    ERROR: Playwright does not support chromium on ubuntu26.04-x64"
+    # GitHub had rolled `ubuntu-latest` over to Ubuntu 26.04 while this project
+    # sat idle for ~3 months, and the pinned Playwright (1.60.0) has no support
+    # for it yet. Nothing in the repo changed — the runner moved underneath us.
+    #
+    # Pinning keeps this build reproducible and matches the environment the
+    # pre-rendering was actually verified against. Bumping Playwright is the
+    # other way out, but that should be a deliberate, separately-tested change
+    # (prerender.mjs depends on real Playwright wait/navigation behaviour), not
+    # something forced by a surprise OS rotation.
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
 
