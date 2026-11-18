@@ -61,6 +61,41 @@ This file supersedes the old "Security & Access Rules" bullets that used to live
 
 ## Known accepted gaps / deferred items
 
-- **`bookings_bookingrequest` table on production Postgres** — the `bookings` app was fully removed (2026-08-09, dead code — Calendly handles bookings externally now), including a clean local migration drop. That same drop never reaches Railway's production database since the migration file was deleted along with the app. The table is near-certainly empty (the endpoint was never reachable from any live UI) and orphaned-but-harmless. Optional manual `DROP TABLE bookings_bookingrequest;` on Railway if full cleanup is ever wanted.
-- **Safari native HLS playback** (see `deploy_readiness` memory / video-protection history) — genuine Safari takes a native playback path with no token-injection hook available, unlike Chrome/Firefox via hls.js. Smaller, isolated, not yet revisited.
+- **`bookings_bookingrequest` table on production Postgres — CLEARED FOR REMOVAL (approved 2026-11-18).**
+  The `bookings` app was fully removed (2026-08-09, dead code — Calendly + WhatsApp handle bookings
+  now), including a clean local migration drop. That drop never reached Railway's production database,
+  because the migration file was deleted along with the app. The table is near-certainly empty (its
+  endpoint was never reachable from any live UI) and orphaned-but-harmless.
+
+  **To clear it**: Railway → the Postgres service → Data/Query tab → run
+  `DROP TABLE IF EXISTS bookings_bookingrequest;`
+
+  Worth checking `SELECT COUNT(*) FROM bookings_bookingrequest;` first — if it somehow isn't 0, stop
+  and look at the rows before dropping anything. Note this is cleanup of **dead code only**: a
+  different booking approach is under separate consideration, and this table has nothing to do with
+  it (nor with `core.models.BookingRevenue`, which powers the admin revenue chart and is unrelated —
+  no FK, different app).
+
+- **Safari native HLS playback — ON HOLD (2026-11-18), deliberately not closed.**
+  On Chrome/Firefox/Android, `VideoPlayer.jsx` drives playback through `hls.js` and re-attaches the
+  signed Bunny token to every nested request (quality sub-playlists, `.ts` segments), so those URLs
+  expire after 8 hours. On genuine Safari (`canPlayType` returns `'probably'`), playback goes through
+  Apple's own HLS engine, which exposes no hook to inject the token into nested requests. So we do
+  not currently know whether token enforcement is actually active for Safari users.
+
+  **Why "a friend's iPhone plays everything fine" does not answer this** (raised 2026-11-18): the
+  question was never whether playback works — it does, and that's good, no customer is broken. The
+  question is whether the *URL is protected*. "Video plays" is equally consistent with "token is
+  being enforced" and "Safari is being served unprotected content". Those need different tests.
+
+  **The test that would actually settle it**: on a real iPhone, open a course video, pull the `.m3u8`
+  URL out of Safari's network inspector, then try that URL from a different device more than 8 hours
+  later.
+  - Refuses to play → the token *is* being enforced on Safari. No gap. Close this item for good.
+  - Still plays → the gap is real, and the decision is whether to force Safari through `hls.js`/MSE
+    too (guarantees enforcement everywhere, but gives up Safari's native-engine efficiency and risks
+    regressing iPhone playback that currently works).
+
+  Until that test is run, this stays open and unknown — not quietly assumed safe, and not quietly
+  assumed broken.
 - **`includeSubDomains`/`preload` on HSTS** — deliberately not added yet; revisit once `jes.co` is purchased and its subdomain layout is final.

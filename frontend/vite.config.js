@@ -36,4 +36,31 @@ export default defineConfig(({ command }) => ({
       },
     },
   },
+  // `vite preview` is used by scripts/prerender.mjs to serve the built site
+  // locally while Playwright renders each page to static HTML. It needs the
+  // SAME /api proxy that frontend/vercel.json gives the real deployed site,
+  // because main.jsx deliberately leaves axios's baseURL empty in production
+  // so calls stay same-origin and the Railway hostname stays masked. Without
+  // this block, those same-origin calls hit the preview server itself (which
+  // serves static files only), 404, and every page gets pre-rendered with an
+  // EMPTY data state — which is exactly what silently shipped from
+  // 2026-08-22 to 2026-11-18. See CLAUDE.md's Discoverability section.
+  //
+  // ⚠️ KEEP THE TARGET IN SYNC WITH frontend/vercel.json's /api rewrite.
+  // Hardcoded on purpose, mirroring vercel.json rather than adding an env
+  // var — a missing env var (VITE_API_URL) is what caused half this bug.
+  // This block affects the local/CI preview server ONLY; it is never part of
+  // the deployed output, so it has zero effect on API masking in production.
+  preview: {
+    proxy: {
+      '/api': {
+        target: 'https://web-production-ae068.up.railway.app',
+        changeOrigin: true,
+      },
+      '/media': {
+        target: 'https://web-production-ae068.up.railway.app',
+        changeOrigin: true,
+      },
+    },
+  },
 }))
