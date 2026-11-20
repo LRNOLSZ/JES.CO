@@ -18,8 +18,16 @@ npm run dev
 Requires a `.env` with:
 
 ```
-VITE_API_URL   # Django backend URL
+VITE_PAYSTACK_PUBLIC_KEY   # Paystack public key (inline checkout)
+VITE_WHATSAPP_NUMBER       # international format, no leading '+'
 ```
+
+> No API URL needed locally — `vite.config.js`'s dev proxy forwards `/api` to `127.0.0.1:8000`.
+> `VITE_API_URL` is no longer used by any code (as of 2026-11-18): axios's `baseURL` comes from
+> `import.meta.env.DEV`, and is empty in production so calls stay same-origin and `vercel.json`'s
+> rewrite proxies them. On Vercel, **never mark a `VITE_` variable "Sensitive"** — `vercel pull`
+> replaces the value with the literal string `[SENSITIVE]` outside Vercel's own build container.
+> See `DEPLOYMENT.md`.
 
 ## Commands
 

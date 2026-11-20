@@ -104,8 +104,14 @@ WHATSAPP_NUMBER, MAAME_AMA_EMAIL
 Frontend `.env`:
 
 ```
-VITE_API_URL   # Django backend URL
+VITE_PAYSTACK_PUBLIC_KEY   # Paystack public key (inline checkout)
+VITE_WHATSAPP_NUMBER       # international format, no leading '+'
 ```
+
+> Local dev needs no API URL — `vite.config.js`'s dev proxy forwards `/api` to
+> `127.0.0.1:8000`. `VITE_API_URL` is no longer used by any code (as of 2026-11-18); axios's
+> `baseURL` comes from `import.meta.env.DEV` and is empty in production so calls stay same-origin.
+> On Vercel, **never mark a `VITE_` variable "Sensitive"** — see `DEPLOYMENT.md`.
 
 ## Key Features
 

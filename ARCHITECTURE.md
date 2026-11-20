@@ -22,7 +22,7 @@ The defining architectural decision of this project: **it's fully loginless.** T
 | Frontend | React 19, Vite, React Router 7 | |
 | Styling | Tailwind CSS 4 | via `@tailwindcss/vite` |
 | Animation | Framer Motion | |
-| HTTP client | axios | single shared instance, `baseURL` set from `VITE_API_URL` |
+| HTTP client | axios | single shared instance. `baseURL` is **not** from `VITE_API_URL` — `main.jsx` sets it from `import.meta.env.DEV`: the local Django server in dev, and an **empty string in production** so calls stay same-origin and `vercel.json`'s `/api/*` rewrite proxies them to Railway (keeps the backend hostname out of DevTools). Corrected 2026-11-18 |
 | Video playback | hls.js | for HLS streaming from Bunny; Safari uses its native engine instead |
 | Images | `django-imagekit` (server-side WebP conversion/resizing) | |
 | Static files | WhiteNoise | serves Django's own static assets (admin CSS/JS) in production |

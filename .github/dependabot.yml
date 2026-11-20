@@ -1,14 +1,47 @@
+# Dependabot — weekly VERSION updates (newest release of each package).
+#
+# ⚠️ GLOBAL CONFIG — read before changing `open-pull-requests-limit`.
+#
+# This file was added during the 2026-08-21 security audit (F-02/F-03) to catch
+# vulnerable packages. It then ran weekly for ~3 months, all green, while being
+# unable to report the only two packages that actually had CVEs.
+#
+# Why: `open-pull-requests-limit` defaults to **5 per ecosystem** when unset.
+# Exactly 5 pip + 5 npm PRs sat open and untouched from 2026-08-22, so the queue
+# was permanently full and Dependabot could not raise a PR for `pillow`
+# (42 advisories) or `djangorestframework` (5). A saturated queue looks
+# identical to a healthy one from the outside — weekly runs, no failures.
+# Hence the explicit limit below: do not remove it and fall back to the default.
+#
+# ⚠️ The limit is only half of it. Dependabot has a SECOND, separate feature —
+# "Dependabot security updates" + "Dependabot alerts" — which is what actually
+# raises CVE-driven PRs and is NOT governed by this file or by the limit below.
+# Both were found DISABLED on 2026-11-18 and enabled in repo Settings →
+# Advanced Security. If CVEs ever stop surfacing again, check those toggles
+# first; this file alone cannot do that job.
+#
+# ⚠️ There is no test CI in this repo (`.github/workflows/deploy.yml` is the only
+# workflow and runs no tests). So a Dependabot PR showing "mergeable / clean"
+# means *no git conflict*, NOT *it works*. Merging also auto-deploys: a
+# requirements.txt change triggers Railway's git deploy, and anything under
+# frontend/** triggers deploy.yml → production. Test locally before merging any
+# dependency PR, especially a major-version bump.
 version: 2
 updates:
   - package-ecosystem: "pip"
     directory: "/"
     schedule:
       interval: "weekly"
+    open-pull-requests-limit: 10
+
   - package-ecosystem: "npm"
     directory: "/frontend"
     schedule:
       interval: "weekly"
+    open-pull-requests-limit: 10
+
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
       interval: "weekly"
+    open-pull-requests-limit: 10

@@ -1,7 +1,7 @@
 asgiref==3.11.0
 boto3==1.43.29
 botocore==1.43.29
-certifi==2026.5.20
+certifi==2026.10.23
 charset-normalizer==3.4.7
 cloudinary==1.44.2
 diff-match-patch==20241021
@@ -13,16 +13,16 @@ django-cleanup==9.0.0
 django-cloudinary-storage==0.3.0
 django-cors-headers==4.9.0
 django-imagekit==6.1.0
-django-import-export==4.4.0
+django-import-export==4.4.1
 django-storages==1.14.6
 django-unfold==0.86.1
-djangorestframework==3.16.1
+djangorestframework==3.18.3
 gunicorn==26.0.0
 idna==3.18
 jmespath==1.1.0
-packaging==26.2
+packaging==26.3
 pilkit==3.0
-pillow==12.3.0
+pillow==13.0.0
 psycopg2-binary==2.9.11
 python-dateutil==2.9.0.post0
 python-decouple==3.8
@@ -32,5 +32,5 @@ six==1.17.0
 sqlparse==0.6.0
 tablib==3.10.0
 tzdata==2025.2
-urllib3==2.7.0
+urllib3==2.8.0
 whitenoise==6.12.0
