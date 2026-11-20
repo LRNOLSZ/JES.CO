@@ -1,6 +1,6 @@
 asgiref==3.11.0
 boto3==1.43.29
-botocore==1.43.29
+botocore==1.44.5
 certifi==2026.10.23
 charset-normalizer==3.4.7
 cloudinary==1.44.2
