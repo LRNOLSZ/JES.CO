@@ -16,7 +16,7 @@ django-imagekit==6.1.0
 django-import-export==4.4.0
 django-storages==1.14.6
 django-unfold==0.86.1
-djangorestframework==3.16.1
+djangorestframework==3.18.2
 gunicorn==26.0.0
 idna==3.18
 jmespath==1.1.0
