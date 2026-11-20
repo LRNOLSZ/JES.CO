@@ -31,6 +31,6 @@ s3transfer==0.18.0
 six==1.17.0
 sqlparse==0.6.0
 tablib==3.10.0
-tzdata==2025.2
+tzdata==2026.6
 urllib3==2.8.0
 whitenoise==6.12.0
