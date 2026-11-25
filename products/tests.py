@@ -400,16 +400,43 @@ class ShopAccountAccessTests(TestCase):
 
 
 class PrivateStorageConfigTests(TestCase):
-    """Guards the one setting that decides whether paid PDFs are public.
+    """Guards the four settings that decide whether paid PDFs stay private.
 
-    Only meaningful when R2 is configured, so it skips locally. The live
-    behaviour (an unsigned object path returning 403) has to be confirmed
-    against real R2 — see the Phase A verification notes.
+    Config-only (no network), so it runs anywhere R2 credentials are present.
+    Every assertion here corresponds to a way this was actually broken during
+    development, not a hypothetical.
     """
 
-    def test_private_storage_never_sets_a_custom_domain(self):
+    def setUp(self):
         from jesrestudio_backend import storage_backends as sb
-        if not sb.R2_CONFIGURED:
-            self.skipTest('R2 not configured locally — verify against production')
-        self.assertIsNone(sb.R2PrivateStorage.custom_domain)
-        self.assertTrue(sb.R2PrivateStorage.querystring_auth)
+        if not sb.R2_PRIVATE_CONFIGURED:
+            self.skipTest('Private R2 bucket not configured in this environment')
+        self.sb = sb
+
+    def test_private_bucket_is_not_the_public_media_bucket(self):
+        """R2 public access is bucket-wide, so sharing the media bucket would
+        expose every PDF at a guessable path."""
+        self.assertNotEqual(
+            self.sb.R2PrivateStorage.bucket_name,
+            self.sb.R2MediaStorage.bucket_name,
+        )
+
+    def test_private_storage_never_sets_a_custom_domain(self):
+        """A custom_domain makes django-storages skip presigning entirely and
+        return a permanent public URL."""
+        self.assertIsNone(self.sb.R2PrivateStorage.custom_domain)
+        self.assertTrue(self.sb.R2PrivateStorage.querystring_auth)
+
+    def test_private_storage_uses_sigv4(self):
+        """Regression guard. Without this boto3 presigns with Signature Version 2
+        and R2 rejects every download with 401 — R2 only accepts SigV4. The URL
+        still *looks* signed, so this is invisible without fetching it."""
+        self.assertEqual(self.sb.R2PrivateStorage.signature_version, 's3v4')
+
+    def test_private_storage_uses_its_own_credentials(self):
+        """Separate least-privilege token per bucket: a leak of one must not
+        expose the other."""
+        self.assertNotEqual(
+            self.sb.R2PrivateStorage.access_key,
+            self.sb.R2MediaStorage.access_key,
+        )

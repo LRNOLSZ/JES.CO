@@ -52,8 +52,36 @@ Every variable the backend actually reads via `config(...)` (`python-decouple`),
 **Media storage (Cloudflare R2 — images)**
 | Var | Purpose |
 |---|---|
-| `R2_ACCESS_KEY_ID` / `R2_SECRET_ACCESS_KEY` / `R2_BUCKET_NAME` / `R2_ENDPOINT_URL` | All four must be present for R2 to activate (`R2_CONFIGURED`) — otherwise media falls back to local `/media/` |
+| `R2_ACCESS_KEY_ID` / `R2_SECRET_ACCESS_KEY` / `R2_BUCKET_NAME` / `R2_ENDPOINT_URL` | All four must be present for R2 to activate (`R2_CONFIGURED`) — otherwise media falls back to local `/media/`. This is the **public** bucket, for images |
 | `R2_PUBLIC_DOMAIN` | Optional custom CDN domain for serving R2 files |
+| `R2_PRIVATE_BUCKET_NAME` / `R2_PRIVATE_ACCESS_KEY_ID` / `R2_PRIVATE_SECRET_ACCESS_KEY` | **A SECOND, NON-PUBLIC R2 bucket + its own token**, for paid digital-product PDFs. All three required (`R2_PRIVATE_CONFIGURED`); without them PDFs fall back to local filesystem storage and are lost on the next deploy — a `products.W001` system check warns at startup. **Do not "simplify" these onto the media bucket** — see the note below |
+| `R2_PRIVATE_ENDPOINT_URL` | Optional. Defaults to `R2_ENDPOINT_URL`. Only needed for buckets pinned to a jurisdiction (EU/FedRAMP), which get their own endpoint host |
+
+> ### ⚠️ Why paid files need a separate bucket — do not merge these
+>
+> **R2 public access is a property of the BUCKET, not the folder.** The media bucket must have its
+> public `r2.dev` domain enabled to serve gallery and product images, and that single switch makes
+> *every* object in it readable by anyone who knows or guesses the path. There is no per-prefix
+> override.
+>
+> Verified 2026-11-25: every path under the public media domain returns **404 "not found"**, not
+> **403 "forbidden"** — proving the bucket is openly readable and only the object was missing. So a
+> PDF stored there under a `digital/` prefix would be permanently downloadable with no signature,
+> making the signed-URL mechanism decorative.
+>
+> The two buckets also use **separate API tokens** (least privilege): a leak or rotation of one
+> cannot touch the other. `R2PrivateStorage` shares nothing with `R2MediaStorage` except, by
+> default, the account-level endpoint.
+>
+> **`signature_version = 's3v4'` on `R2PrivateStorage` is required, not cosmetic.** Without it boto3
+> presigns with Signature Version 2 and **R2 rejects every download with 401** — R2 accepts only
+> SigV4. The URL still *looks* signed (it has `AWSAccessKeyId`/`Signature`/`Expires` params), so this
+> is invisible unless you actually fetch one. `R2MediaStorage` is unaffected because `custom_domain`
+> means it never presigns at all.
+>
+> **To verify after any change here** (config inspection is not sufficient — see above): generate a
+> download URL, confirm a signed GET returns **200**, the same path *unsigned* does **not** return
+> 200, and the public media domain returns **404** for it.
 
 **Video storage (Bunny Stream)**
 | Var | Purpose |
