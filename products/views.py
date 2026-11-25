@@ -10,6 +10,7 @@ from django.utils import timezone
 from django.utils.html import escape
 
 from rest_framework import status as drf_status
+from rest_framework.decorators import api_view, permission_classes
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny
@@ -17,9 +18,13 @@ from rest_framework.permissions import AllowAny
 from jesrestudio_backend.email_backends import send_branded_email
 from core.views import get_client_ip
 
-from .models import DeliveryZone, ProductItem, Order, OrderItem
+from .models import (
+    DeliveryZone, DigitalEntitlement, ProductItem, Order, OrderItem,
+    ShopAccessToken, ShopSession,
+)
 from .serializers import (
-    DeliveryZoneSerializer, OrderSerializer, OrderStatusSerializer, ProductItemSerializer,
+    DeliveryZoneSerializer, DigitalDownloadSerializer, OrderSerializer,
+    OrderStatusSerializer, ProductItemSerializer,
 )
 
 logger = logging.getLogger(__name__)
@@ -38,9 +43,23 @@ def _admin_url(path=''):
     return f'{settings.BACKEND_URL}/tweneboa/{path}'
 
 
+def _frontend_url():
+    return getattr(settings, 'FRONTEND_URL', 'http://localhost:5173')
+
+
 def _tracking_url(order):
-    frontend_url = getattr(settings, 'FRONTEND_URL', 'http://localhost:5173')
-    return f'{frontend_url}/track-order?token={order.tracking_token}'
+    return f'{_frontend_url()}/track-order?token={order.tracking_token}'
+
+
+def _account_url():
+    """Customer account page — orders and digital downloads.
+
+    Emails must link HERE and never to a file URL directly: a signed download
+    link expires in 24h and would be dead by the time someone came back to the
+    email, whereas this link keeps working forever because the page mints a
+    fresh signed URL on every visit.
+    """
+    return f'{_frontend_url()}/my-orders'
 
 
 def _decrement_stock(items_meta):
@@ -318,11 +337,29 @@ def _process_product_charge(data):
         if not product:
             invalid_reason = f'Unknown or inactive product ({pid})'
             break
-        unit_price = product.price_usd if (is_usa and product.price_usd) else product.price
+        if product.is_digital:
+            # Digital products are priced in GHS only — the same price applies to
+            # Ghana and international buyers, with a USD figure shown alongside for
+            # information. Making that explicit here (rather than relying on
+            # price_usd being left blank in the admin) keeps the rule in one place.
+            unit_price = product.price
+        else:
+            unit_price = product.price_usd if (is_usa and product.price_usd) else product.price
         if unit_price is None:
             invalid_reason = f'Product {pid} has no price set'
             break
         validated_items.append((product, qty, unit_price))
+
+    # Nothing physical in the cart means nothing to deliver. Zeroed here rather
+    # than trusted from the client so a stale or tampered delivery_zone_id can
+    # never attach a shipping charge to a download-only order. is_usa is reset
+    # with it because it is derived from the zone and would otherwise leave a
+    # digital-only order tagged with a USD equivalent it was never quoted in.
+    has_physical = any(not p.is_digital for p, _, _ in validated_items)
+    if not has_physical:
+        delivery_zone = None
+        delivery_fee  = Decimal('0')
+        is_usa        = False
 
     expected_total_native = delivery_fee + sum((u * q for _, q, u in validated_items), Decimal('0'))
 
@@ -400,7 +437,25 @@ def _process_product_charge(data):
             price      = str(unit_price),
             quantity   = qty,
         )
-    shortages = _decrement_stock([{'id': p.pk, 'quantity': q} for p, q, _ in validated_items])
+    # Physical items only. _decrement_stock writes stock_status through a queryset
+    # .update(), which bypasses ProductItem.save() and therefore the digital guard
+    # living there — a digital item reaching it would be flipped to out_of_stock
+    # and disappear from the shop after its first sale.
+    shortages = _decrement_stock(
+        [{'id': p.pk, 'quantity': q} for p, q, _ in validated_items if not p.is_digital]
+    )
+
+    # Grant permanent access to any digital items in this order. Safe against
+    # Paystack's webhook retries two ways over: this runs after the
+    # paystack_reference guard at the top of the function, and get_or_create is
+    # idempotent against the ('email', 'product') unique constraint anyway.
+    digital_items = [p for p, _, _ in validated_items if p.is_digital]
+    for product in digital_items:
+        DigitalEntitlement.objects.get_or_create(
+            email=email,
+            product=product,
+            defaults={'order': order},
+        )
 
     # Customer receipt
     delivery_display = (
@@ -411,19 +466,31 @@ def _process_product_charge(data):
         f'Quoted at checkout as approximately ${expected_total_native:.2f} — charged at today\'s rate.'
         if is_usa and not rate_unavailable else ''
     )
+    receipt_message = _build_receipt_message(order)
+    if digital_items:
+        names = '<br>'.join(f'• {escape(p.name)}' for p in digital_items)
+        receipt_message += (
+            '<br><br><strong>Your downloads are ready</strong><br>'
+            f'{names}<br><br>'
+            'Open your account page below to download them. They stay available '
+            'forever — come back any time.'
+        )
     send_branded_email(
         email,
         title='Order Confirmed',
         first_name=order.full_name,
-        message=_build_receipt_message(order),
+        message=receipt_message,
         details=[
             ('Order #', f'#{order.pk}'),
             ('Total', order.total),
             ('Delivery', delivery_display),
         ],
         footnote=footnote,
-        cta_url=_tracking_url(order),
-        cta_label='Track Your Order',
+        # Digital orders point at the account page (where downloads live and
+        # links are re-minted); physical-only keeps the direct tracking link,
+        # which needs no email round-trip.
+        cta_url=_account_url() if digital_items else _tracking_url(order),
+        cta_label='View Your Downloads' if digital_items else 'Track Your Order',
     )
 
     # Admin notification
@@ -451,3 +518,161 @@ def _process_product_charge(data):
         )
 
     return Response({'detail': 'Order created.'})
+
+
+# ── Customer account (loginless magic link) ───────────────────────────────────
+#
+# Mirrors the course magic-link flow in courses/views.py, but on its own token
+# and session models. See ShopSession's docstring for why CourseSession is not
+# reused: its 8-hour expiry and 2-device cap exist to limit concurrent video
+# streams, and both would be user-hostile applied to reading order history.
+
+
+def _resolve_shop_session(request):
+    """Return the ShopSession for the X-Shop-Session header, or None."""
+    session_key = request.META.get('HTTP_X_SHOP_SESSION', '').strip()
+    if not session_key:
+        return None
+    try:
+        session = ShopSession.objects.get(session_key=session_key)
+    except ShopSession.DoesNotExist:
+        return None
+    return None if session.is_expired else session
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def request_shop_access_link(request):
+    """
+    POST /api/shop/access/request/   Body: { "email": "..." }
+
+    Sends an account link only if the email actually has orders or digital
+    entitlements — but ALWAYS returns the same response either way. Saying "no
+    account found" would turn this into an enumeration oracle for who has
+    shopped here; same reasoning as the F-14 fix on the course equivalent.
+    Rate limited to 10/min per IP.
+    """
+    ip = get_client_ip(request)
+    cache_key = f'shop_magic_link_rate_{ip}'
+    attempts = cache.get(cache_key, 0)
+    if attempts >= 10:
+        return Response(
+            {'detail': 'Too many requests. Please try again in a minute.'},
+            status=drf_status.HTTP_429_TOO_MANY_REQUESTS,
+        )
+    cache.set(cache_key, attempts + 1, timeout=60)
+
+    email = (request.data.get('email') or '').strip().lower()
+    if not email:
+        return Response({'detail': 'Email is required.'}, status=drf_status.HTTP_400_BAD_REQUEST)
+
+    generic_response = Response({
+        'detail': 'If this email has any orders or downloads, we have sent it an account link.',
+    })
+
+    has_orders    = Order.objects.filter(email__iexact=email).exists()
+    has_downloads = DigitalEntitlement.objects.filter(email__iexact=email, is_active=True).exists()
+    if not (has_orders or has_downloads):
+        return generic_response
+
+    token = ShopAccessToken.create_for_email(email)
+    send_branded_email(
+        email,
+        title='Your JES.CO Account Link',
+        message=(
+            'Tap the button below to see your orders and downloads.<br><br>'
+            'This link expires in 24 hours and can only be used once — you can '
+            'request a new one any time.'
+        ),
+        cta_url=f'{_account_url()}/verify?token={token.token}',
+        cta_label='View My Orders',
+        footnote="If you didn't request this, you can safely ignore it.",
+    )
+    return generic_response
+
+
+@api_view(['GET', 'POST'])
+@permission_classes([AllowAny])
+def verify_shop_token(request):
+    """
+    GET  /api/shop/access/verify/?token=xxx  — read-only check, no side effects.
+        Deliberately harmless so email clients that pre-fetch links cannot burn
+        the token before the customer taps it. Returns { email }.
+    POST /api/shop/access/verify/ { token }  — consumes the token and opens a
+        ShopSession. Returns { session_key, email }.
+    """
+    raw_token = (
+        request.query_params.get('token') if request.method == 'GET'
+        else request.data.get('token', '')
+    )
+    raw_token = (raw_token or '').strip()
+    if not raw_token:
+        return Response({'detail': 'Token is required.'}, status=drf_status.HTTP_400_BAD_REQUEST)
+
+    try:
+        access_token = ShopAccessToken.objects.get(token=raw_token)
+    except ShopAccessToken.DoesNotExist:
+        return Response({'detail': 'This link is invalid or has already been used.'},
+                        status=drf_status.HTTP_404_NOT_FOUND)
+
+    if access_token.is_used or access_token.is_expired:
+        return Response({'detail': 'This link has expired or already been used.'},
+                        status=drf_status.HTTP_410_GONE)
+
+    if request.method == 'GET':
+        return Response({'email': access_token.email})
+
+    access_token.is_used = True
+    access_token.save(update_fields=['is_used'])
+
+    session = ShopSession.create_for_email(
+        access_token.email,
+        device_hint=request.META.get('HTTP_USER_AGENT', ''),
+    )
+    return Response({'session_key': session.session_key, 'email': session.email})
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def shop_account(request):
+    """
+    GET /api/shop/account/   Header: X-Shop-Session
+
+    Every physical order and every digital download for the session's email.
+    Download URLs are signed fresh on each call, which is what lets the
+    entitlement be permanent while no long-lived link to the file ever exists.
+
+    Session-gated rather than open to a typed-in email because orders carry the
+    customer's full name, phone and address — considerably more than the
+    existing reference+email tracking lookup discloses, which can only confirm
+    an order the caller already knows about.
+    """
+    session = _resolve_shop_session(request)
+    if not session:
+        return Response({'detail': 'Not signed in.'}, status=drf_status.HTTP_401_UNAUTHORIZED)
+
+    session.save(update_fields=['last_seen'])
+
+    orders = (Order.objects
+              .filter(email__iexact=session.email)
+              .select_related('delivery_zone')
+              .prefetch_related('items'))
+    downloads = (DigitalEntitlement.objects
+                 .filter(email__iexact=session.email, is_active=True)
+                 .select_related('product'))
+
+    return Response({
+        'email':     session.email,
+        'orders':    OrderStatusSerializer(orders, many=True).data,
+        'downloads': DigitalDownloadSerializer(downloads, many=True).data,
+    })
+
+
+@api_view(['DELETE'])
+@permission_classes([AllowAny])
+def shop_logout(request):
+    """DELETE /api/shop/access/session/ — ends this device's session only."""
+    session = _resolve_shop_session(request)
+    if session:
+        session.delete()
+    return Response({'detail': 'Signed out.'})

@@ -7,6 +7,10 @@ const EXPLORE = [
   { label: 'Shop',    to: '/products/makeup' },
   { label: 'Studio',  to: '/studio' },
   { label: 'Courses', to: '/studio/courses' },
+  // Without this the account page is unreachable: /my-orders and /track-order
+  // were only ever linked from the post-checkout screen, so a returning
+  // customer had no way to find either.
+  { label: 'My Orders & Downloads', to: '/my-orders' },
 ]
 
 function SocialIcon({ platform }) {

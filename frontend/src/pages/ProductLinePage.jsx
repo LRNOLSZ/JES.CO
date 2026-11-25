@@ -189,16 +189,27 @@ export default function ProductLinePage() {
 function ProductCard({ item, added, onAdd }) {
   const [hovered, setHovered] = useState(false)
   const { region } = useRegion()
-  const isLowStock = item.stock_status === 'in_stock' && item.quantity > 0 && item.quantity <= LOW_STOCK_THRESHOLD
-  const stock = isLowStock
-    ? { color: LOW_STOCK_COLOR, label: `Only ${item.quantity} left` }
-    : (STOCK[item.stock_status] || STOCK.coming_soon)
-  const canBuy = item.stock_status === 'in_stock'
-  const soldOut = item.stock_status === 'out_of_stock'
-  const displayPrice = formatPrice(
-    region === 'usa' && item.price_usd ? item.price_usd : item.price,
-    region === 'usa' ? 'USD' : 'GHS'
-  )
+  // A digital product has no stock, so the low-stock and sold-out treatments
+  // would be meaningless (and "Only 0 left" actively wrong) — it is simply
+  // always available.
+  const isDigital  = item.product_type === 'digital'
+  const isLowStock = !isDigital && item.stock_status === 'in_stock' && item.quantity > 0 && item.quantity <= LOW_STOCK_THRESHOLD
+  const stock = isDigital
+    ? { color: 'var(--champ)', label: 'Instant download' }
+    : isLowStock
+      ? { color: LOW_STOCK_COLOR, label: `Only ${item.quantity} left` }
+      : (STOCK[item.stock_status] || STOCK.coming_soon)
+  const canBuy  = isDigital || item.stock_status === 'in_stock'
+  const soldOut = !isDigital && item.stock_status === 'out_of_stock'
+  // Digital products are priced in GHS worldwide — one price, no regional
+  // variant. Must match the same rule in CartPage and the server-side charge
+  // handler, or the price check rejects the order.
+  const displayPrice = isDigital
+    ? formatPrice(item.price, 'GHS')
+    : formatPrice(
+        region === 'usa' && item.price_usd ? item.price_usd : item.price,
+        region === 'usa' ? 'USD' : 'GHS'
+      )
 
   return (
     <div

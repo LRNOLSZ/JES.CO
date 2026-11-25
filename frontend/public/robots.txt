@@ -7,6 +7,7 @@ Allow: /
 Disallow: /studio/courses/dashboard
 Disallow: /cart
 Disallow: /track-order
+Disallow: /my-orders
 Disallow: /studio/courses/access/verify
 
 # AI crawlers — named explicitly and deliberately allowed, rather than
@@ -17,6 +18,7 @@ Allow: /
 Disallow: /studio/courses/dashboard
 Disallow: /cart
 Disallow: /track-order
+Disallow: /my-orders
 Disallow: /studio/courses/access/verify
 
 User-agent: ClaudeBot
@@ -24,6 +26,7 @@ Allow: /
 Disallow: /studio/courses/dashboard
 Disallow: /cart
 Disallow: /track-order
+Disallow: /my-orders
 Disallow: /studio/courses/access/verify
 
 User-agent: anthropic-ai
@@ -31,6 +34,7 @@ Allow: /
 Disallow: /studio/courses/dashboard
 Disallow: /cart
 Disallow: /track-order
+Disallow: /my-orders
 Disallow: /studio/courses/access/verify
 
 User-agent: Google-Extended
@@ -38,6 +42,7 @@ Allow: /
 Disallow: /studio/courses/dashboard
 Disallow: /cart
 Disallow: /track-order
+Disallow: /my-orders
 Disallow: /studio/courses/access/verify
 
 User-agent: PerplexityBot
@@ -45,6 +50,7 @@ Allow: /
 Disallow: /studio/courses/dashboard
 Disallow: /cart
 Disallow: /track-order
+Disallow: /my-orders
 Disallow: /studio/courses/access/verify
 
 User-agent: CCBot
@@ -52,6 +58,7 @@ Allow: /
 Disallow: /studio/courses/dashboard
 Disallow: /cart
 Disallow: /track-order
+Disallow: /my-orders
 Disallow: /studio/courses/access/verify
 
 User-agent: OAI-SearchBot
@@ -59,6 +66,7 @@ Allow: /
 Disallow: /studio/courses/dashboard
 Disallow: /cart
 Disallow: /track-order
+Disallow: /my-orders
 Disallow: /studio/courses/access/verify
 
 # TODO: swap jes-co.vercel.app for the real jes.co domain once purchased

@@ -44,17 +44,42 @@ export default function CartPage() {
   const [stockById,     setStockById]     = useState({})
 
   const currency     = region === 'usa' ? 'USD' : 'GHS'
-  const rawItemPrice = (item) => (region === 'usa' && item.price_usd) ? item.price_usd : item.price
-  const itemPrice     = (item) => formatPrice(rawItemPrice(item), currency)
+
+  // Items saved to localStorage before digital products existed have no
+  // product_type, so anything that isn't explicitly 'digital' counts as
+  // physical — the same default the model uses.
+  const isDigital   = (item) => item.product_type === 'digital'
+  const hasPhysical = cart.some(i => !isDigital(i))
+  const hasDigital  = cart.some(i => isDigital(i))
+
+  // Digital products are priced in GHS only — one price worldwide. This must
+  // mirror the same rule in products/views.py's charge handler; if the two ever
+  // disagree, the server-side price check fails and the order is held for
+  // manual review instead of completing.
+  const itemCurrency  = (item) => (isDigital(item) ? 'GHS' : currency)
+  const rawItemPrice  = (item) =>
+    (!isDigital(item) && region === 'usa' && item.price_usd) ? item.price_usd : item.price
+  const itemPrice     = (item) => formatPrice(rawItemPrice(item), itemCurrency(item))
 
   const subtotal    = cart.reduce((sum, i) => sum + Number(rawItemPrice(i) || 0) * i.quantity, 0)
-  const deliveryFee = selectedZone ? parseFloat(selectedZone.price) : 0
+  const deliveryFee = (hasPhysical && selectedZone) ? parseFloat(selectedZone.price) : 0
   const total       = subtotal + deliveryFee
+  // A download-only cart is always GHS, even for a USA visitor.
+  const totalCurrency = hasPhysical ? currency : 'GHS'
 
   // Paystack (Ghana accounts) can only actually charge in GHS — USD is shown
   // throughout shopping, but converted to its GHS equivalent at payment time.
+  // A digital-only total is ALREADY in GHS (see rawItemPrice above), so it must
+  // not be converted again — doing so would inflate the charge by ~12x.
   const rate         = useExchangeRate() // GHS -> USD
-  const ghsChargeAmount = region === 'usa' && rate ? total / rate : total
+  const ghsChargeAmount = (hasPhysical && region === 'usa' && rate) ? total / rate : total
+
+  // Until Phase B normalises the server-side price check to a single currency,
+  // a USA cart holding both a physical item (priced in USD) and a digital one
+  // (priced in GHS) would be summed across two currencies and rejected as
+  // underpaid — taking the money and withholding the order. Blocked here
+  // rather than discovered at the webhook.
+  const mixedCurrencyBlocked = region === 'usa' && hasPhysical && hasDigital
 
   // Reset the chosen delivery zone if it no longer matches the active region
   useEffect(() => {
@@ -89,15 +114,23 @@ export default function CartPage() {
 
   const handleChange = e => setForm(prev => ({ ...prev, [e.target.name]: e.target.value }))
 
+  // Address is pointless on a download-only order, so it's hidden rather than
+  // shown as an ignored optional field.
   const formFields = [
     { name: 'full_name', placeholder: 'Full Name *',          required: true  },
     { name: 'email',     placeholder: 'Email Address *',       required: true  },
     { name: 'phone',     placeholder: 'Phone / WhatsApp *',    required: true  },
-    { name: 'address',   placeholder: 'Delivery Address (optional)', required: false },
+    ...(hasPhysical
+      ? [{ name: 'address', placeholder: 'Delivery Address (optional)', required: false }]
+      : []),
     { name: 'notes',     placeholder: 'Notes (optional)',      required: false },
   ]
 
-  const isFormValid = () => form.full_name && form.email && form.phone && selectedZone
+  // A delivery zone is only required when there's something to deliver —
+  // without this a download-only cart could never be checked out at all.
+  const isFormValid = () =>
+    form.full_name && form.email && form.phone &&
+    (!hasPhysical || selectedZone) && !mixedCurrencyBlocked
 
   async function checkStock() {
     try {
@@ -298,7 +331,27 @@ export default function CartPage() {
                   })}
                 </div>
 
+                {/* Download-only orders have nothing to deliver, so the whole
+                    delivery picker is hidden rather than shown and ignored. */}
+                {!hasPhysical && (
+                  <div style={{ marginBottom: '1rem', padding: '0.85rem 1rem', borderRadius: '10px', border: '1px solid var(--hair)', background: 'color-mix(in srgb, var(--champ) 5%, transparent)' }}>
+                    <p style={{ fontFamily: 'var(--sans)', fontSize: '0.8rem', color: 'var(--bone)' }}>
+                      Instant download — no delivery needed. Your files appear in your account as soon as payment clears, and stay there for good.
+                    </p>
+                  </div>
+                )}
+
+                {mixedCurrencyBlocked && (
+                  <div style={{ marginBottom: '1rem', padding: '0.85rem 1rem', borderRadius: '10px', border: '1px solid rgba(200,80,80,0.45)', background: 'rgba(200,80,80,0.08)' }}>
+                    <p style={{ fontFamily: 'var(--sans)', fontSize: '0.8rem', color: '#e8a0a0' }}>
+                      Digital and physical items can't be bought together on an international order just yet. Please check them out separately.
+                    </p>
+                  </div>
+                )}
+
                 {/* Delivery zones — only the active region's zones show, so pricing is never mixed on-screen */}
+                {hasPhysical && (
+                <>
                 <p style={{ fontFamily: 'var(--sans)', fontSize: '0.62rem', letterSpacing: '0.38em', textTransform: 'uppercase', color: 'var(--champ)', marginBottom: '1rem' }}>
                   Delivery Location — {region === 'usa' ? 'USA' : 'Ghana'} *
                 </p>
@@ -323,22 +376,32 @@ export default function CartPage() {
                     </p>
                   )}
                 </div>
+                </>
+                )}
 
-                {/* Order total */}
-                {selectedZone && (
+                {/* Order total — also shown for download-only carts, which have
+                    no delivery zone to trigger it. */}
+                {(selectedZone || !hasPhysical) && (
                   <div style={{ marginTop: '1.25rem', padding: '1rem 1.1rem', borderRadius: '10px', border: '1px solid var(--hair)', background: 'color-mix(in srgb, var(--bone) 3%, transparent)' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: 'var(--sans)', fontSize: '0.82rem', color: 'var(--taupe)', marginBottom: '0.4rem' }}>
-                      <span>Subtotal</span><span>{currency} {subtotal.toFixed(2)}</span>
+                      <span>Subtotal</span><span>{totalCurrency} {subtotal.toFixed(2)}</span>
                     </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: 'var(--sans)', fontSize: '0.82rem', color: 'var(--taupe)', marginBottom: '0.75rem' }}>
-                      <span>Delivery — {selectedZone.location_name}</span><span>{currency} {deliveryFee.toFixed(2)}</span>
-                    </div>
+                    {hasPhysical && selectedZone && (
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: 'var(--sans)', fontSize: '0.82rem', color: 'var(--taupe)', marginBottom: '0.75rem' }}>
+                        <span>Delivery — {selectedZone.location_name}</span><span>{totalCurrency} {deliveryFee.toFixed(2)}</span>
+                      </div>
+                    )}
                     <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: 'var(--sans)', fontSize: '0.95rem', fontWeight: 600, color: 'var(--champ)', borderTop: '1px solid var(--hair)', paddingTop: '0.6rem' }}>
-                      <span>Total</span><span>{currency} {total.toFixed(2)}</span>
+                      <span>Total</span><span>{totalCurrency} {total.toFixed(2)}</span>
                     </div>
-                    {region === 'usa' && (
+                    {region === 'usa' && hasPhysical && (
                       <p style={{ marginTop: '0.6rem', fontFamily: 'var(--sans)', fontSize: '0.72rem', color: 'var(--taupe-mut)', textAlign: 'right' }}>
                         {rate ? `Charged as GHS ${ghsChargeAmount.toFixed(2)} — today's rate` : 'Loading today\'s rate…'}
+                      </p>
+                    )}
+                    {region === 'usa' && !hasPhysical && rate && (
+                      <p style={{ marginTop: '0.6rem', fontFamily: 'var(--sans)', fontSize: '0.72rem', color: 'var(--taupe-mut)', textAlign: 'right' }}>
+                        ≈ USD {(total * rate).toFixed(2)} — digital items are priced in GHS worldwide
                       </p>
                     )}
                   </div>
@@ -379,9 +442,10 @@ export default function CartPage() {
                         style={{ justifyContent: 'center', opacity: status === 'loading' ? 0.7 : 1, cursor: status === 'loading' ? 'not-allowed' : 'pointer' }}
                       >
                         {status === 'loading' ? 'Processing…' : `Pay with Paystack — ${
-                          !selectedZone ? 'Select delivery zone'
-                          : (region === 'usa' && rate) ? `USD ${total.toFixed(2)} (charged as GHS ${ghsChargeAmount.toFixed(2)})`
-                          : `${currency} ${total.toFixed(2)}`
+                          mixedCurrencyBlocked ? 'Check out digital items separately'
+                          : (hasPhysical && !selectedZone) ? 'Select delivery zone'
+                          : (region === 'usa' && hasPhysical && rate) ? `USD ${total.toFixed(2)} (charged as GHS ${ghsChargeAmount.toFixed(2)})`
+                          : `${totalCurrency} ${total.toFixed(2)}`
                         }`}
                       </button>
                     ) : (
@@ -396,21 +460,35 @@ export default function CartPage() {
                       </button>
                     )}
 
-                    {/* Secondary — WhatsApp */}
-                    <button
-                      type="button"
-                      disabled={status === 'loading'}
-                      onClick={handleWhatsApp}
-                      className="btn btn-ghost"
-                      style={{ justifyContent: 'center', opacity: status === 'loading' ? 0.7 : 1 }}
-                    >
-                      Order via WhatsApp →
-                    </button>
+                    {/* Secondary — WhatsApp.
+                        Hidden when the cart holds a digital item: a WhatsApp
+                        order is arranged off-site with no Paystack webhook, so
+                        nothing would grant the download and the customer would
+                        be left waiting for a file that never arrives. Online
+                        payment is what makes digital delivery automatic. */}
+                    {!hasDigital && (
+                      <button
+                        type="button"
+                        disabled={status === 'loading'}
+                        onClick={handleWhatsApp}
+                        className="btn btn-ghost"
+                        style={{ justifyContent: 'center', opacity: status === 'loading' ? 0.7 : 1 }}
+                      >
+                        Order via WhatsApp →
+                      </button>
+                    )}
                   </div>
 
                   <p style={{ fontFamily: 'var(--sans)', fontSize: '0.72rem', color: 'var(--taupe-mut)', textAlign: 'center', marginTop: '0.25rem' }}>
-                    A receipt and tracking link will be sent to your email.
+                    {hasDigital
+                      ? 'A receipt will be emailed to you, and your downloads will be waiting in your account.'
+                      : 'A receipt and tracking link will be sent to your email.'}
                   </p>
+                  {hasDigital && (
+                    <p style={{ fontFamily: 'var(--sans)', fontSize: '0.68rem', color: 'var(--taupe-mut)', textAlign: 'center' }}>
+                      Digital items need online payment so your download can be unlocked straight away.
+                    </p>
+                  )}
                 </div>
               </motion.div>
 

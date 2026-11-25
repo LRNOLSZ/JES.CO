@@ -4,6 +4,7 @@ import { BrowserRouter } from 'react-router-dom'
 import { HelmetProvider } from 'react-helmet-async'
 import axios from 'axios'
 import { CourseSessionProvider } from './context/CourseSessionContext'
+import { ShopSessionProvider } from './context/ShopSessionContext'
 import { CartProvider } from './context/CartContext'
 import { RegionProvider } from './context/RegionContext'
 import './index.css'
@@ -31,11 +32,13 @@ createRoot(document.getElementById('root')).render(
     <HelmetProvider>
       <BrowserRouter>
         <CourseSessionProvider>
-          <RegionProvider>
-            <CartProvider>
-              <App />
-            </CartProvider>
-          </RegionProvider>
+          <ShopSessionProvider>
+            <RegionProvider>
+              <CartProvider>
+                <App />
+              </CartProvider>
+            </RegionProvider>
+          </ShopSessionProvider>
         </CourseSessionProvider>
       </BrowserRouter>
     </HelmetProvider>

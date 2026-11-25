@@ -6,11 +6,11 @@ from unfold.admin import ModelAdmin, TabularInline
 from unfold.contrib.import_export.forms import ExportForm, ImportForm
 from unfold.decorators import display
 
-from core.admin import url_preview
+from core.admin import action_button, person_display, url_preview
 from jesrestudio_backend.email_backends import send_branded_email
 
-from .models import DeliveryZone, Order, OrderItem, ProductItem
-from .views import _tracking_url
+from .models import DeliveryZone, DigitalEntitlement, Order, OrderItem, ProductItem
+from .views import _account_url, _tracking_url
 
 
 # ── Delivery Zones ─────────────────────────────────────────────────────────────
@@ -152,23 +152,48 @@ class OrderAdmin(ImportExportModelAdmin, ModelAdmin):
 
 @admin.register(ProductItem)
 class ProductItemAdmin(ModelAdmin):
-    list_display  = ('thumb', 'name', 'category_badge', 'price_display', 'price_usd_display', 'stock_badge', 'quantity', 'order', 'is_active', 'created_at')
+    # `quantity` stays inline-editable: physical stock management is the daily
+    # workflow and list_editable can't be made conditional per row. On a digital
+    # row the value is simply ignored by ProductItem.save().
+    list_display  = ('thumb', 'name', 'category_badge', 'type_badge', 'price_display', 'price_usd_display', 'stock_badge', 'quantity', 'order', 'is_active', 'created_at')
     list_editable = ('quantity', 'order', 'is_active')
-    list_filter   = ('category', 'stock_status', 'is_active')
+    list_filter   = ('product_type', 'category', 'stock_status', 'is_active')
     search_fields = ('name', 'description')
     ordering      = ('category', 'order', '-created_at')
     readonly_fields = ('image_preview',)
     fieldsets = (
         ('Basic Info', {
-            'fields': ('category', 'name', 'description', 'image', 'image_preview'),
+            'fields': ('category', 'product_type', 'name', 'description', 'image', 'image_preview'),
+            'description': 'Set Type to "Digital" for downloadable products (PDF guides). '
+                           'Digital items need no delivery, address or stock.',
+        }),
+        ('Digital File', {
+            'fields': ('digital_file',),
+            'description': 'PDF only, and required for digital products. Stored privately — '
+                           'buyers only ever get a short-lived signed link from their account '
+                           'page, never a public URL, so the file cannot be shared permanently. '
+                           'Replacing this file updates it for everyone who has already bought it.',
         }),
         ('Pricing', {
             'fields': ('price', 'price_usd'),
+            'description': 'Digital products use the GHS price only — the same price applies '
+                           'everywhere, with a USD figure shown alongside for information. '
+                           'Price (USD) is for physical items sold to USA customers.',
         }),
         ('Inventory & Visibility', {
             'fields': ('stock_status', 'quantity', 'order', 'is_active'),
+            'description': 'Stock applies to physical items only. Digital products never run out, '
+                           'and their stock fields are ignored.',
         }),
     )
+
+    def get_readonly_fields(self, request, obj=None):
+        # Stock is meaningless for a digital product — show it, but don't invite
+        # edits that will simply be ignored by ProductItem.save().
+        ro = list(super().get_readonly_fields(request, obj))
+        if obj and obj.is_digital:
+            ro += ['stock_status', 'quantity']
+        return ro
 
     def image_preview(self, obj):
         return url_preview(obj.image)
@@ -196,8 +221,57 @@ class ProductItemAdmin(ModelAdmin):
     def category_badge(self, obj):
         return obj.category, obj.get_category_display()
 
+    @display(description='Type', label={'physical': 'info', 'digital': 'primary'})
+    def type_badge(self, obj):
+        return obj.product_type, obj.get_product_type_display()
+
     @display(description='Stock', label={
         'in_stock': 'success', 'out_of_stock': 'danger', 'coming_soon': 'warning',
     })
     def stock_badge(self, obj):
+        # Digital products never run out; showing a stock pill for them would be
+        # misleading. Falls through to Unfold's neutral grey (no dict entry).
+        if obj.is_digital:
+            return 'digital', 'Always available'
         return obj.stock_status, obj.get_stock_status_display()
+
+
+# ── Digital Entitlements ───────────────────────────────────────────────────────
+
+@admin.register(DigitalEntitlement)
+class DigitalEntitlementAdmin(ModelAdmin):
+    """Who owns which digital product. Permanent by design — revoke with the
+    `is_active` flag (e.g. after a refund) rather than deleting the record, so
+    the history of what was granted stays intact."""
+
+    list_display  = ('customer', 'product', 'source', 'granted_at', 'is_active')
+    list_filter   = ('is_active', 'product')
+    search_fields = ('email', 'product__name')
+    ordering      = ('-granted_at',)
+    autocomplete_fields = ('product',)
+    readonly_fields = ('granted_at', 'grant_link')
+    compressed_fields = True
+
+    fieldsets = (
+        ('Access', {
+            'fields': ('email', 'product', 'is_active'),
+            'description': 'To gift a product, add a row here with the customer\'s email and '
+                           'leave Order blank — they can then reach it from their account page '
+                           'immediately, no payment needed.',
+        }),
+        ('Origin', {
+            'fields': ('order', 'granted_at', 'grant_link'),
+        }),
+    )
+
+    @display(description='Customer', ordering='email')
+    def customer(self, obj):
+        return person_display(obj.email)
+
+    @display(description='Source')
+    def source(self, obj):
+        return f'Order #{obj.order.pk}' if obj.order else 'Gifted / manual'
+
+    @display(description='Account page')
+    def grant_link(self, obj):
+        return action_button(_account_url(), 'Open customer account page')

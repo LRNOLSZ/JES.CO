@@ -24,6 +24,8 @@ import CourseAccessVerifyPage  from './pages/CourseAccessVerifyPage'
 import CoursesDashboardPage    from './pages/CoursesDashboardPage'
 import CartPage                from './pages/CartPage'
 import OrderTrackingPage       from './pages/OrderTrackingPage'
+import MyOrdersPage            from './pages/MyOrdersPage'
+import MyOrdersVerifyPage      from './pages/MyOrdersVerifyPage'
 import TestimonialsPage        from './pages/TestimonialsPage'
 import SkinAnalysisPage        from './pages/SkinAnalysisPage'
 import AnnouncementPopup       from './components/AnnouncementPopup'
@@ -110,6 +112,12 @@ export default function App() {
       <Route path="/studio/courses/dashboard"        element={<CoursesDashboardPage />} />
       <Route path="/cart"                            element={<CartPage />} />
       <Route path="/track-order"                    element={<OrderTrackingPage />} />
+      {/* Customer account — physical orders + digital downloads behind a
+          magic-link session. Private, so robots.txt disallows it and it is
+          deliberately NOT in prerender.mjs's STATIC_ROUTES; it falls through
+          to app-shell.html via vercel.json's SPA rewrite. */}
+      <Route path="/my-orders"                      element={<MyOrdersPage />} />
+      <Route path="/my-orders/verify"               element={<MyOrdersVerifyPage />} />
     </Routes>
     </>
   )
