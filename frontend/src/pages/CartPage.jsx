@@ -43,8 +43,6 @@ export default function CartPage() {
   const [trackingRef,   setTrackingRef]   = useState('')
   const [stockById,     setStockById]     = useState({})
 
-  const currency     = region === 'usa' ? 'USD' : 'GHS'
-
   // Items saved to localStorage before digital products existed have no
   // product_type, so anything that isn't explicitly 'digital' counts as
   // physical — the same default the model uses.
@@ -52,34 +50,64 @@ export default function CartPage() {
   const hasPhysical = cart.some(i => !isDigital(i))
   const hasDigital  = cart.some(i => isDigital(i))
 
-  // Digital products are priced in GHS only — one price worldwide. This must
-  // mirror the same rule in products/views.py's charge handler; if the two ever
-  // disagree, the server-side price check fails and the order is held for
-  // manual review instead of completing.
-  const itemCurrency  = (item) => (isDigital(item) ? 'GHS' : currency)
-  const rawItemPrice  = (item) =>
+  const rate = useExchangeRate()   // USD per ONE GHS (≈0.08)
+
+  // ── Per-item currency, then convert, then sum ───────────────────────────────
+  //
+  // ⚠️ This MUST mirror products/views.py's charge handler exactly. The server
+  // recomputes the expected total independently and flags any mismatch, holding
+  // the customer's money for manual review — so if these two rules ever drift,
+  // every affected order breaks.
+  //
+  // Each price carries its own currency: digital is GHS worldwide (one price),
+  // physical is USD only when the visitor is in the USA *and* a price_usd is
+  // actually set — a product without one falls back to its GHS price, and that
+  // line stays GHS. Summing before converting is what produced a ~4-12x wrong
+  // total for mixed USA carts.
+  const itemCurrency = (item) =>
+    isDigital(item) ? 'GHS' : ((region === 'usa' && item.price_usd) ? 'USD' : 'GHS')
+  const rawItemPrice = (item) =>
     (!isDigital(item) && region === 'usa' && item.price_usd) ? item.price_usd : item.price
-  const itemPrice     = (item) => formatPrice(rawItemPrice(item), itemCurrency(item))
+  const itemPrice    = (item) => formatPrice(rawItemPrice(item), itemCurrency(item))
 
-  const subtotal    = cart.reduce((sum, i) => sum + Number(rawItemPrice(i) || 0) * i.quantity, 0)
-  const deliveryFee = (hasPhysical && selectedZone) ? parseFloat(selectedZone.price) : 0
+  // A download-only cart shows GHS even for a USA visitor (digital has one
+  // worldwide price), so there is nothing to convert for display.
+  const totalCurrency = (hasPhysical && region === 'usa') ? 'USD' : 'GHS'
+
+  const asGhs = (amount, cur) => (cur === 'GHS' ? amount : amount / rate)
+  const asUsd = (amount, cur) => (cur === 'USD' ? amount : amount * rate)
+  const toDisplay = (amount, cur) =>
+    totalCurrency === 'GHS' ? asGhs(amount, cur) : asUsd(amount, cur)
+
+  // DeliveryZone.price is GHS for Ghana zones and USD for USA zones.
+  const deliveryRaw      = (hasPhysical && selectedZone) ? parseFloat(selectedZone.price) : 0
+  const deliveryCurrency = selectedZone?.country === 'usa' ? 'USD' : 'GHS'
+
+  // The rate is only needed when something actually has to be converted —
+  // derived from the currencies present, not from the region, so an all-GHS
+  // cart never waits on an exchange rate.
+  const cartCurrencies = new Set(cart.map(itemCurrency))
+  if (deliveryRaw) cartCurrencies.add(deliveryCurrency)
+  const needsRate =
+    [...cartCurrencies].some(c => c !== totalCurrency) ||   // to show a total
+    [...cartCurrencies].some(c => c !== 'GHS')              // to charge in GHS
+  const rateReady = !needsRate || !!rate
+
+  const sumItems = (convert) =>
+    cart.reduce(
+      (sum, i) => sum + convert(Number(rawItemPrice(i) || 0) * i.quantity, itemCurrency(i)),
+      0,
+    )
+
+  const subtotal    = rateReady ? sumItems(toDisplay) : 0
+  const deliveryFee = rateReady ? toDisplay(deliveryRaw, deliveryCurrency) : 0
   const total       = subtotal + deliveryFee
-  // A download-only cart is always GHS, even for a USA visitor.
-  const totalCurrency = hasPhysical ? currency : 'GHS'
 
-  // Paystack (Ghana accounts) can only actually charge in GHS — USD is shown
-  // throughout shopping, but converted to its GHS equivalent at payment time.
-  // A digital-only total is ALREADY in GHS (see rawItemPrice above), so it must
-  // not be converted again — doing so would inflate the charge by ~12x.
-  const rate         = useExchangeRate() // GHS -> USD
-  const ghsChargeAmount = (hasPhysical && region === 'usa' && rate) ? total / rate : total
-
-  // Until Phase B normalises the server-side price check to a single currency,
-  // a USA cart holding both a physical item (priced in USD) and a digital one
-  // (priced in GHS) would be summed across two currencies and rejected as
-  // underpaid — taking the money and withholding the order. Blocked here
-  // rather than discovered at the webhook.
-  const mixedCurrencyBlocked = region === 'usa' && hasPhysical && hasDigital
+  // Paystack (Ghana accounts) can only ever settle in GHS, so the charge is
+  // always summed in GHS regardless of what the shopper is shown.
+  const ghsChargeAmount = rateReady
+    ? sumItems(asGhs) + asGhs(deliveryRaw, deliveryCurrency)
+    : 0
 
   // Reset the chosen delivery zone if it no longer matches the active region
   useEffect(() => {
@@ -130,7 +158,7 @@ export default function CartPage() {
   // without this a download-only cart could never be checked out at all.
   const isFormValid = () =>
     form.full_name && form.email && form.phone &&
-    (!hasPhysical || selectedZone) && !mixedCurrencyBlocked
+    (!hasPhysical || selectedZone) && rateReady
 
   async function checkStock() {
     try {
@@ -155,7 +183,7 @@ export default function CartPage() {
   async function sendWhatsAppRequest() {
     const payload = {
       ...form,
-      total:               `${currency} ${total.toFixed(2)}`,
+      total:               `${totalCurrency} ${total.toFixed(2)}`,
       delivery_zone_id:    selectedZone?.id || null,
       delivery_fee:        deliveryFee,
       items: cart.map(i => ({ product_id: i.id, name: i.name, price: itemPrice(i) || '', quantity: i.quantity })),
@@ -341,10 +369,14 @@ export default function CartPage() {
                   </div>
                 )}
 
-                {mixedCurrencyBlocked && (
-                  <div style={{ marginBottom: '1rem', padding: '0.85rem 1rem', borderRadius: '10px', border: '1px solid rgba(200,80,80,0.45)', background: 'rgba(200,80,80,0.08)' }}>
-                    <p style={{ fontFamily: 'var(--sans)', fontSize: '0.8rem', color: '#e8a0a0' }}>
-                      Digital and physical items can't be bought together on an international order just yet. Please check them out separately.
+                {/* Mixed digital + physical carts are fully supported now — each
+                    line is converted in its own currency before totalling. The
+                    only remaining wait is the exchange rate itself, and only when
+                    a conversion is actually required. */}
+                {!rateReady && (
+                  <div style={{ marginBottom: '1rem', padding: '0.85rem 1rem', borderRadius: '10px', border: '1px solid var(--hair)', background: 'color-mix(in srgb, var(--champ) 5%, transparent)' }}>
+                    <p style={{ fontFamily: 'var(--sans)', fontSize: '0.8rem', color: 'var(--bone)' }}>
+                      Fetching today's exchange rate to total your order…
                     </p>
                   </div>
                 )}
@@ -394,14 +426,19 @@ export default function CartPage() {
                     <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: 'var(--sans)', fontSize: '0.95rem', fontWeight: 600, color: 'var(--champ)', borderTop: '1px solid var(--hair)', paddingTop: '0.6rem' }}>
                       <span>Total</span><span>{totalCurrency} {total.toFixed(2)}</span>
                     </div>
-                    {region === 'usa' && hasPhysical && (
+                    {totalCurrency === 'USD' && (
                       <p style={{ marginTop: '0.6rem', fontFamily: 'var(--sans)', fontSize: '0.72rem', color: 'var(--taupe-mut)', textAlign: 'right' }}>
-                        {rate ? `Charged as GHS ${ghsChargeAmount.toFixed(2)} — today's rate` : 'Loading today\'s rate…'}
+                        {rateReady ? `Charged as GHS ${ghsChargeAmount.toFixed(2)} — today's rate` : 'Loading today\'s rate…'}
                       </p>
                     )}
-                    {region === 'usa' && !hasPhysical && rate && (
+                    {totalCurrency === 'GHS' && region === 'usa' && rate && (
                       <p style={{ marginTop: '0.6rem', fontFamily: 'var(--sans)', fontSize: '0.72rem', color: 'var(--taupe-mut)', textAlign: 'right' }}>
                         ≈ USD {(total * rate).toFixed(2)} — digital items are priced in GHS worldwide
+                      </p>
+                    )}
+                    {hasPhysical && hasDigital && (
+                      <p style={{ marginTop: '0.4rem', fontFamily: 'var(--sans)', fontSize: '0.7rem', color: 'var(--taupe-mut)', textAlign: 'right' }}>
+                        Includes downloads — available immediately after payment.
                       </p>
                     )}
                   </div>
@@ -442,9 +479,9 @@ export default function CartPage() {
                         style={{ justifyContent: 'center', opacity: status === 'loading' ? 0.7 : 1, cursor: status === 'loading' ? 'not-allowed' : 'pointer' }}
                       >
                         {status === 'loading' ? 'Processing…' : `Pay with Paystack — ${
-                          mixedCurrencyBlocked ? 'Check out digital items separately'
-                          : (hasPhysical && !selectedZone) ? 'Select delivery zone'
-                          : (region === 'usa' && hasPhysical && rate) ? `USD ${total.toFixed(2)} (charged as GHS ${ghsChargeAmount.toFixed(2)})`
+                          (hasPhysical && !selectedZone) ? 'Select delivery zone'
+                          : !rateReady ? "Loading today's rate…"
+                          : totalCurrency === 'USD' ? `USD ${total.toFixed(2)} (charged as GHS ${ghsChargeAmount.toFixed(2)})`
                           : `${totalCurrency} ${total.toFixed(2)}`
                         }`}
                       </button>

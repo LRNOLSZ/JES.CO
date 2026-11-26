@@ -399,6 +399,152 @@ class ShopAccountAccessTests(TestCase):
         self.assertEqual(second.status_code, 410)
 
 
+# ── Mixed-currency price verification (Phase B) ────────────────────────────────
+
+@patch('products.views.send_branded_email')
+class MixedCurrencyPricingTests(TestCase):
+    """A USA cart can hold a USD-priced physical item AND a GHS-priced digital one.
+
+    Before Phase B those were added together into one meaningless number, so the
+    expected total came out ~12x too high and every honest payment was flagged as
+    underpaid — money captured, order withheld. Each component is now converted
+    individually before summing.
+
+    Rate is mocked at 0.08 USD per GHS (so 1 USD = 12.5 GHS) to keep the
+    arithmetic checkable by hand.
+    """
+
+    RATE = 0.08
+
+    def setUp(self):
+        self.physical = ProductItem.objects.create(
+            name='Velvet Dress', description='x',
+            price=Decimal('100.00'), price_usd=Decimal('10.00'),
+            image=_test_image(), category='makeup', quantity=10, is_active=True,
+        )
+        self.pdf = ProductItem.objects.create(
+            name='Beauty Guide', description='pdf',
+            price=Decimal('80.00'),          # GHS only — no price_usd, by design
+            image=_test_image(), category='makeup',
+            product_type='digital', digital_file=_test_pdf(), is_active=True,
+        )
+        self.usa_zone = DeliveryZone.objects.create(
+            country='usa', location_name='New York',
+            price=Decimal('5.00'),           # USD, per DeliveryZone's help_text
+            is_active=True,
+        )
+        self.ghana_zone = DeliveryZone.objects.create(
+            country='ghana', location_name='Accra',
+            price=Decimal('30.00'), is_active=True,
+        )
+
+    def _usa_mixed(self, amount_pesewas, reference):
+        data = _charge_data(
+            [{'id': self.physical.pk, 'quantity': 1}, {'id': self.pdf.pk, 'quantity': 1}],
+            amount_pesewas, reference=reference,
+        )
+        data['metadata']['delivery_zone_id'] = self.usa_zone.pk
+        return data
+
+    # physical 10 USD -> 125 GHS | digital 80 GHS | delivery 5 USD -> 62.50 GHS
+    EXPECTED_GHS = Decimal('267.50')
+    # physical 10 USD | digital 80 GHS -> 6.40 USD | delivery 5 USD
+    EXPECTED_USD = Decimal('21.40')
+
+    def test_usa_mixed_cart_is_accepted_at_the_correct_total(self, mock_email):
+        """The headline fix. Under the old maths the expected total was
+        5 + 10 + 80 = 95 'native', divided by the rate = GHS 1187.50 — so this
+        exact honest payment would have been rejected."""
+        with patch('core.views.get_ghs_usd_rate', return_value=self.RATE):
+            response = _process_product_charge(self._usa_mixed(26750, 'phb-1'))
+
+        self.assertEqual(response.data, {'detail': 'Order created.'})
+        order = Order.objects.get(paystack_reference='phb-1')
+        self.assertEqual(order.amount_ghs, self.EXPECTED_GHS)
+
+    def test_usa_mixed_cart_records_a_meaningful_usd_total(self, mock_email):
+        """amount_usd drives the '≈ $21.40 USD' line on the tracking page. It
+        used to store the mixed-currency 'native' number (95), which was not a
+        real amount in any currency."""
+        with patch('core.views.get_ghs_usd_rate', return_value=self.RATE):
+            _process_product_charge(self._usa_mixed(26750, 'phb-2'))
+
+        order = Order.objects.get(paystack_reference='phb-2')
+        self.assertEqual(order.amount_usd, self.EXPECTED_USD)
+
+    def test_usa_mixed_cart_still_rejects_a_tampered_low_amount(self, mock_email):
+        """F-01 must keep holding under the new maths: paying the old (wrong,
+        much smaller) 'native' figure of GHS 95 must not be accepted."""
+        with patch('core.views.get_ghs_usd_rate', return_value=self.RATE):
+            response = _process_product_charge(self._usa_mixed(9500, 'phb-3'))
+
+        self.assertEqual(response.data, {'detail': 'Flagged for review.'})
+        self.assertFalse(Order.objects.filter(paystack_reference='phb-3').exists())
+        self.physical.refresh_from_db()
+        self.assertEqual(self.physical.quantity, 10)   # no stock moved
+
+    def test_usa_mixed_cart_fails_safe_when_the_rate_is_unavailable(self, mock_email):
+        """An unverifiable total must be flagged, never guessed — the customer's
+        money is already captured by Paystack at this point."""
+        with patch('core.views.get_ghs_usd_rate', return_value=None):
+            response = _process_product_charge(self._usa_mixed(26750, 'phb-4'))
+
+        self.assertEqual(response.data, {'detail': 'Flagged for review.'})
+        self.assertFalse(Order.objects.filter(paystack_reference='phb-4').exists())
+        self.physical.refresh_from_db()
+        self.assertEqual(self.physical.quantity, 10)
+
+    def test_ghana_mixed_cart_needs_no_rate_at_all(self, mock_email):
+        """Everything is already GHS, so a missing rate must not affect it —
+        proving needs_rate is derived from the currencies actually present and
+        not merely from the region."""
+        data = _charge_data(
+            [{'id': self.physical.pk, 'quantity': 1}, {'id': self.pdf.pk, 'quantity': 1}],
+            21000, reference='phb-5',        # 100 + 80 + 30 delivery, all GHS
+        )
+        data['metadata']['delivery_zone_id'] = self.ghana_zone.pk
+
+        with patch('core.views.get_ghs_usd_rate', return_value=None):
+            response = _process_product_charge(data)
+
+        self.assertEqual(response.data, {'detail': 'Order created.'})
+        order = Order.objects.get(paystack_reference='phb-5')
+        self.assertEqual(order.amount_ghs, Decimal('210.00'))
+        self.assertIsNone(order.amount_usd)   # Ghana order — no USD equivalent
+
+    def test_usa_physical_only_conversion_is_unchanged(self, mock_email):
+        """Regression: the pre-existing all-USD path must still convert the same
+        way. 10 USD + 5 USD delivery = 15 USD -> 187.50 GHS."""
+        data = _charge_data([{'id': self.physical.pk, 'quantity': 1}], 18750, reference='phb-6')
+        data['metadata']['delivery_zone_id'] = self.usa_zone.pk
+
+        with patch('core.views.get_ghs_usd_rate', return_value=self.RATE):
+            response = _process_product_charge(data)
+
+        self.assertEqual(response.data, {'detail': 'Order created.'})
+        order = Order.objects.get(paystack_reference='phb-6')
+        self.assertEqual(order.amount_ghs, Decimal('187.50'))
+        self.assertEqual(order.amount_usd, Decimal('15.00'))
+
+    def test_usa_order_for_a_product_with_no_usd_price_uses_its_ghs_price(self, mock_email):
+        """The subtle case: a physical product with price_usd unset falls back to
+        the GHS price, so that line must be treated as GHS and NOT converted.
+        Getting this wrong would overcharge by ~12x. 100 GHS + 5 USD delivery
+        (62.50 GHS) = 162.50 GHS."""
+        self.physical.price_usd = None
+        self.physical.save(update_fields=['price_usd'])
+        data = _charge_data([{'id': self.physical.pk, 'quantity': 1}], 16250, reference='phb-7')
+        data['metadata']['delivery_zone_id'] = self.usa_zone.pk
+
+        with patch('core.views.get_ghs_usd_rate', return_value=self.RATE):
+            response = _process_product_charge(data)
+
+        self.assertEqual(response.data, {'detail': 'Order created.'})
+        self.assertEqual(
+            Order.objects.get(paystack_reference='phb-7').amount_ghs, Decimal('162.50')
+        )
+
+
 class PrivateStorageConfigTests(TestCase):
     """Guards the four settings that decide whether paid PDFs stay private.
 

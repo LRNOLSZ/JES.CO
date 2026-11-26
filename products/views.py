@@ -1,5 +1,6 @@
 import logging
 from decimal import Decimal
+from typing import NamedTuple
 from urllib.parse import quote
 
 from django.conf import settings
@@ -31,6 +32,40 @@ logger = logging.getLogger(__name__)
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
+
+class _Line(NamedTuple):
+    """One validated cart line, with the currency of its price carried explicitly.
+
+    `currency` is the currency of THIS line's `unit_price`, not of the customer's
+    region — a USA order for a product with no `price_usd` legitimately falls
+    back to the GHS price, and the difference matters when totalling.
+
+    The currency used to be implicit: inferred from region at the point the price
+    was chosen, then forgotten. That is what allowed a USA cart holding a
+    USD-priced physical item and a GHS-priced digital one to be summed into a
+    single meaningless number. Carrying it here makes that sum impossible to
+    write rather than merely something to remember to avoid.
+    """
+    product:    'ProductItem'
+    qty:        int
+    unit_price: Decimal
+    currency:   str   # 'GHS' | 'USD'
+
+    @property
+    def line_total(self):
+        return self.unit_price * self.qty
+
+
+# rate is USD per ONE GHS (≈0.08) — see get_ghs_usd_rate in core/views.py.
+# So GHS = USD / rate, and USD = GHS * rate.
+
+def _as_ghs(amount, currency, rate):
+    return amount if currency == 'GHS' else amount / Decimal(str(rate))
+
+
+def _as_usd(amount, currency, rate):
+    return amount if currency == 'USD' else amount * Decimal(str(rate))
+
 
 def _build_whatsapp_url(text):
     number = getattr(settings, 'WHATSAPP_NUMBER', '')
@@ -342,40 +377,70 @@ def _process_product_charge(data):
             # Ghana and international buyers, with a USD figure shown alongside for
             # information. Making that explicit here (rather than relying on
             # price_usd being left blank in the admin) keeps the rule in one place.
-            unit_price = product.price
+            unit_price, line_currency = product.price, 'GHS'
+        elif is_usa and product.price_usd:
+            unit_price, line_currency = product.price_usd, 'USD'
         else:
-            unit_price = product.price_usd if (is_usa and product.price_usd) else product.price
+            # Includes a USA order for a physical product with no price_usd set —
+            # it falls back to the GHS price, so the currency must say GHS.
+            unit_price, line_currency = product.price, 'GHS'
         if unit_price is None:
             invalid_reason = f'Product {pid} has no price set'
             break
-        validated_items.append((product, qty, unit_price))
+        validated_items.append(_Line(product, qty, unit_price, line_currency))
 
     # Nothing physical in the cart means nothing to deliver. Zeroed here rather
     # than trusted from the client so a stale or tampered delivery_zone_id can
     # never attach a shipping charge to a download-only order. is_usa is reset
     # with it because it is derived from the zone and would otherwise leave a
     # digital-only order tagged with a USD equivalent it was never quoted in.
-    has_physical = any(not p.is_digital for p, _, _ in validated_items)
+    has_physical = any(not line.product.is_digital for line in validated_items)
     if not has_physical:
         delivery_zone = None
         delivery_fee  = Decimal('0')
         is_usa        = False
 
-    expected_total_native = delivery_fee + sum((u * q for _, q, u in validated_items), Decimal('0'))
+    # DeliveryZone.price is GHS for Ghana zones and USD for USA zones (its own
+    # help_text says so), so it needs converting exactly like a line does.
+    delivery_currency = 'USD' if (delivery_zone and delivery_zone.country == 'usa') else 'GHS'
 
-    rate_unavailable = False
-    if invalid_reason:
-        expected_total_ghs = None
-    elif is_usa:
-        from core.views import get_ghs_usd_rate
-        rate = get_ghs_usd_rate()
-        if rate:
-            expected_total_ghs = expected_total_native / Decimal(str(rate))
-        else:
-            expected_total_ghs = None
+    # A rate is only needed if something is actually in a currency other than the
+    # one we're totalling in. Derived from the currencies present rather than from
+    # `is_usa`, so a USA order priced entirely in GHS never depends on the rate.
+    currencies   = {line.currency for line in validated_items}
+    if delivery_fee:
+        currencies.add(delivery_currency)
+    needs_rate   = currencies - {'GHS'} != set()
+    needs_rate_usd = currencies - {'USD'} != set()
+
+    rate_unavailable   = False
+    expected_total_ghs = None
+    expected_total_usd = None
+
+    if not invalid_reason:
+        rate = None
+        if needs_rate or (is_usa and needs_rate_usd):
+            from core.views import get_ghs_usd_rate
+            rate = get_ghs_usd_rate()
+
+        if (needs_rate or (is_usa and needs_rate_usd)) and not rate:
             rate_unavailable = True
-    else:
-        expected_total_ghs = expected_total_native
+        else:
+            # Every component converted individually, then summed — so a cart
+            # mixing a USD-priced dress and a GHS-priced PDF totals correctly
+            # instead of adding two different units together.
+            expected_total_ghs = (
+                _as_ghs(delivery_fee, delivery_currency, rate)
+                + sum((_as_ghs(line.line_total, line.currency, rate)
+                       for line in validated_items), Decimal('0'))
+            )
+            if is_usa:
+                # Display-only: the "≈ $50.00 USD" shown on the tracking page.
+                expected_total_usd = (
+                    _as_usd(delivery_fee, delivery_currency, rate)
+                    + sum((_as_usd(line.line_total, line.currency, rate)
+                           for line in validated_items), Decimal('0'))
+                )
 
     # A fixed exchange rate is applied on both ends (frontend at checkout,
     # backend here) from independently-cached snapshots, so a small legitimate
@@ -424,32 +489,41 @@ def _process_product_charge(data):
         status             = 'confirmed',
         total              = total_display,
         amount_ghs         = amount_ghs,
-        amount_usd         = round(expected_total_native, 2) if is_usa and not rate_unavailable else None,
+        amount_usd         = round(expected_total_usd, 2) if expected_total_usd is not None else None,
         delivery_zone      = delivery_zone,
         delivery_fee       = delivery_fee,
         paystack_reference = reference,
     )
-    for product, qty, unit_price in validated_items:
+    for line in validated_items:
         OrderItem.objects.create(
             order      = order,
-            product_id = product.pk,
-            name       = product.name,
-            price      = str(unit_price),
-            quantity   = qty,
+            product_id = line.product.pk,
+            name       = line.product.name,
+            # NOTE: stored without a currency marker, unchanged from before this
+            # change. A mixed USA order genuinely holds lines in two currencies,
+            # so "50.00" (a USD dress) next to "80.00" (a GHS PDF) reads as if
+            # the PDF costs more. Pre-existing — USA orders already stored
+            # unmarked USD — but newly *visible* now mixed carts are allowed.
+            # Left alone deliberately to keep this change focused; the field is
+            # display-only and rendered in emails, the tracking page, /my-orders
+            # and the admin, so changing its format is its own small task.
+            price      = str(line.unit_price),
+            quantity   = line.qty,
         )
     # Physical items only. _decrement_stock writes stock_status through a queryset
     # .update(), which bypasses ProductItem.save() and therefore the digital guard
     # living there — a digital item reaching it would be flipped to out_of_stock
     # and disappear from the shop after its first sale.
     shortages = _decrement_stock(
-        [{'id': p.pk, 'quantity': q} for p, q, _ in validated_items if not p.is_digital]
+        [{'id': line.product.pk, 'quantity': line.qty}
+         for line in validated_items if not line.product.is_digital]
     )
 
     # Grant permanent access to any digital items in this order. Safe against
     # Paystack's webhook retries two ways over: this runs after the
     # paystack_reference guard at the top of the function, and get_or_create is
     # idempotent against the ('email', 'product') unique constraint anyway.
-    digital_items = [p for p, _, _ in validated_items if p.is_digital]
+    digital_items = [line.product for line in validated_items if line.product.is_digital]
     for product in digital_items:
         DigitalEntitlement.objects.get_or_create(
             email=email,
@@ -463,8 +537,8 @@ def _process_product_charge(data):
         if order.delivery_zone else '—'
     )
     footnote = (
-        f'Quoted at checkout as approximately ${expected_total_native:.2f} — charged at today\'s rate.'
-        if is_usa and not rate_unavailable else ''
+        f'Quoted at checkout as approximately ${expected_total_usd:.2f} — charged at today\'s rate.'
+        if expected_total_usd is not None else ''
     )
     receipt_message = _build_receipt_message(order)
     if digital_items:

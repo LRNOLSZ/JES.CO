@@ -29,9 +29,21 @@ def get_client_ip(request):
 
 
 def get_ghs_usd_rate():
-    """Returns how many USD one GHS is worth, cached for a day. Display-only —
-    never used to compute an actual Paystack charge, so a stale/missing rate
-    is never a financial correctness issue, only a cosmetic one."""
+    """Returns how many USD one GHS is worth, cached for a day.
+
+    ⚠️ NOT display-only, despite what this docstring claimed until 2026-11-26.
+    `products/views.py`'s charge handler uses this rate to convert USD-priced
+    items and delivery fees into GHS when recomputing the expected total — i.e.
+    it feeds the check that decides whether a payment is flagged as underpaid
+    and withheld from the customer.
+
+    A missing rate is therefore handled explicitly rather than ignored: the
+    charge handler sets `rate_unavailable` and flags the order for manual review
+    instead of guessing, so an unverifiable total never silently passes. The
+    frontend and backend convert from independently-cached snapshots of this
+    rate, which is why the price check uses a relative (2%) tolerance rather
+    than requiring an exact match.
+    """
     rate = cache.get(RATE_CACHE_KEY)
     if rate is not None:
         return rate
