@@ -1,5 +1,7 @@
 from rest_framework import serializers
-from .models import DeliveryZone, DigitalEntitlement, Order, OrderItem, ProductItem
+from .models import (
+    DeliveryZone, DigitalEntitlement, Order, OrderItem, ProductImage, ProductItem,
+)
 
 
 class DeliveryZoneSerializer(serializers.ModelSerializer):
@@ -45,7 +47,24 @@ class OrderStatusSerializer(serializers.ModelSerializer):
         ]
 
 
+class ProductImageSerializer(serializers.ModelSerializer):
+    """An extra gallery photo. Absolute URL so it works identically whether the
+    page is rendered in the browser or by the build-time pre-renderer."""
+    image_url = serializers.SerializerMethodField()
+
+    class Meta:
+        model  = ProductImage
+        fields = ['id', 'image_url', 'alt_text', 'order']
+
+    def get_image_url(self, obj):
+        if not obj.image:
+            return None
+        request = self.context.get('request')
+        return request.build_absolute_uri(obj.image.url) if request else obj.image.url
+
+
 class ProductItemSerializer(serializers.ModelSerializer):
+    images           = ProductImageSerializer(many=True, read_only=True)
     image_url        = serializers.SerializerMethodField()
     category_display = serializers.CharField(source='get_category_display', read_only=True)
     type_display     = serializers.CharField(source='get_product_type_display', read_only=True)
@@ -54,8 +73,8 @@ class ProductItemSerializer(serializers.ModelSerializer):
     class Meta:
         model  = ProductItem
         fields = [
-            'id', 'name', 'description', 'price', 'price_usd',
-            'image_url', 'category', 'category_display',
+            'id', 'slug', 'name', 'description', 'price', 'price_usd',
+            'image_url', 'images', 'category', 'category_display',
             'product_type', 'type_display',
             'stock_status', 'stock_display', 'quantity', 'order',
         ]

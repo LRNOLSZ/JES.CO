@@ -10,7 +10,8 @@ from django.urls import reverse
 from django.utils import timezone
 
 from .models import (
-    DeliveryZone, DigitalEntitlement, Order, ProductItem, ShopAccessToken, ShopSession,
+    DeliveryZone, DigitalEntitlement, Order, ProductImage, ProductItem,
+    ShopAccessToken, ShopSession,
 )
 from .views import _process_product_charge, _tracking_url
 
@@ -397,6 +398,94 @@ class ShopAccountAccessTests(TestCase):
 
         second = self.client.post(url, {'token': token.token})
         self.assertEqual(second.status_code, 410)
+
+
+# ── Product slugs + gallery images (Phase C1) ──────────────────────────────────
+
+class ProductSlugTests(TestCase):
+    def _product(self, name, **kw):
+        # Defaults via a dict so a caller can override any of them — passing
+        # category= as a kwarg collided with a hardcoded one otherwise.
+        fields = {
+            'name': name, 'description': 'x', 'price': Decimal('10.00'),
+            'image': _test_image(), 'category': 'makeup',
+            'quantity': 5, 'is_active': True,
+        }
+        fields.update(kw)
+        return ProductItem.objects.create(**fields)
+
+    def test_slug_is_generated_from_the_name(self):
+        p = self._product('Velvet Wrap Dress')
+        self.assertEqual(p.slug, 'velvet-wrap-dress')
+
+    def test_duplicate_names_get_distinct_slugs(self):
+        """The case the Course/CourseTier slug pattern does NOT handle: their
+        titles are unique, but ProductItem.name has no unique constraint. Without
+        uniquifying, adding a second 'Gold Set' would raise IntegrityError in the
+        admin while Maame Ama was mid-upload."""
+        a = self._product('Gold Set')
+        b = self._product('Gold Set', category='skincare')
+        c = self._product('Gold Set', category='collections')
+
+        self.assertEqual(a.slug, 'gold-set')
+        self.assertEqual(b.slug, 'gold-set-2')
+        self.assertEqual(c.slug, 'gold-set-3')
+        self.assertEqual(len({a.slug, b.slug, c.slug}), 3)
+
+    def test_an_existing_slug_is_not_rewritten_on_later_saves(self):
+        """A slug is a URL. Regenerating it on rename would silently break any
+        link already shared or indexed."""
+        p = self._product('Velvet Wrap Dress')
+        p.name = 'Velvet Wrap Dress (Second Edition)'
+        p.save()
+        p.refresh_from_db()
+        self.assertEqual(p.slug, 'velvet-wrap-dress')
+
+    def test_a_name_with_no_sluggable_characters_still_gets_a_slug(self):
+        p = self._product('???')
+        self.assertTrue(p.slug)
+
+
+class ProductDetailApiTests(TestCase):
+    def setUp(self):
+        self.product = ProductItem.objects.create(
+            name='Velvet Wrap Dress', description='A dress.', price=Decimal('250.00'),
+            image=_test_image(), category='collections', quantity=4, is_active=True,
+        )
+
+    def test_lookup_by_slug_returns_the_product(self):
+        url = reverse('product-by-slug', args=[self.product.slug])
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data['slug'], self.product.slug)
+        self.assertEqual(response.data['name'], 'Velvet Wrap Dress')
+
+    def test_unknown_slug_404s(self):
+        response = self.client.get(reverse('product-by-slug', args=['no-such-product']))
+        self.assertEqual(response.status_code, 404)
+
+    def test_inactive_product_is_not_exposed(self):
+        self.product.is_active = False
+        self.product.save(update_fields=['is_active'])
+        response = self.client.get(reverse('product-by-slug', args=[self.product.slug]))
+        self.assertEqual(response.status_code, 404)
+
+    def test_product_with_no_gallery_images_serves_an_empty_list(self):
+        """The common case — makeup, skincare and digital products will mostly
+        never have extras, so this must not require a backfill or special-casing."""
+        response = self.client.get(reverse('product-by-slug', args=[self.product.slug]))
+        self.assertEqual(response.data['images'], [])
+
+    def test_gallery_images_are_returned_in_order(self):
+        ProductImage.objects.create(product=self.product, image=_test_image(), order=2, alt_text='back')
+        ProductImage.objects.create(product=self.product, image=_test_image(), order=1, alt_text='front')
+
+        response = self.client.get(reverse('product-by-slug', args=[self.product.slug]))
+        self.assertEqual([i['alt_text'] for i in response.data['images']], ['front', 'back'])
+
+    def test_list_endpoint_includes_slug_so_cards_can_link(self):
+        response = self.client.get(reverse('product-list'))
+        self.assertTrue(all(p['slug'] for p in response.data))
 
 
 # ── Mixed-currency price verification (Phase B) ────────────────────────────────

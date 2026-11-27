@@ -56,6 +56,9 @@ const DATA_ASSERTIONS = {
 // Applied to every dynamically-discovered course detail route.
 const COURSE_ASSERTIONS = [{ label: 'course JSON-LD', test: /application\/ld\+json/ }]
 
+// Applied to every dynamically-discovered product detail route.
+const PRODUCT_ASSERTIONS = [{ label: 'product JSON-LD', test: /application\/ld\+json/ }]
+
 // Playwright errors carry a multi-line call log; one line is enough per route.
 function firstLine(err) {
   return (err?.message || String(err)).split('\n')[0]
@@ -64,6 +67,7 @@ function firstLine(err) {
 function assertionsFor(route) {
   if (DATA_ASSERTIONS[route]) return DATA_ASSERTIONS[route]
   if (/^\/studio\/courses\/[^/]+$/.test(route)) return COURSE_ASSERTIONS
+  if (/^\/product\/[^/]+$/.test(route)) return PRODUCT_ASSERTIONS
   return []
 }
 
@@ -87,6 +91,48 @@ async function getCourseRoutes(baseUrl) {
     )
   }
   return courses.map(c => `/studio/courses/${c.slug}`)
+}
+
+// Same contract as getCourseRoutes: fetched through the preview proxy, and
+// throws rather than returning [] so a failure fails the build instead of
+// quietly shipping a shop with no product pages.
+//
+// Note this scales with the catalogue — one pre-rendered page per product. Fine
+// at the current size, but worth revisiting before the catalogue gets large,
+// especially on a low-core machine (see the dev_machine_constraints memory).
+async function getProductRoutes(baseUrl) {
+  const res = await fetch(`${baseUrl}/api/products/`)
+  if (!res.ok) {
+    throw new Error(
+      `products API returned ${res.status} via the preview proxy. ` +
+      `Check the /api proxy target in vite.config.js and that the backend is reachable.`
+    )
+  }
+  const products = await res.json()
+  if (!products.length) {
+    throw new Error(
+      'products API returned an empty list — refusing to build with zero product pages. '
+      + 'If the catalogue is genuinely empty, remove this guard deliberately.'
+    )
+  }
+  // A product with no slug has no URL, so it would silently get no page.
+  // Throwing rather than filtering is deliberate: filtering would turn a
+  // deploy-ordering problem into a green build that ships an incomplete shop.
+  const missing = products.filter(p => !p.slug)
+  if (missing.length) {
+    throw new Error(
+      `${missing.length} of ${products.length} product(s) came back with no slug, `
+      + `so they would have no page: ${missing.map(p => p.name).join(', ')}.\n`
+      + `  This frontend build reads the LIVE backend through the preview proxy, so it\n`
+      + `  depends on the backend already being migrated. Most likely cause, in order:\n`
+      + `    1. A deploy race — this build won the race against Railway's migrate step\n`
+      + `       on the very push that added ProductItem.slug. Wait for Railway to finish,\n`
+      + `       then re-run this workflow; nothing is wrong with the code.\n`
+      + `    2. Migrations 0012/0013 genuinely haven't been applied to that backend.\n`
+      + `  Failing on purpose either way — the last good deployment stays live.`
+    )
+  }
+  return products.map(p => `/product/${p.slug}`)
 }
 
 // Renders one route and returns its HTML, or throws.
@@ -148,7 +194,11 @@ async function main() {
   const baseUrl = server.resolvedUrls.local[0].replace(/\/$/, '')
 
   const browser = await chromium.launch()
-  const routes = [...STATIC_ROUTES, ...await getCourseRoutes(baseUrl)]
+  const routes = [
+    ...STATIC_ROUTES,
+    ...await getCourseRoutes(baseUrl),
+    ...await getProductRoutes(baseUrl),
+  ]
 
   let succeeded = 0
   let skipped = 0

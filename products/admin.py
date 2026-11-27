@@ -9,7 +9,9 @@ from unfold.decorators import display
 from core.admin import action_button, person_display, url_preview
 from jesrestudio_backend.email_backends import send_branded_email
 
-from .models import DeliveryZone, DigitalEntitlement, Order, OrderItem, ProductItem
+from .models import (
+    DeliveryZone, DigitalEntitlement, Order, OrderItem, ProductImage, ProductItem,
+)
 from .views import _account_url, _tracking_url
 
 
@@ -150,8 +152,24 @@ class OrderAdmin(ImportExportModelAdmin, ModelAdmin):
 
 # ── Products ───────────────────────────────────────────────────────────────────
 
+class ProductImageInline(TabularInline):
+    """Extra gallery photos. Mostly for fashion — a dress needs front, back and
+    detail shots; a makeup set usually needs none, and leaving this empty is the
+    normal case, not an omission."""
+    model           = ProductImage
+    extra           = 0
+    tab             = True
+    fields          = ('image', 'preview', 'alt_text', 'order')
+    readonly_fields = ('preview',)
+
+    @display(description='Preview')
+    def preview(self, obj):
+        return url_preview(obj.image, size=70)
+
+
 @admin.register(ProductItem)
 class ProductItemAdmin(ModelAdmin):
+    inlines = [ProductImageInline]
     # `quantity` stays inline-editable: physical stock management is the daily
     # workflow and list_editable can't be made conditional per row. On a digital
     # row the value is simply ignored by ProductItem.save().
@@ -160,12 +178,15 @@ class ProductItemAdmin(ModelAdmin):
     list_filter   = ('product_type', 'category', 'stock_status', 'is_active')
     search_fields = ('name', 'description')
     ordering      = ('category', 'order', '-created_at')
-    readonly_fields = ('image_preview',)
+    readonly_fields = ('image_preview', 'slug', 'public_url')
     fieldsets = (
         ('Basic Info', {
-            'fields': ('category', 'product_type', 'name', 'description', 'image', 'image_preview'),
+            'fields': ('category', 'product_type', 'name', 'slug', 'public_url',
+                       'description', 'image', 'image_preview'),
             'description': 'Set Type to "Digital" for downloadable products (PDF guides). '
-                           'Digital items need no delivery, address or stock.',
+                           'Digital items need no delivery, address or stock. '
+                           'The web address is generated from the name — add extra photos '
+                           'under the Product Images tab.',
         }),
         ('Digital File', {
             'fields': ('digital_file',),
@@ -198,6 +219,14 @@ class ProductItemAdmin(ModelAdmin):
     def image_preview(self, obj):
         return url_preview(obj.image)
     image_preview.short_description = 'Current'
+
+    @display(description='Page on the website')
+    def public_url(self, obj):
+        if not obj or not obj.slug:
+            return 'Saved products get their own page automatically.'
+        from django.conf import settings
+        base = getattr(settings, 'FRONTEND_URL', '')
+        return action_button(f'{base}/product/{obj.slug}', 'View this product page')
 
     def thumb(self, obj):
         if obj.image:

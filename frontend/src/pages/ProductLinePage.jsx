@@ -7,7 +7,7 @@ import JescoFooter from '../components/JescoFooter'
 import { Reveal, SectionHead, ArrowIcon } from '../components/Reveal'
 import { useCart } from '../context/CartContext'
 import { useRegion } from '../context/RegionContext'
-import { formatPrice } from '../utils/price'
+import { isDigitalProduct, productPriceLabel } from '../utils/price'
 import SEO from '../components/SEO'
 
 const META = {
@@ -192,7 +192,7 @@ function ProductCard({ item, added, onAdd }) {
   // A digital product has no stock, so the low-stock and sold-out treatments
   // would be meaningless (and "Only 0 left" actively wrong) — it is simply
   // always available.
-  const isDigital  = item.product_type === 'digital'
+  const isDigital  = isDigitalProduct(item)
   const isLowStock = !isDigital && item.stock_status === 'in_stock' && item.quantity > 0 && item.quantity <= LOW_STOCK_THRESHOLD
   const stock = isDigital
     ? { color: 'var(--champ)', label: 'Instant download' }
@@ -201,15 +201,10 @@ function ProductCard({ item, added, onAdd }) {
       : (STOCK[item.stock_status] || STOCK.coming_soon)
   const canBuy  = isDigital || item.stock_status === 'in_stock'
   const soldOut = !isDigital && item.stock_status === 'out_of_stock'
-  // Digital products are priced in GHS worldwide — one price, no regional
-  // variant. Must match the same rule in CartPage and the server-side charge
-  // handler, or the price check rejects the order.
-  const displayPrice = isDigital
-    ? formatPrice(item.price, 'GHS')
-    : formatPrice(
-        region === 'usa' && item.price_usd ? item.price_usd : item.price,
-        region === 'usa' ? 'USD' : 'GHS'
-      )
+  // Shared helper — the digital-is-GHS-worldwide rule lives in utils/price.js
+  // so this page, the detail page and the cart cannot drift from each other or
+  // from the server-side charge handler.
+  const displayPrice = productPriceLabel(item, region)
 
   return (
     <div
@@ -229,8 +224,10 @@ function ProductCard({ item, added, onAdd }) {
         opacity:       soldOut ? 0.55 : 1,
       }}
     >
-      {/* Image */}
-      <div style={{ position: 'relative', width: '100%', aspectRatio: '4 / 3', overflow: 'hidden', background: 'var(--ink-2)' }}>
+      {/* Image — links through to the product's own page, where the full
+          gallery and (from Phase C2) the size picker live. Add-to-cart stays
+          on the card below so a returning buyer needn't take two steps. */}
+      <Link to={`/product/${item.slug}`} style={{ display: 'block', position: 'relative', width: '100%', aspectRatio: '4 / 3', overflow: 'hidden', background: 'var(--ink-2)' }}>
         {item.image_url ? (
           <img
             src={item.image_url}
@@ -263,13 +260,15 @@ function ProductCard({ item, added, onAdd }) {
 
         {/* Gold top accent */}
         <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '3px', background: 'var(--metal)' }} />
-      </div>
+      </Link>
 
       {/* Info */}
       <div style={{ padding: '1.6rem', display: 'flex', flexDirection: 'column', flex: 1, gap: '0.5rem' }}>
-        <h3 className="serif" style={{ fontSize: '1.25rem', fontWeight: 500, color: 'var(--bone)', lineHeight: 1.2 }}>
-          {item.name}
-        </h3>
+        <Link to={`/product/${item.slug}`} style={{ textDecoration: 'none' }}>
+          <h3 className="serif" style={{ fontSize: '1.25rem', fontWeight: 500, color: 'var(--bone)', lineHeight: 1.2 }}>
+            {item.name}
+          </h3>
+        </Link>
 
         {displayPrice && (
           <span style={{ fontFamily: 'var(--sans)', fontSize: '0.82rem', fontWeight: 600, color: 'var(--champ)' }}>

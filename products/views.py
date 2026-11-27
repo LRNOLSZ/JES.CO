@@ -144,7 +144,10 @@ class ProductItemListView(APIView):
     permission_classes = [AllowAny]
 
     def get(self, request):
-        qs = ProductItem.objects.filter(is_active=True)
+        # prefetch_related because ProductItemSerializer now nests `images`.
+        # Without it this is one extra query per product — invisible at 3
+        # products, a real cost once the fashion catalogue fills out.
+        qs = ProductItem.objects.filter(is_active=True).prefetch_related('images')
         category = request.query_params.get('category')
         if category:
             qs = qs.filter(category=category)
@@ -152,14 +155,37 @@ class ProductItemListView(APIView):
 
 
 class ProductItemDetailView(APIView):
+    """Single product, by pk. Kept for anything already calling it — the
+    customer-facing detail page uses the slug route below instead."""
     permission_classes = [AllowAny]
 
     def get(self, request, pk):
-        try:
-            item = ProductItem.objects.get(pk=pk, is_active=True)
-            return Response(ProductItemSerializer(item, context={'request': request}).data)
-        except ProductItem.DoesNotExist:
+        item = (ProductItem.objects
+                .filter(pk=pk, is_active=True)
+                .prefetch_related('images')
+                .first())
+        if not item:
             return Response({'detail': 'Not found.'}, status=drf_status.HTTP_404_NOT_FOUND)
+        return Response(ProductItemSerializer(item, context={'request': request}).data)
+
+
+class ProductItemBySlugView(APIView):
+    """GET /api/products/by-slug/<slug>/ — powers /product/<slug>.
+
+    Slug rather than pk so each product has one stable, readable, canonical URL
+    that survives reordering and reads properly in search results. `images` is
+    prefetched because the detail page renders the whole gallery.
+    """
+    permission_classes = [AllowAny]
+
+    def get(self, request, slug):
+        item = (ProductItem.objects
+                .filter(slug=slug, is_active=True)
+                .prefetch_related('images')
+                .first())
+        if not item:
+            return Response({'detail': 'Not found.'}, status=drf_status.HTTP_404_NOT_FOUND)
+        return Response(ProductItemSerializer(item, context={'request': request}).data)
 
 
 # ── Delivery zones ────────────────────────────────────────────────────────────

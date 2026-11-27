@@ -17,6 +17,7 @@ import StudioVideoSection  from './components/StudioVideoSection'
 import GalleryPage          from './pages/GalleryPage'
 import JescoHomePage        from './pages/JescoHomePage'
 import ProductLinePage      from './pages/ProductLinePage'
+import ProductDetailPage    from './pages/ProductDetailPage'
 import CoursesPage          from './pages/CoursesPage'
 import CourseDetailPage     from './pages/CourseDetailPage'
 import CourseAccessPage        from './pages/CourseAccessPage'
@@ -107,6 +108,13 @@ export default function App() {
       <Route path="/studio/courses"       element={<CoursesPage />} />
       <Route path="/studio/courses/:slug" element={<CourseDetailPage />} />
       <Route path="/products/:category"              element={<ProductLinePage />} />
+      {/* Singular /product/ on purpose: /products/:slug would be
+          indistinguishable from /products/:category above, and nesting it as
+          /products/:category/:slug would make one product reachable at three
+          URLs — duplicate content, which works against the SEO work. One
+          canonical URL per product instead. Pre-rendered per product by
+          prerender.mjs's getProductRoutes(). */}
+      <Route path="/product/:slug"                   element={<ProductDetailPage />} />
       <Route path="/studio/courses/access"           element={<CourseAccessPage />} />
       <Route path="/studio/courses/access/verify"    element={<CourseAccessVerifyPage />} />
       <Route path="/studio/courses/dashboard"        element={<CoursesDashboardPage />} />

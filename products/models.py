@@ -3,6 +3,7 @@ import secrets
 from django.core.validators import FileExtensionValidator
 from django.db import models
 from django.utils import timezone
+from django.utils.text import slugify
 from imagekit.models import ProcessedImageField
 from imagekit.processors import ResizeToFit
 
@@ -34,6 +35,9 @@ class ProductItem(models.Model):
     ]
 
     name         = models.CharField(max_length=200)
+    slug         = models.SlugField(max_length=220, unique=True, blank=True,
+                     help_text='URL for this product\'s own page, e.g. /product/velvet-wrap-dress. '
+                               'Generated from the name automatically — leave blank.')
     description  = models.TextField()
     price        = models.DecimalField(max_digits=8, decimal_places=2, null=True, blank=True,
                      help_text='Price in GHS')
@@ -85,7 +89,29 @@ class ProductItem(models.Model):
             })
         super().clean()
 
+    def _unique_slug(self):
+        """Slug from the name, with a numeric suffix if that's already taken.
+
+        ⚠️ Deliberately more careful than the CourseTier/Course pattern, which
+        does a bare slugify(). Those get away with it because their titles are
+        unique; ProductItem.name has NO unique constraint, so two "Gold Set"
+        products in different categories would collide and raise IntegrityError
+        on save — in the admin, with a 500, while she's adding stock.
+        """
+        base = slugify(self.name) or 'product'
+        base = base[:200]
+        candidate = base
+        n = 2
+        taken = ProductItem.objects.exclude(pk=self.pk)
+        while taken.filter(slug=candidate).exists():
+            candidate = f'{base}-{n}'
+            n += 1
+        return candidate
+
     def save(self, *args, **kwargs):
+        if not self.slug:
+            self.slug = self._unique_slug()
+
         # Physical items only. Without this guard a digital product — which has
         # no stock and so sits at quantity 0 forever — would flip itself to
         # 'out_of_stock' on its very first save and disappear from the shop the
@@ -103,6 +129,42 @@ class ProductItem(models.Model):
 
     def __str__(self):
         return f'{self.get_category_display()} — {self.name}'
+
+
+class ProductImage(models.Model):
+    """Extra photos for a product, beyond its primary `ProductItem.image`.
+
+    Optional by design: `ProductItem.image` remains the single thumbnail used in
+    listings and the cart, so every existing product keeps working untouched and
+    nothing has to be backfilled. A product with no rows here simply shows one
+    photo, exactly as before.
+
+    This exists for fashion — nobody buys a dress from a single 4:3 thumbnail;
+    they want front, back, detail and on-model. Makeup and skincare sets will
+    mostly never have extras, and that's fine: it's an optional capability per
+    product, not a rule about a category.
+    """
+    product = models.ForeignKey(ProductItem, on_delete=models.CASCADE, related_name='images')
+    image   = ProcessedImageField(
+                upload_to='products/gallery/',
+                processors=[ResizeToFit(1200, 1200)],
+                format='WEBP',
+                options={'quality': 88},
+                help_text='Additional product photo — auto-converted to WebP. '
+                          'Larger than the thumbnail since these are viewed full-size.',
+              )
+    alt_text = models.CharField(max_length=200, blank=True,
+                 help_text='Describes the photo for screen readers and image search, '
+                           'e.g. "back view of the velvet wrap dress". Optional.')
+    order    = models.PositiveIntegerField(default=0, help_text='Lower number appears first')
+
+    class Meta:
+        ordering            = ['order', 'pk']
+        verbose_name        = 'Product Image'
+        verbose_name_plural = 'Product Images'
+
+    def __str__(self):
+        return f'{self.product.name} — image {self.order}'
 
 
 class DeliveryZone(models.Model):
